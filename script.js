@@ -391,7 +391,7 @@ function calculateFITTVP(data) {
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練');
         prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
-        prescription.progression = '每2-4週增加10%運動時間或頻率';
+        prescription.progression = '每2-4週增加10%運動時間或頻率，目標達到ACSM建議：每週至少150分鐘中強度或75分鐘高強度有氧運動';
         
     } else if (data.age >= 65) {
         // 銀髮族 (65歲以上) - WHO建議：與成人相同，但加強平衡訓練
@@ -400,7 +400,7 @@ function calculateFITTVP(data) {
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練', '平衡訓練', '柔軟度訓練');
         prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
-        prescription.progression = '每2-4週增加10%運動時間或頻率';
+        prescription.progression = '每2-4週增加10%運動時間或頻率，目標達到ACSM建議：每週至少150分鐘中強度有氧運動，並加強平衡訓練';
         prescription.warnings.push('高齡使用者請特別注意運動安全');
         prescription.recommendations.push('每週至少3次平衡訓練，預防跌倒');
     }
@@ -414,7 +414,7 @@ function calculateFITTVP(data) {
                 prescription.time = 30;
                 prescription.intensity = 'light';
                 prescription.volume = 270; // 3.0 METs × 30分鐘 × 3次
-                prescription.progression = '前8週建立習慣，之後逐步增加至WHO建議';
+                prescription.progression = '前8週建立習慣，之後逐步增加至ACSM建議（每週150分鐘中強度有氧運動）';
                 break;
             case 'fair':
                 // 一般：WHO基準的80%
@@ -422,7 +422,7 @@ function calculateFITTVP(data) {
                 prescription.time = 30;
                 prescription.intensity = 'light-moderate';
                 prescription.volume = 420; // 3.5 METs × 30分鐘 × 4次
-                prescription.progression = '每4週增加1次運動，達到WHO建議';
+                prescription.progression = '每4週增加1次運動，達到ACSM建議（每週150分鐘中強度有氧運動）';
                 break;
             case 'good':
                 // 良好：維持WHO建議
@@ -557,7 +557,7 @@ function calculateFITTVP(data) {
             if (data.age >= 18) {
                 prescription.frequency = Math.max(3, Math.floor(prescription.frequency * 0.6)); // 至少3次
                 prescription.time = Math.max(20, Math.floor(prescription.time * 0.7)); // 至少20分鐘
-                prescription.progression = '前4週每週3次建立習慣，8週後逐步達到WHO建議';
+                prescription.progression = '前4週每週3次建立習慣，8週後逐步達到ACSM建議（每週150分鐘中強度有氧運動）';
             }
             break;
         case 'light':
@@ -565,7 +565,7 @@ function calculateFITTVP(data) {
             if (data.age >= 18) {
                 prescription.frequency = Math.max(4, Math.floor(prescription.frequency * 0.8));
                 prescription.time = Math.floor(prescription.time * 0.9);
-                prescription.progression = '每4週增加1次運動頻率，逐步達到WHO建議';
+                prescription.progression = '每4週增加1次運動頻率，逐步達到ACSM建議（每週150分鐘中強度有氧運動）';
             }
             break;
         case 'moderate':
