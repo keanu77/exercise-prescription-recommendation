@@ -84,16 +84,27 @@ function getMETActivitiesHtml(prescription) {
 
 // 健康狀況切換功能
 function toggleHealthConditions(radioButton) {
+    console.log('toggleHealthConditions called with value:', radioButton.value); // 調試用
+    
     const healthConditionsDiv = document.getElementById('healthConditions');
     const diseaseCheckboxes = document.querySelectorAll('input[name="diseases"]');
+    
+    if (!healthConditionsDiv) {
+        console.error('healthConditions element not found!');
+        return;
+    }
     
     if (radioButton.value === 'healthy') {
         // 如果選擇健康狀況良好，隱藏其他選項並清除所有疾病選項
         healthConditionsDiv.classList.add('hidden');
+        healthConditionsDiv.style.display = 'none'; // 確保隱藏
         diseaseCheckboxes.forEach(checkbox => checkbox.checked = false);
+        console.log('Hidden health conditions');
     } else if (radioButton.value === 'has_conditions') {
         // 如果選擇有健康狀況需注意，顯示疾病選項
         healthConditionsDiv.classList.remove('hidden');
+        healthConditionsDiv.style.display = 'block'; // 確保顯示
+        console.log('Shown health conditions');
     }
 }
 
