@@ -4,7 +4,7 @@
   "description": "運動處方推薦系統 - 基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引",
   "main": "index.html",
   "scripts": {
-    "start": "serve -s . -l 3000",
+    "start": "serve -s . -p $PORT",
     "build": "echo 'Static site - no build needed'"
   },
   "keywords": [
