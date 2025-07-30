@@ -82,6 +82,21 @@ function getMETActivitiesHtml(prescription) {
     `;
 }
 
+// 健康狀況切換功能
+function toggleHealthConditions(radioButton) {
+    const healthConditionsDiv = document.getElementById('healthConditions');
+    const diseaseCheckboxes = document.querySelectorAll('input[name="diseases"]');
+    
+    if (radioButton.value === 'healthy') {
+        // 如果選擇健康狀況良好，隱藏其他選項並清除所有疾病選項
+        healthConditionsDiv.classList.add('hidden');
+        diseaseCheckboxes.forEach(checkbox => checkbox.checked = false);
+    } else if (radioButton.value === 'has_conditions') {
+        // 如果選擇有健康狀況需注意，顯示疾病選項
+        healthConditionsDiv.classList.remove('hidden');
+    }
+}
+
 // BMI 計算功能
 function calculateBMI() {
     const age = parseInt(document.getElementById('age').value);
@@ -248,6 +263,13 @@ function validateForm() {
         return false;
     }
     
+    // 檢查健康狀況 (radio button)
+    const healthStatus = document.querySelector('input[name="health_status"]:checked');
+    if (!healthStatus) {
+        alert('請選擇您的健康狀況');
+        return false;
+    }
+    
     return true;
 }
 
@@ -267,8 +289,9 @@ function collectFormData() {
         const weightElement = document.getElementById('weight');
         const fitnessElement = document.querySelector('input[name="fitness_level"]:checked');
         const exerciseElement = document.querySelector('input[name="exercise_habit"]:checked');
+        const healthStatusElement = document.querySelector('input[name="health_status"]:checked');
         
-        if (!ageElement || !genderElement || !heightElement || !weightElement || !fitnessElement || !exerciseElement) {
+        if (!ageElement || !genderElement || !heightElement || !weightElement || !fitnessElement || !exerciseElement || !healthStatusElement) {
             throw new Error('表單資料不完整');
         }
         
@@ -283,13 +306,20 @@ function collectFormData() {
             bmi = Math.round(bmi * 10) / 10;
         }
         
+        // 收集疾病資料：如果選擇健康狀況良好，則設為空陣列
+        let diseases = [];
+        if (healthStatusElement.value === 'has_conditions') {
+            diseases = Array.from(document.querySelectorAll('input[name="diseases"]:checked')).map(cb => cb.value);
+        }
+
         const formData = {
             age: age,
             gender: genderElement.value,
             height: height,
             weight: weight,
             bmi: bmi, // 未成年為null
-            diseases: Array.from(document.querySelectorAll('input[name="diseases"]:checked')).map(cb => cb.value),
+            health_status: healthStatusElement.value,
+            diseases: diseases,
             fitness_level: fitnessElement.value,
             exercise_habit: exerciseElement.value,
             limitations: Array.from(document.querySelectorAll('input[name="limitations"]:checked')).map(cb => cb.value)
@@ -366,47 +396,51 @@ function calculateFITTVP(data) {
         prescription.warnings.push('注意運動傷害預防和適當休息');
         
     } else if (data.age >= 18 && data.age <= 64) {
-        // 成人 (18-64歲)
-        prescription.frequency = 4;
-        prescription.time = 38; // 約150分鐘/週 ÷ 4次
+        // 成人 (18-64歲) - 提升至更積極的運動建議
+        prescription.frequency = 6;
+        prescription.time = 35; // 210分鐘/週，超過WHO基本建議
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練');
-        prescription.volume = 500;
+        prescription.volume = 735; // 3.5 METs × 35分鐘 × 6次
         prescription.recommendations.push('每週至少2次肌力訓練');
         
     } else if (data.age >= 65) {
-        // 銀髮族 (65歲以上)
-        prescription.frequency = Math.max(3, prescription.frequency);
-        prescription.type.push('平衡訓練', '跌倒預防');
+        // 銀髮族 (65歲以上) - 積極但安全的運動建議
+        prescription.frequency = 6;
+        prescription.time = 30; // 180分鐘/週，考量安全性適中調整
+        prescription.intensity = 'moderate';
+        prescription.type.push('有氧運動', '肌力訓練', '平衡訓練');
+        prescription.volume = 630; // 3.5 METs × 30分鐘 × 6次
+        prescription.recommendations.push('每週至少2次肌力訓練');
+        prescription.recommendations.push('每週至少3次平衡訓練，預防跌倒');
         prescription.warnings.push('高齡使用者請特別注意運動安全');
-        prescription.recommendations.push('每週至少2次平衡訓練');
     }
     
     // 根據體能水平調整（僅對成人和銀髮族）
     if (data.age >= 18) {
         switch (data.fitness_level) {
             case 'poor':
-                prescription.frequency = 3;
-                prescription.time = 15;
+                prescription.frequency = 5;
+                prescription.time = 30; // 150分鐘/週，符合WHO最低建議
                 prescription.intensity = 'light';
-                prescription.volume = 225;
+                prescription.volume = 450; // 3.0 METs × 30分鐘 × 5次
                 prescription.progression = '每4週增加5-10%運動時間';
                 break;
             case 'fair':
-                prescription.frequency = 3;
-                prescription.time = 20;
+                prescription.frequency = 5;
+                prescription.time = 35; // 175分鐘/週，超過WHO基本建議
                 prescription.intensity = 'light-moderate';
-                prescription.volume = 300;
+                prescription.volume = 600;
                 break;
             case 'good':
-                prescription.frequency = 4;
-                prescription.time = 35;
-                prescription.volume = 525;
+                prescription.frequency = 6;
+                prescription.time = 35; // 210分鐘/週，更積極的運動量
+                prescription.volume = 750;
                 break;
             case 'excellent':
-                prescription.frequency = 5;
-                prescription.time = 45;
-                prescription.volume = 675;
+                prescription.frequency = 6;
+                prescription.time = 50; // 300分鐘/週，達到WHO額外益處建議
+                prescription.volume = 1050;
                 break;
         }
         
@@ -523,18 +557,19 @@ function calculateFITTVP(data) {
         }
     }
     
-    // 根據運動習慣調整
+    // 根據運動習慣調整（採用更積極的運動建議）
     switch (data.exercise_habit) {
         case 'none':
             if (data.age >= 18) {
-                prescription.frequency = 3;
-                prescription.time = Math.min(prescription.time, 20);
+                prescription.frequency = Math.max(4, prescription.frequency); // 提升至至少4次
+                prescription.time = Math.max(25, Math.min(prescription.time, 30)); // 25-30分鐘
                 prescription.progression = '前4週每週增加5分鐘，之後每2週增加5分鐘';
             }
             break;
         case 'light':
             if (data.age >= 18) {
-                prescription.time = Math.min(prescription.time, 30);
+                prescription.frequency = Math.max(4, prescription.frequency); // 至少4次
+                prescription.time = Math.max(30, Math.min(prescription.time, 35)); // 30-35分鐘
             }
             break;
         case 'moderate':
@@ -542,7 +577,7 @@ function calculateFITTVP(data) {
             break;
         case 'active':
             if (data.age >= 18) {
-                prescription.frequency = Math.max(4, prescription.frequency);
+                prescription.frequency = Math.max(5, prescription.frequency);
                 prescription.time = Math.max(40, prescription.time);
             }
             break;

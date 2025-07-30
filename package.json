@@ -1,0 +1,26 @@
+{
+  "name": "exercise-prescription-system",
+  "version": "1.0.0",
+  "description": "運動處方推薦系統 - 基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve -s . -l 3000",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "keywords": [
+    "exercise",
+    "prescription",
+    "ACSM",
+    "FITT-VP",
+    "WHO",
+    "physical-activity"
+  ],
+  "author": "運動醫學科 吳易澄醫師",
+  "license": "MIT",
+  "dependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
