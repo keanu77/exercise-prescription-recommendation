@@ -193,47 +193,48 @@
                         <label class="form-label">健康狀況</label>
                         <div class="grid md:grid-cols-2 gap-4 mt-3">
                             <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="health_status" value="healthy" class="w-5 h-5" onchange="toggleHealthConditions(this)">
+                                <input type="radio" name="health_status" value="healthy" class="w-5 h-5">
                                 <span class="text-lg">健康狀況良好</span>
                             </label>
                             <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="health_status" value="has_conditions" class="w-5 h-5" onchange="toggleHealthConditions(this)">
+                                <input type="radio" name="health_status" value="has_conditions" class="w-5 h-5">
                                 <span class="text-lg">有健康狀況需注意</span>
                             </label>
                         </div>
-                        
-                        <div id="healthConditions" class="hidden mt-4">
-                            <label class="form-label text-sm text-gray-600">請選擇相關健康狀況（可複選）</label>
-                            <div class="grid md:grid-cols-2 gap-4 mt-3">
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="overweight" class="w-5 h-5">
-                                    <span class="text-lg">體重過重</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="asthma" class="w-5 h-5">
-                                    <span class="text-lg">氣喘</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="hypertension" class="w-5 h-5">
-                                    <span class="text-lg">高血壓</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="diabetes" class="w-5 h-5">
-                                    <span class="text-lg">糖尿病</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="arthritis" class="w-5 h-5">
-                                    <span class="text-lg">關節問題</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="heart_recovery" class="w-5 h-5">
-                                    <span class="text-lg">心臟疾病</span>
-                                </label>
-                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
-                                    <span class="text-lg">肌少症</span>
-                                </label>
-                            </div>
+                    </div>
+
+                    <!-- 相關健康狀況 -->
+                    <div>
+                        <label class="form-label text-gray-600">請選擇相關健康狀況（可複選）</label>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="overweight" class="w-5 h-5">
+                                <span class="text-lg">體重過重</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="asthma" class="w-5 h-5">
+                                <span class="text-lg">氣喘</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="hypertension" class="w-5 h-5">
+                                <span class="text-lg">高血壓</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="diabetes" class="w-5 h-5">
+                                <span class="text-lg">糖尿病</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="arthritis" class="w-5 h-5">
+                                <span class="text-lg">關節問題</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="heart_recovery" class="w-5 h-5">
+                                <span class="text-lg">心臟疾病</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
+                                <span class="text-lg">肌少症</span>
+                            </label>
                         </div>
                     </div>
 

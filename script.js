@@ -82,31 +82,9 @@ function getMETActivitiesHtml(prescription) {
     `;
 }
 
-// 健康狀況切換功能
-function toggleHealthConditions(radioButton) {
-    console.log('toggleHealthConditions called with value:', radioButton.value); // 調試用
-    
-    const healthConditionsDiv = document.getElementById('healthConditions');
-    const diseaseCheckboxes = document.querySelectorAll('input[name="diseases"]');
-    
-    if (!healthConditionsDiv) {
-        console.error('healthConditions element not found!');
-        return;
-    }
-    
-    if (radioButton.value === 'healthy') {
-        // 如果選擇健康狀況良好，隱藏其他選項並清除所有疾病選項
-        healthConditionsDiv.classList.add('hidden');
-        healthConditionsDiv.style.display = 'none'; // 確保隱藏
-        diseaseCheckboxes.forEach(checkbox => checkbox.checked = false);
-        console.log('Hidden health conditions');
-    } else if (radioButton.value === 'has_conditions') {
-        // 如果選擇有健康狀況需注意，顯示疾病選項
-        healthConditionsDiv.classList.remove('hidden');
-        healthConditionsDiv.style.display = 'block'; // 確保顯示
-        console.log('Shown health conditions');
-    }
-}
+// 健康狀況處理：現在所有選項都直接顯示，不需要特別的切換功能
+// 用戶可以選擇「健康狀況良好」並且同時不勾選任何疾病選項
+// 或者選擇「有健康狀況需注意」並勾選相應的疾病選項
 
 // BMI 計算功能
 function calculateBMI() {
@@ -407,51 +385,55 @@ function calculateFITTVP(data) {
         prescription.warnings.push('注意運動傷害預防和適當休息');
         
     } else if (data.age >= 18 && data.age <= 64) {
-        // 成人 (18-64歲) - 提升至更積極的運動建議
-        prescription.frequency = 6;
-        prescription.time = 35; // 210分鐘/週，超過WHO基本建議
+        // 成人 (18-64歲) - WHO建議：每週150分鐘中等強度有氧運動
+        prescription.frequency = 5; // WHO建議每週至少5次，每次30分鐘 = 150分鐘
+        prescription.time = 30;
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練');
-        prescription.volume = 735; // 3.5 METs × 35分鐘 × 6次
-        prescription.recommendations.push('每週至少2次肌力訓練');
+        prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
+        prescription.progression = '每2-4週增加10%運動時間或頻率';
         
     } else if (data.age >= 65) {
-        // 銀髮族 (65歲以上) - 積極但安全的運動建議
-        prescription.frequency = 6;
-        prescription.time = 30; // 180分鐘/週，考量安全性適中調整
+        // 銀髮族 (65歲以上) - WHO建議：與成人相同，但加強平衡訓練
+        prescription.frequency = 5; // WHO建議與成人相同，每週150分鐘
+        prescription.time = 30;
         prescription.intensity = 'moderate';
-        prescription.type.push('有氧運動', '肌力訓練', '平衡訓練');
-        prescription.volume = 630; // 3.5 METs × 30分鐘 × 6次
-        prescription.recommendations.push('每週至少2次肌力訓練');
-        prescription.recommendations.push('每週至少3次平衡訓練，預防跌倒');
+        prescription.type.push('有氧運動', '肌力訓練', '平衡訓練', '柔軟度訓練');
+        prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
+        prescription.progression = '每2-4週增加10%運動時間或頻率';
         prescription.warnings.push('高齡使用者請特別注意運動安全');
+        prescription.recommendations.push('每週至少3次平衡訓練，預防跌倒');
     }
     
-    // 根據體能水平調整（僅對成人和銀髮族）
+    // 根據體能水平微調WHO基準（僅對成人和銀髮族）
     if (data.age >= 18) {
         switch (data.fitness_level) {
             case 'poor':
-                prescription.frequency = 5;
-                prescription.time = 30; // 150分鐘/週，符合WHO最低建議
+                // 體能差：降低至WHO最低建議
+                prescription.frequency = 3; // 減少頻率但保持每週總時間約90分鐘
+                prescription.time = 30;
                 prescription.intensity = 'light';
-                prescription.volume = 450; // 3.0 METs × 30分鐘 × 5次
-                prescription.progression = '每4週增加5-10%運動時間';
+                prescription.volume = 270; // 3.0 METs × 30分鐘 × 3次
+                prescription.progression = '前8週建立習慣，之後逐步增加至WHO建議';
                 break;
             case 'fair':
-                prescription.frequency = 5;
-                prescription.time = 35; // 175分鐘/週，超過WHO基本建議
+                // 一般：WHO基準的80%
+                prescription.frequency = 4; // 略低於WHO建議
+                prescription.time = 30;
                 prescription.intensity = 'light-moderate';
-                prescription.volume = 600;
+                prescription.volume = 420; // 3.5 METs × 30分鐘 × 4次
+                prescription.progression = '每4週增加1次運動，達到WHO建議';
                 break;
             case 'good':
-                prescription.frequency = 6;
-                prescription.time = 35; // 210分鐘/週，更積極的運動量
-                prescription.volume = 750;
+                // 良好：維持WHO建議
+                // 保持原設定：每週5次，每次30分鐘
                 break;
             case 'excellent':
-                prescription.frequency = 6;
-                prescription.time = 50; // 300分鐘/週，達到WHO額外益處建議
-                prescription.volume = 1050;
+                // 優秀：超過WHO建議，達到額外健康益處
+                prescription.frequency = 6; // 超過WHO建議
+                prescription.time = 35; // 總計210分鐘/週
+                prescription.volume = 735; // 3.5 METs × 35分鐘 × 6次
+                prescription.progression = '可維持高頻率或增加運動強度';
                 break;
         }
         
@@ -520,15 +502,15 @@ function calculateFITTVP(data) {
         prescription.recommendations.push('重點加強肌力訓練，每週至少3次阻力運動');
         prescription.recommendations.push('建議搭配營養師指導，確保足夠蛋白質攝取');
         prescription.warnings.push('漸進式增加負重，避免過度訓練造成傷害');
-        // 肌少症患者需要更頻繁的肌力訓練
+        // 肌少症患者需要更頻繁的肌力訓練，但不過度
         if (data.age >= 18) {
-            prescription.frequency = Math.max(prescription.frequency, 4);
+            prescription.frequency = Math.min(prescription.frequency + 1, 4);
         }
     }
     
     if (data.diseases.includes('cancer_recovery')) {
         if (data.age >= 18) {
-            prescription.frequency = Math.max(3, prescription.frequency);
+            prescription.frequency = Math.min(prescription.frequency, 3); // 不超過3次，避免過度
         }
         prescription.type.push('有氧運動', '阻力訓練');
         prescription.warnings.push('依據治療階段調整運動強度');
@@ -568,44 +550,107 @@ function calculateFITTVP(data) {
         }
     }
     
-    // 根據運動習慣調整（採用更積極的運動建議）
+    // 根據運動習慣微調WHO基準
     switch (data.exercise_habit) {
         case 'none':
+            // 沒有運動習慣：從WHO建議的60%開始
             if (data.age >= 18) {
-                prescription.frequency = Math.max(4, prescription.frequency); // 提升至至少4次
-                prescription.time = Math.max(25, Math.min(prescription.time, 30)); // 25-30分鐘
-                prescription.progression = '前4週每週增加5分鐘，之後每2週增加5分鐘';
+                prescription.frequency = Math.max(3, Math.floor(prescription.frequency * 0.6)); // 至少3次
+                prescription.time = Math.max(20, Math.floor(prescription.time * 0.7)); // 至少20分鐘
+                prescription.progression = '前4週每週3次建立習慣，8週後逐步達到WHO建議';
             }
             break;
         case 'light':
+            // 偶爾運動：WHO建議的80%
             if (data.age >= 18) {
-                prescription.frequency = Math.max(4, prescription.frequency); // 至少4次
-                prescription.time = Math.max(30, Math.min(prescription.time, 35)); // 30-35分鐘
+                prescription.frequency = Math.max(4, Math.floor(prescription.frequency * 0.8));
+                prescription.time = Math.floor(prescription.time * 0.9);
+                prescription.progression = '每4週增加1次運動頻率，逐步達到WHO建議';
             }
             break;
         case 'moderate':
-            // 維持計算值
+            // 規律運動：維持WHO建議或略增
+            // 保持原設定，不調整
             break;
         case 'active':
+            // 經常運動：超過WHO建議，追求額外健康益處
             if (data.age >= 18) {
-                prescription.frequency = Math.max(5, prescription.frequency);
-                prescription.time = Math.max(40, prescription.time);
+                prescription.frequency = Math.min(prescription.frequency + 1, 6);
+                prescription.time = Math.min(prescription.time + 5, 45);
+                prescription.progression = '可維持現有頻率或追求更高運動目標';
             }
             break;
         case 'student_athlete':
+            // 專業訓練：高於WHO建議的專業訓練量
             if (data.age <= 17) {
                 prescription.type.push('專項技能訓練', '競技表現提升');
                 prescription.recommendations.push('配合專業教練指導');
                 prescription.warnings.push('注意訓練負荷管理，避免過度訓練');
             } else {
-                prescription.frequency = Math.max(5, prescription.frequency);
-                prescription.time = Math.max(60, prescription.time);
+                prescription.frequency = Math.min(prescription.frequency + 1, 6);
+                prescription.time = Math.min(prescription.time + 10, 60);
                 prescription.type.push('專項訓練');
+                prescription.progression = '在專業指導下可維持高訓練量';
             }
             break;
     }
     
+    // 統一生成針對不同運動類型的建議事項
+    generateExerciseSpecificRecommendations(prescription, data);
+    
     return prescription;
+}
+
+// 生成針對不同運動類型的具體建議事項
+function generateExerciseSpecificRecommendations(prescription, data) {
+    // 清除重複的建議，重新生成
+    prescription.recommendations = prescription.recommendations.filter(rec => 
+        !rec.includes('每週至少') || rec.includes('劇烈強度') || rec.includes('骨骼強化') || rec.includes('肌肉強化')
+    );
+    
+    const exerciseTypes = prescription.type;
+    
+    // 有氧運動建議
+    if (exerciseTypes.includes('有氧運動') || exerciseTypes.includes('低衝擊有氧')) {
+        if (data.age >= 18 && data.age <= 64) {
+            prescription.recommendations.push('有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘');
+        } else if (data.age >= 65) {
+            prescription.recommendations.push('有氧運動：選擇低衝擊活動如快走、水中運動，每次20-40分鐘');
+        }
+    }
+    
+    // 阻力/肌力訓練建議
+    if (exerciseTypes.includes('肌力訓練') || exerciseTypes.includes('阻力訓練') || exerciseTypes.includes('肌力訓練重點')) {
+        if (data.age >= 18 && data.age <= 64) {
+            prescription.recommendations.push('肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複');
+        } else if (data.age >= 65) {
+            prescription.recommendations.push('肌力訓練：每週2次，使用輕重量或彈力帶，每組10-15次重複');
+        }
+    }
+    
+    // 平衡訓練建議
+    if (exerciseTypes.includes('平衡訓練') || exerciseTypes.includes('太極')) {
+        if (data.age >= 65) {
+            prescription.recommendations.push('平衡訓練：每週3次，包含單腳站立、太極等，每次15-20分鐘');
+        } else if (data.age >= 18) {
+            prescription.recommendations.push('平衡訓練：每週2-3次，提升身體穩定性，預防跌倒風險');
+        }
+    }
+    
+    // 柔軟度訓練建議 - 對所有成人都推薦
+    if (data.age >= 18) {
+        if (exerciseTypes.includes('柔軟度訓練') || exerciseTypes.includes('伸展運動')) {
+            prescription.recommendations.push('柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒');
+        } else {
+            // 即使沒有明確包含柔軟度訓練，也給予基本建議
+            prescription.recommendations.push('伸展運動：每次運動前後進行5-10分鐘，改善關節活動度');
+        }
+    }
+    
+    // 水中運動建議
+    if (exerciseTypes.includes('水中運動')) {
+        prescription.recommendations.push('水中運動：適合關節問題者，水溫28-30°C，每次30-45分鐘');
+    }
 }
 
 // 年齡分組函數
