@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>測試</title>
+</head>
+<body>
+    <div id="result"></div>
+    
+    <script>
+        // 複製關鍵函數來測試
+        function getAgeGroup(age) {
+            if (age >= 6 && age <= 11) return 'child';
+            if (age >= 12 && age <= 17) return 'adolescent';
+            if (age >= 18 && age <= 64) return 'adult';
+            if (age >= 65) return 'senior';
+            return 'unknown';
+        }
+
+        function calculateFITTVP(data) {
+            const prescription = {
+                frequency: 3,
+                intensity: 'moderate',
+                time: 30,
+                type: [],
+                volume: 450,
+                progression: '每2-4週增加10%運動時間或頻率',
+                warnings: [],
+                recommendations: [],
+                ageGroup: getAgeGroup(data.age)
+            };
+            
+            // 根據年齡層調整基本參數
+            if (data.age >= 6 && data.age <= 11) {
+                // 兒童 (6-11歲) - ACSM建議每日至少60分鐘身體活動
+                prescription.frequency = 7; // 每日活動
+                prescription.time = 60; // 每日至少60分鐘
+                prescription.intensity = 'moderate-vigorous';
+                prescription.type = ['自由遊戲', '體能遊戲', '基礎運動技能']; // 直接設定，不用push
+                prescription.volume = 0; // 兒童不用MET計算
+                prescription.progression = '逐漸增加活動的複雜性和技能挑戰';
+                prescription.recommendations.push('重點在趣味性和多樣性，而非競技表現');
+                prescription.recommendations.push('包含骨骼強化活動，每週至少3次');
+                prescription.recommendations.push('包含肌肉強化活動，每週至少3次');
+                prescription.warnings.push('避免過度專項化訓練');
+            }
+            
+            return prescription;
+        }
+
+        // 測試10歲兒童
+        const testData = {
+            age: 10,
+            gender: 'male',
+            diseases: [],
+            fitness_level: 'good',
+            exercise_habit: 'moderate',
+            limitations: []
+        };
+
+        const result = calculateFITTVP(testData);
+        document.getElementById('result').innerHTML = `
+            <h2>測試結果：</h2>
+            <p>年齡：${testData.age}</p>
+            <p>頻率：${result.frequency}</p>
+            <p>時間：${result.time}</p>
+            <p>強度：${result.intensity}</p>
+            <p>類型：${result.type.join('、')}</p>
+        `;
+    </script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運動處方推薦系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg text-lg transition-colors duration-200;
+        }
+        
+        .btn-secondary {
+            @apply bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200;
+        }
+        
+        .form-input {
+            @apply w-full p-4 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none;
+        }
+        
+        .form-label {
+            @apply block text-lg font-medium text-gray-700 mb-2;
+        }
+        
+        .card {
+            @apply bg-white rounded-xl shadow-lg p-6 border border-gray-200;
+        }
+        
+        .prescription-card {
+            @apply bg-gradient-to-br from-blue-50 to-green-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-md;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 導航列 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <h1 class="text-2xl font-bold text-gray-800">運動處方推薦系統</h1>
+                <div class="mt-2 md:mt-0 text-sm text-gray-600">
+                    <span class="font-medium">製作者：</span>
+                    <a href="https://wycswimming.blogspot.com/" target="_blank" 
+                       class="text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200">
+                        運動醫學科 吳易澄醫師
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- 首頁 -->
+        <div id="homePage" class="page active">
+        <div class="max-w-4xl mx-auto px-4 py-12">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+                    為你量身打造的運動處方
+                </h2>
+                <div class="card max-w-3xl mx-auto">
+                    <div class="text-xl text-gray-600 leading-relaxed space-y-4">
+                        <p>
+                            <strong>適用於兒童、青少年、成人與銀髮族</strong>
+                        </p>
+                        <p>
+                            根據美國運動醫學會（ACSM）的 FITT-VP 原則與世界衛生組織（WHO）身體活動建議指引，
+                            為各年齡層提供個人化的運動建議，包含運動頻率、強度、時間、類型、總量與進展規劃。
+                        </p>
+                        <div class="grid md:grid-cols-3 gap-4 text-lg text-gray-500 mt-6">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <p><strong>兒童 (6-11歲)</strong></p>
+                                <p class="text-sm">趣味性體能活動</p>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <p><strong>青少年 (12-17歲)</strong></p>
+                                <p class="text-sm">多元運動發展</p>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg">
+                                <p><strong>成人&銀髮族</strong></p>
+                                <p class="text-sm">健康維護與慢性病管理</p>
+                            </div>
+                        </div>
+                        <p class="text-lg text-gray-500 mt-4">
+                            • 年齡適性的運動指導<br>
+                            • 考量個人健康狀況<br>
+                            • 循序漸進的運動計畫
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button onclick="showPage('formPage')" class="btn-primary text-xl px-12 py-5 shadow-lg">
+                    開始使用
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 表單頁 -->
+    <div id="formPage" class="page">
+        <div class="max-w-4xl mx-auto px-4 py-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">健康評估問卷</h2>
+                <p class="text-lg text-gray-600">請填寫以下資訊，我們將為您量身打造運動處方</p>
+            </div>
+
+            <div class="card">
+                <form id="healthForm" class="space-y-8">
+                    <!-- 基本資料 -->
+                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="form-label">年齡 *</label>
+                            <input type="number" id="age" name="age" min="6" max="120" required 
+                                   class="form-input" placeholder="請輸入年齡（6歲以上）" onchange="calculateBMI()">
+                            <div id="ageInfo" class="hidden mt-2 p-3 rounded-lg">
+                                <!-- 動態顯示年齡層資訊 -->
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">性別 *</label>
+                            <select id="gender" name="gender" required class="form-input">
+                                <option value="">請選擇</option>
+                                <option value="male">男</option>
+                                <option value="female">女</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 身體資料 -->
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="form-label">身高 * (公分)</label>
+                            <input type="number" id="height" name="height" min="100" max="250" required 
+                                   class="form-input" placeholder="請輸入身高" onchange="calculateBMI()">
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">體重 * (公斤)</label>
+                            <input type="number" id="weight" name="weight" min="20" max="300" required 
+                                   class="form-input" placeholder="請輸入體重" onchange="calculateBMI()">
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">BMI 指數</label>
+                            <div id="bmiDisplay" class="form-input bg-gray-50 flex items-center justify-between">
+                                <span id="bmiValue" class="text-gray-500">待計算</span>
+                                <span id="bmiCategory" class="text-sm px-2 py-1 rounded"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 健康狀況 -->
+                    <div>
+                        <label class="form-label">健康狀況（可複選）</label>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="none" class="w-5 h-5">
+                                <span class="text-lg">健康狀況良好</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="overweight" class="w-5 h-5">
+                                <span class="text-lg">體重過重</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="asthma" class="w-5 h-5">
+                                <span class="text-lg">氣喘</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="hypertension" class="w-5 h-5">
+                                <span class="text-lg">高血壓</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="diabetes" class="w-5 h-5">
+                                <span class="text-lg">糖尿病</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="arthritis" class="w-5 h-5">
+                                <span class="text-lg">關節問題</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="heart_recovery" class="w-5 h-5">
+                                <span class="text-lg">心臟疾病</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
+                                <span class="text-lg">肌少症</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 體能自評 -->
+                    <div>
+                        <label class="form-label">體能自評 *</label>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="fitness_level" value="excellent" required class="w-5 h-5">
+                                <span class="text-lg">良好</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="fitness_level" value="good" required class="w-5 h-5">
+                                <span class="text-lg">尚可</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="fitness_level" value="fair" required class="w-5 h-5">
+                                <span class="text-lg">容易疲勞</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="fitness_level" value="poor" required class="w-5 h-5">
+                                <span class="text-lg">日常活動困難</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 運動習慣 -->
+                    <div>
+                        <label class="form-label">目前運動習慣 *</label>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="exercise_habit" value="none" required class="w-5 h-5">
+                                <span class="text-lg">沒有運動習慣</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="exercise_habit" value="light" required class="w-5 h-5">
+                                <span class="text-lg">偶爾運動（每週1-2次）</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="exercise_habit" value="moderate" required class="w-5 h-5">
+                                <span class="text-lg">規律運動（每週3-4次）</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="exercise_habit" value="active" required class="w-5 h-5">
+                                <span class="text-lg">經常運動（每週5次以上）</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="exercise_habit" value="student_athlete" required class="w-5 h-5">
+                                <span class="text-lg">學生運動員或專業訓練</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 運動限制 -->
+                    <div>
+                        <label class="form-label">運動限制或擔憂（可複選）</label>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="none" class="w-5 h-5">
+                                <span class="text-lg">無特別限制</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="time_constraint" class="w-5 h-5">
+                                <span class="text-lg">時間限制</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="lack_motivation" class="w-5 h-5">
+                                <span class="text-lg">缺乏動機</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="pain" class="w-5 h-5">
+                                <span class="text-lg">疼痛問題</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="injury_history" class="w-5 h-5">
+                                <span class="text-lg">運動傷害史</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="balance" class="w-5 h-5">
+                                <span class="text-lg">平衡感不佳</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="breathing" class="w-5 h-5">
+                                <span class="text-lg">呼吸困難</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="limitations" value="equipment_access" class="w-5 h-5">
+                                <span class="text-lg">缺乏運動設備</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 提交按鈕 -->
+                    <div class="text-center pt-6">
+                        <div id="formError" class="hidden mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
+                            <p class="text-red-700">請完成所有必填欄位後再送出</p>
+                        </div>
+                        
+                        <div class="space-x-4">
+                            <button type="button" onclick="showPage('homePage')" class="btn-secondary">
+                                返回首頁
+                            </button>
+                            <button type="submit" class="btn-primary">
+                                產生運動處方
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果頁 -->
+    <div id="resultPage" class="page">
+        <div class="max-w-6xl mx-auto px-4 py-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">您的個人化運動處方</h2>
+                <p class="text-lg text-gray-600">根據 ACSM FITT-VP 原則為您量身打造</p>
+            </div>
+
+            <!-- 運動處方摘要卡片 -->
+            <div id="prescriptionSummary" class="prescription-card mb-8">
+                <!-- 動態生成內容 -->
+            </div>
+
+            <!-- 詳細運動建議 -->
+            <div class="grid lg:grid-cols-2 gap-8 mb-8">
+                <!-- FITT-VP 詳細說明 -->
+                <div class="card">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">FITT-VP 運動原則</h3>
+                    <div id="fittpDetails" class="space-y-4">
+                        <!-- 動態生成內容 -->
+                    </div>
+                </div>
+
+                <!-- 運動說明與注意事項 -->
+                <div class="card">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">運動指南與注意事項</h3>
+                    <div id="exerciseGuidelines" class="space-y-4">
+                        <!-- 動態生成內容 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 進階說明區塊 -->
+            <div class="card mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6">什麼是中等強度運動？</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-3">談話測試（Talk Test）</h4>
+                        <p class="text-gray-600 leading-relaxed">
+                            中等強度運動時，您應該能夠說話但無法唱歌。如果您能輕鬆唱歌，
+                            表示運動強度太低；如果連說話都困難，則表示強度太高。
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-3">自覺用力係數（RPE）</h4>
+                        <p class="text-gray-600 leading-relaxed">
+                            使用 1-10 分量表評估運動強度，其中 4-6 分為中等強度：
+                            <br>• 4分：有點累，但可以持續
+                            <br>• 5分：適度疲勞感
+                            <br>• 6分：較累但仍可負荷
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MET 詳細說明 -->
+            <div class="card mb-8 bg-blue-50 border border-blue-200">
+                <h3 class="text-xl font-semibold text-blue-800 mb-4">MET (代謝當量) 說明</h3>
+                <div class="text-blue-700 space-y-3">
+                    <p><strong>定義：</strong>MET (Metabolic Equivalent of Task) 代表代謝當量，是衡量身體活動強度的標準單位。1 MET = 安靜時的能量消耗 (約每公斤體重每分鐘消耗3.5毫升氧氣)。</p>
+                    
+                    <div class="grid md:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-green-100 p-3 rounded">
+                            <h4 class="font-semibold text-green-800">輕度活動</h4>
+                            <p class="text-sm text-green-700">1.6-2.9 METs<br>可以唱歌的程度</p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded">
+                            <h4 class="font-semibold text-yellow-800">中度活動</h4>
+                            <p class="text-sm text-yellow-700">3.0-5.9 METs<br>可以說話但無法唱歌</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded">
+                            <h4 class="font-semibold text-red-800">高強度活動</h4>
+                            <p class="text-sm text-red-700">≥6.0 METs<br>只能說少數字詞</p>
+                        </div>
+                    </div>
+                    
+                    <p><strong>WHO建議：</strong>成人每週累積500-1000 MET-分鐘的中高強度活動。</p>
+                    <p><strong>計算方式：</strong>MET值 × 運動時間(分鐘) = MET-分鐘</p>
+                    <p><strong>熱量計算：</strong>消耗熱量(大卡) = MET值 × 體重(公斤) × 運動時間(小時)</p>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="text-center space-x-4">
+                <button onclick="downloadPDF()" class="btn-primary">
+                    下載建議 PDF
+                </button>
+                <button onclick="showPage('formPage')" class="btn-secondary">
+                    重新填寫
+                </button>
+                <button onclick="showPage('homePage')" class="btn-secondary">
+                    返回首頁
+                </button>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <!-- 頁尾免責說明 -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center">
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold mb-2">重要提醒</h3>
+                    <div class="max-w-4xl mx-auto text-gray-300 leading-relaxed space-y-2">
+                        <p class="text-yellow-300 font-medium">⚠️ 免責說明</p>
+                        <p>
+                            本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。
+                            每個人的身體狀況、健康條件與運動需求皆不相同，建議在開始任何運動計畫前，
+                            請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。
+                        </p>
+                        <p>
+                            如有心血管疾病、糖尿病、高血壓、關節問題或其他慢性疾病，
+                            務必先經醫師評估後再進行運動。運動過程中如出現不適症狀，請立即停止並就醫。
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-600 pt-4">
+                    <p class="text-sm text-gray-400">
+                        © 運動處方推薦系統 | 製作者：
+                        <a href="https://wycswimming.blogspot.com/" target="_blank" 
+                           class="text-blue-400 hover:text-blue-300 hover:underline transition-colors duration-200">
+                            運動醫學科 吳易澄醫師
+                        </a>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
