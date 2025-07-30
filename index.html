@@ -50,6 +50,22 @@
         .prescription-card {
             @apply bg-gradient-to-br from-blue-50 to-green-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-md;
         }
+        
+        .btn-icon-square {
+            @apply inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-gray-300 rounded-lg shadow-md hover:shadow-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-gray-700 hover:text-blue-600;
+        }
+        
+        .btn-icon-square svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .btn-icon-square:focus {
+            outline: none;
+            ring: 2px;
+            ring-blue-500;
+            ring-offset: 2px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -316,13 +332,23 @@
                             <p class="text-red-700">請完成所有必填欄位後再送出</p>
                         </div>
                         
-                        <div class="space-x-4">
-                            <button type="button" onclick="showPage('homePage')" class="btn-secondary">
-                                返回首頁
-                            </button>
-                            <button type="submit" class="btn-primary">
-                                產生運動處方
-                            </button>
+                        <div class="flex justify-center items-center space-x-8">
+                            <div class="text-center">
+                                <button type="button" onclick="showPage('homePage')" class="btn-icon-square" title="返回首頁">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                    </svg>
+                                </button>
+                                <p class="text-sm text-gray-600 mt-2">返回首頁</p>
+                            </div>
+                            <div class="text-center">
+                                <button type="submit" class="btn-icon-square bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700" title="產生運動處方">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                </button>
+                                <p class="text-sm text-gray-600 mt-2">產生運動處方</p>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -413,16 +439,33 @@
             </div>
 
             <!-- 操作按鈕 -->
-            <div class="text-center space-x-4">
-                <button onclick="downloadPDF()" class="btn-primary">
-                    下載建議 PDF
-                </button>
-                <button onclick="showPage('formPage')" class="btn-secondary">
-                    重新填寫
-                </button>
-                <button onclick="showPage('homePage')" class="btn-secondary">
-                    返回首頁
-                </button>
+            <div class="text-center">
+                <div class="flex justify-center items-center space-x-6">
+                    <div class="text-center">
+                        <button onclick="downloadPDF()" class="btn-icon-square" title="下載建議 PDF">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                            </svg>
+                        </button>
+                        <p class="text-sm text-gray-600 mt-2">下載 PDF</p>
+                    </div>
+                    <div class="text-center">
+                        <button onclick="showPage('formPage')" class="btn-icon-square" title="重新填寫">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <p class="text-sm text-gray-600 mt-2">重新填寫</p>
+                    </div>
+                    <div class="text-center">
+                        <button onclick="showPage('homePage')" class="btn-icon-square" title="返回首頁">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </button>
+                        <p class="text-sm text-gray-600 mt-2">返回首頁</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
