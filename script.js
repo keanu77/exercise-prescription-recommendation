@@ -391,7 +391,7 @@ function calculateFITTVP(data) {
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練');
         prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
-        prescription.progression = '每2-4週增加10%運動時間或頻率，目標達到ACSM建議：每週至少150分鐘中強度或75分鐘高強度有氧運動';
+        prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）';
         
     } else if (data.age >= 65) {
         // 銀髮族 (65歲以上) - WHO建議：與成人相同，但加強平衡訓練
@@ -400,7 +400,7 @@ function calculateFITTVP(data) {
         prescription.intensity = 'moderate';
         prescription.type.push('有氧運動', '肌力訓練', '平衡訓練', '柔軟度訓練');
         prescription.volume = 525; // 3.5 METs × 30分鐘 × 5次
-        prescription.progression = '每2-4週增加10%運動時間或頻率，目標達到ACSM建議：每週至少150分鐘中強度有氧運動，並加強平衡訓練';
+        prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧），並加強平衡訓練';
         prescription.warnings.push('高齡使用者請特別注意運動安全');
         prescription.recommendations.push('每週至少3次平衡訓練，預防跌倒');
     }
@@ -414,7 +414,7 @@ function calculateFITTVP(data) {
                 prescription.time = 30;
                 prescription.intensity = 'light';
                 prescription.volume = 270; // 3.0 METs × 30分鐘 × 3次
-                prescription.progression = '前8週建立習慣，之後逐步增加至ACSM建議（每週150分鐘中強度有氧運動）';
+                prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）';
                 break;
             case 'fair':
                 // 一般：WHO基準的80%
@@ -422,7 +422,7 @@ function calculateFITTVP(data) {
                 prescription.time = 30;
                 prescription.intensity = 'light-moderate';
                 prescription.volume = 420; // 3.5 METs × 30分鐘 × 4次
-                prescription.progression = '每4週增加1次運動，達到ACSM建議（每週150分鐘中強度有氧運動）';
+                prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）';
                 break;
             case 'good':
                 // 良好：維持WHO建議
@@ -431,8 +431,8 @@ function calculateFITTVP(data) {
             case 'excellent':
                 // 優秀：超過WHO建議，達到額外健康益處
                 prescription.frequency = 6; // 超過WHO建議
-                prescription.time = 35; // 總計210分鐘/週
-                prescription.volume = 735; // 3.5 METs × 35分鐘 × 6次
+                prescription.time = 40; // 總計240分鐘/週，改為整數
+                prescription.volume = 840; // 3.5 METs × 40分鐘 × 6次
                 prescription.progression = '可維持高頻率或增加運動強度';
                 break;
         }
@@ -465,7 +465,7 @@ function calculateFITTVP(data) {
                 prescription.time = Math.max(60, prescription.time);
                 break;
             case 'excellent':
-                prescription.time = Math.max(75, prescription.time);
+                prescription.time = 80; // 改為整數
                 prescription.recommendations.push('可增加運動技能挑戰和競技元素');
                 break;
         }
@@ -556,16 +556,16 @@ function calculateFITTVP(data) {
             // 沒有運動習慣：從WHO建議的60%開始
             if (data.age >= 18) {
                 prescription.frequency = Math.max(3, Math.floor(prescription.frequency * 0.6)); // 至少3次
-                prescription.time = Math.max(20, Math.floor(prescription.time * 0.7)); // 至少20分鐘
-                prescription.progression = '前4週每週3次建立習慣，8週後逐步達到ACSM建議（每週150分鐘中強度有氧運動）';
+                prescription.time = 20; // 固定20分鐘，適合初學者
+                prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）';
             }
             break;
         case 'light':
             // 偶爾運動：WHO建議的80%
             if (data.age >= 18) {
                 prescription.frequency = Math.max(4, Math.floor(prescription.frequency * 0.8));
-                prescription.time = Math.floor(prescription.time * 0.9);
-                prescription.progression = '每4週增加1次運動頻率，逐步達到ACSM建議（每週150分鐘中強度有氧運動）';
+                prescription.time = 25; // 固定25分鐘
+                prescription.progression = '每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）';
             }
             break;
         case 'moderate':
@@ -576,7 +576,7 @@ function calculateFITTVP(data) {
             // 經常運動：超過WHO建議，追求額外健康益處
             if (data.age >= 18) {
                 prescription.frequency = Math.min(prescription.frequency + 1, 6);
-                prescription.time = Math.min(prescription.time + 5, 45);
+                prescription.time = Math.min((Math.floor((prescription.time + 5) / 5) * 5), 45); // 調整為5的倍數
                 prescription.progression = '可維持現有頻率或追求更高運動目標';
             }
             break;
@@ -588,7 +588,7 @@ function calculateFITTVP(data) {
                 prescription.warnings.push('注意訓練負荷管理，避免過度訓練');
             } else {
                 prescription.frequency = Math.min(prescription.frequency + 1, 6);
-                prescription.time = Math.min(prescription.time + 10, 60);
+                prescription.time = Math.min((Math.floor((prescription.time + 10) / 10) * 10), 60); // 調整為10的倍數
                 prescription.type.push('專項訓練');
                 prescription.progression = '在專業指導下可維持高訓練量';
             }
@@ -597,6 +597,14 @@ function calculateFITTVP(data) {
     
     // 清理重複的運動類型並整理優先順序
     prescription.type = cleanupExerciseTypes(prescription.type);
+    
+    // 確保運動時間為整數（5分鐘的倍數）
+    prescription.time = Math.round(prescription.time / 5) * 5;
+    
+    // 重新計算 MET-minutes (如果適用)
+    if (prescription.volume > 0) {
+        prescription.volume = Math.round(3.5 * prescription.time * prescription.frequency);
+    }
     
     // 統一生成針對不同運動類型的建議事項
     generateExerciseSpecificRecommendations(prescription, data);
@@ -944,7 +952,7 @@ function displayExerciseGuidelines(prescription) {
 function getExerciseExamples(types) {
     const examples = {
         '有氧運動': ['快走', '游泳', '騎腳踏車', '爬樓梯', '健走'],
-        '阻力訓練': ['彈力帶運動', '輕重量啞鈴', '徒手肌力訓練', '阻力機器'],
+        '阻力訓練': ['彈力帶運動', '輕重量啞鈴', '徒手肌力訓練', '阻力機器', '硬舉', '腿推', '划船', '彈力繩'],
         '肌力訓練': ['伏地挺身', '深蹲', '橋式', '死蟲式', '棒式', '啞鈴訓練'],
         '平衡訓練': ['單腳站立', '太極', '瑜珈', '平衡墊運動'],
         '柔軟度訓練': ['伸展運動', '瑜珈', '太極', '關節活動度運動'],
@@ -1052,7 +1060,7 @@ function createPDFContent() {
         font-size: 12px;
         line-height: 1.4;
         color: #333;
-        padding: 30px;
+        padding: 8px 30px;
         box-sizing: border-box;
     `;
     
@@ -1060,22 +1068,22 @@ function createPDFContent() {
     const exerciseExamples = getExerciseExamples(prescription.type);
     
     container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 25px;">
-            <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px; color: #1e40af;">
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h1 style="font-size: 22px; font-weight: bold; margin: 0 0 3px 0; color: #1e40af;">
                 個人化運動處方建議
             </h1>
-            <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">
+            <p style="font-size: 13px; color: #6b7280; margin: 0 0 6px 0;">
                 基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引
             </p>
         </div>
         
-        <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 4px;">
+        <div style="margin-bottom: 12px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 6px; border-bottom: 2px solid #3b82f6; padding-bottom: 2px;">
                 您的運動處方
             </h2>
-            <div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6;">
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #1e40af; margin-bottom: 5px;">
+            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; border-left: 4px solid #3b82f6;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">
                         ${prescription.type.join('、')} ${prescription.frequency === 7 ? '每日' : '每週' + prescription.frequency + '次'} × ${prescription.time}分鐘
                     </div>
                     <div style="font-size: 14px; color: #6b7280;">
@@ -1105,11 +1113,11 @@ function createPDFContent() {
             </div>
         </div>
         
-        <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #22c55e; padding-bottom: 4px;">
+        <div style="margin-bottom: 15px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #22c55e; padding-bottom: 3px;">
                 FITT-VP 運動原則
             </h2>
-            <div style="background: #f0fdf4; padding: 15px; border-radius: 6px; border-left: 4px solid #22c55e;">
+            <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #22c55e;">
                 <div style="display: grid; gap: 8px; font-size: 12px;">
                     <div style="display: flex;">
                         <div style="width: 120px; font-weight: bold; color: #059669;">頻率 (Frequency)：</div>
@@ -1140,11 +1148,11 @@ function createPDFContent() {
         </div>
         
         ${prescription.warnings.length > 0 ? `
-        <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #ef4444; padding-bottom: 4px;">
+        <div style="margin-bottom: 15px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #ef4444; padding-bottom: 3px;">
                 重要注意事項
             </h2>
-            <div style="background: #fef2f2; padding: 15px; border-radius: 6px; border-left: 4px solid #ef4444;">
+            <div style="background: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
                 <ul style="margin: 0; padding-left: 15px; font-size: 12px; color: #991b1b;">
                     ${prescription.warnings.map(warning => `<li style="margin-bottom: 6px;">${warning}</li>`).join('')}
                 </ul>
@@ -1153,11 +1161,11 @@ function createPDFContent() {
         ` : ''}
         
         ${prescription.recommendations.length > 0 ? `
-        <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #f59e0b; padding-bottom: 4px;">
+        <div style="margin-bottom: 15px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 3px;">
                 建議事項
             </h2>
-            <div style="background: #fffbeb; padding: 15px; border-radius: 6px; border-left: 4px solid #f59e0b;">
+            <div style="background: #fffbeb; padding: 12px; border-radius: 6px; border-left: 4px solid #f59e0b;">
                 <ul style="margin: 0; padding-left: 15px; font-size: 12px; color: #92400e;">
                     ${prescription.recommendations.map(rec => `<li style="margin-bottom: 6px;">${rec}</li>`).join('')}
                 </ul>
@@ -1165,11 +1173,11 @@ function createPDFContent() {
         </div>
         ` : ''}
         
-        <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #8b5cf6; padding-bottom: 4px;">
+        <div style="margin-bottom: 15px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #8b5cf6; padding-bottom: 3px;">
                 推薦運動範例
             </h2>
-            <div style="background: #f5f3ff; padding: 15px; border-radius: 6px; border-left: 4px solid #8b5cf6;">
+            <div style="background: #f5f3ff; padding: 12px; border-radius: 6px; border-left: 4px solid #8b5cf6;">
                 ${exerciseExamples}
             </div>
         </div>
