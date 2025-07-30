@@ -498,7 +498,7 @@ function calculateFITTVP(data) {
     }
     
     if (data.diseases.includes('sarcopenia')) {
-        prescription.type.push('阻力訓練', '蛋白質營養');
+        prescription.type.push('阻力訓練'); // 移除「蛋白質營養」，這不是運動類型
         prescription.recommendations.push('重點加強肌力訓練，每週至少3次阻力運動');
         prescription.recommendations.push('建議搭配營養師指導，確保足夠蛋白質攝取');
         prescription.warnings.push('漸進式增加負重，避免過度訓練造成傷害');
@@ -595,10 +595,61 @@ function calculateFITTVP(data) {
             break;
     }
     
+    // 清理重複的運動類型並整理優先順序
+    prescription.type = cleanupExerciseTypes(prescription.type);
+    
     // 統一生成針對不同運動類型的建議事項
     generateExerciseSpecificRecommendations(prescription, data);
     
     return prescription;
+}
+
+// 清理和整理運動類型
+function cleanupExerciseTypes(types) {
+    // 定義運動類型的合併規則
+    const typeMapping = {
+        '有氧運動': ['有氧運動', '低衝擊有氧'],
+        '肌力訓練': ['肌力訓練', '阻力訓練', '肌力訓練重點'],
+        '水中運動': ['水中運動'],
+        '平衡訓練': ['平衡訓練', '太極'],
+        '柔軟度訓練': ['柔軟度訓練', '伸展運動'],
+        '自由遊戲': ['自由遊戲'],
+        '體能遊戲': ['體能遊戲'],
+        '基礎運動技能': ['基礎運動技能'],
+        '團體運動': ['團體運動'],
+        '專項訓練': ['專項技能訓練', '競技表現提升', '專項訓練']
+    };
+    
+    // 優先順序（重要性排序）
+    const priority = [
+        '有氧運動', '肌力訓練', '平衡訓練', '柔軟度訓練', '水中運動',
+        '自由遊戲', '體能遊戲', '基礎運動技能', '團體運動', '專項訓練'
+    ];
+    
+    const result = [];
+    const processed = new Set();
+    
+    // 按優先順序處理
+    for (const mainType of priority) {
+        const subtypes = typeMapping[mainType];
+        if (subtypes && types.some(type => subtypes.includes(type))) {
+            if (!processed.has(mainType)) {
+                result.push(mainType);
+                processed.add(mainType);
+                // 標記所有相關子類型為已處理
+                subtypes.forEach(subtype => processed.add(subtype));
+            }
+        }
+    }
+    
+    // 處理其他未映射的類型
+    for (const type of types) {
+        if (!processed.has(type) && type && type !== '蛋白質營養') {
+            result.push(type);
+        }
+    }
+    
+    return result;
 }
 
 // 生成針對不同運動類型的具體建議事項
@@ -894,7 +945,7 @@ function getExerciseExamples(types) {
     const examples = {
         '有氧運動': ['快走', '游泳', '騎腳踏車', '爬樓梯', '健走'],
         '阻力訓練': ['彈力帶運動', '輕重量啞鈴', '徒手肌力訓練', '阻力機器'],
-        '肌力訓練': ['伏地挺身', '深蹲', '仰臥起坐', '啞鈴訓練'],
+        '肌力訓練': ['伏地挺身', '深蹲', '橋式', '死蟲式', '棒式', '啞鈴訓練'],
         '平衡訓練': ['單腳站立', '太極', '瑜珈', '平衡墊運動'],
         '柔軟度訓練': ['伸展運動', '瑜珈', '太極', '關節活動度運動'],
         '水中運動': ['水中走路', '水中有氧', '游泳', '水中太極'],
@@ -922,12 +973,253 @@ function getExerciseExamples(types) {
     return uniqueExamples.map(example => `<span class="inline-block bg-white px-3 py-1 rounded-full text-sm mr-2 mb-2">${example}</span>`).join('');
 }
 
-// PDF 下載功能（目前為模擬）
-function downloadPDF() {
-    alert('PDF 下載功能開發中！\n\n目前您可以：\n1. 截圖保存本頁面\n2. 列印此頁面為PDF\n3. 複製重要資訊到記事本');
+// PDF 下載功能
+async function downloadPDF() {
+    try {
+        // 創建一個臨時的PDF內容容器
+        const pdfContent = createPDFContent();
+        document.body.appendChild(pdfContent);
+        
+        // 使用 html2canvas 將內容轉換為圖片
+        const canvas = await html2canvas(pdfContent, {
+            scale: 1.5, // 適中解析度
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            width: 794, // A4 寬度 (px)
+            scrollX: 0,
+            scrollY: 0
+        });
+        
+        // 移除臨時容器
+        document.body.removeChild(pdfContent);
+        
+        // 創建 PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // 計算圖片尺寸以適應 A4
+        const imgWidth = 210; // A4 寬度 mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        // 添加第一頁
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= 297; // A4 高度 mm
+        
+        // 如果內容超過一頁，添加更多頁面
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= 297;
+        }
+        
+        // 生成檔案名稱
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+        
+        // 下載 PDF
+        pdf.save(`運動處方建議_${dateStr}.pdf`);
+        
+    } catch (error) {
+        console.error('PDF 生成錯誤:', error);
+        alert('PDF 生成失敗，請稍後再試。可能是瀏覽器不支援或網路問題。');
+    }
+}
+
+// 創建PDF內容的HTML結構
+function createPDFContent() {
+    const data = window.lastFormData || {};
+    const prescription = calculateFITTVP(data);
     
-    // TODO: 實際的 PDF 生成功能
-    // 可以使用 jsPDF 或其他 PDF 生成庫
+    // 獲取網頁上的實際內容
+    const prescriptionSummary = document.getElementById('prescriptionSummary');
+    const fittpDetails = document.getElementById('fittpDetails');
+    const exerciseGuidelines = document.getElementById('exerciseGuidelines');
+    
+    const container = document.createElement('div');
+    container.style.cssText = `
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        width: 794px;
+        background: white;
+        font-family: 'Noto Sans TC', sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #333;
+        padding: 30px;
+        box-sizing: border-box;
+    `;
+    
+    // 獲取運動範例
+    const exerciseExamples = getExerciseExamples(prescription.type);
+    
+    container.innerHTML = `
+        <div style="text-align: center; margin-bottom: 25px;">
+            <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px; color: #1e40af;">
+                個人化運動處方建議
+            </h1>
+            <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">
+                基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引
+            </p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 4px;">
+                您的運動處方
+            </h2>
+            <div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #1e40af; margin-bottom: 5px;">
+                        ${prescription.type.join('、')} ${prescription.frequency === 7 ? '每日' : '每週' + prescription.frequency + '次'} × ${prescription.time}分鐘
+                    </div>
+                    <div style="font-size: 14px; color: #6b7280;">
+                        強度：${getIntensityText(prescription.intensity)}
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; font-size: 12px;">
+                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                        <div style="font-size: 16px; font-weight: bold; color: #3b82f6;">
+                            ${prescription.frequency === 7 ? '每日' : prescription.frequency}
+                        </div>
+                        <div style="color: #6b7280;">${prescription.frequency === 7 ? '身體活動' : '次/週'}</div>
+                    </div>
+                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                        <div style="font-size: 16px; font-weight: bold; color: #22c55e;">
+                            ${prescription.time}
+                        </div>
+                        <div style="color: #6b7280;">分鐘${prescription.frequency === 7 ? '/日' : '/次'}</div>
+                    </div>
+                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                        <div style="font-size: 16px; font-weight: bold; color: #8b5cf6;">
+                            ${prescription.volume === 0 ? '多樣化' : prescription.volume}
+                        </div>
+                        <div style="color: #6b7280;">${prescription.volume === 0 ? '活動類型' : 'MET-min/週'}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #22c55e; padding-bottom: 4px;">
+                FITT-VP 運動原則
+            </h2>
+            <div style="background: #f0fdf4; padding: 15px; border-radius: 6px; border-left: 4px solid #22c55e;">
+                <div style="display: grid; gap: 8px; font-size: 12px;">
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">頻率 (Frequency)：</div>
+                        <div>${prescription.frequency === 7 ? '每日身體活動' : `每週 ${prescription.frequency} 次運動`}</div>
+                    </div>
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">強度 (Intensity)：</div>
+                        <div>${getIntensityText(prescription.intensity)}</div>
+                    </div>
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">時間 (Time)：</div>
+                        <div>${prescription.frequency === 7 ? '每日' : '每次運動'} ${prescription.time} 分鐘</div>
+                    </div>
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">類型 (Type)：</div>
+                        <div>${prescription.type.join('、')}</div>
+                    </div>
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">總量 (Volume)：</div>
+                        <div>${prescription.volume === 0 ? '重點在活動多樣性與趣味性' : `每週約 ${prescription.volume} MET-minutes`}</div>
+                    </div>
+                    <div style="display: flex;">
+                        <div style="width: 120px; font-weight: bold; color: #059669;">進展 (Progression)：</div>
+                        <div>${prescription.progression}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        ${prescription.warnings.length > 0 ? `
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #ef4444; padding-bottom: 4px;">
+                重要注意事項
+            </h2>
+            <div style="background: #fef2f2; padding: 15px; border-radius: 6px; border-left: 4px solid #ef4444;">
+                <ul style="margin: 0; padding-left: 15px; font-size: 12px; color: #991b1b;">
+                    ${prescription.warnings.map(warning => `<li style="margin-bottom: 6px;">${warning}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+        ` : ''}
+        
+        ${prescription.recommendations.length > 0 ? `
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #f59e0b; padding-bottom: 4px;">
+                建議事項
+            </h2>
+            <div style="background: #fffbeb; padding: 15px; border-radius: 6px; border-left: 4px solid #f59e0b;">
+                <ul style="margin: 0; padding-left: 15px; font-size: 12px; color: #92400e;">
+                    ${prescription.recommendations.map(rec => `<li style="margin-bottom: 6px;">${rec}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+        ` : ''}
+        
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 12px; border-bottom: 2px solid #8b5cf6; padding-bottom: 4px;">
+                推薦運動範例
+            </h2>
+            <div style="background: #f5f3ff; padding: 15px; border-radius: 6px; border-left: 4px solid #8b5cf6;">
+                ${exerciseExamples}
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+            <h3 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">免責聲明</h3>
+            <p style="font-size: 10px; color: #6b7280; line-height: 1.4; margin-bottom: 10px;">
+                本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。建議在開始任何運動計畫前，
+                請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #6b7280;">
+                <div>製作者：運動醫學科 吳易澄醫師 | https://wycswimming.blogspot.com/</div>
+                <div>生成日期：${new Date().toLocaleDateString('zh-TW')}</div>
+            </div>
+        </div>
+    `;
+    
+    return container;
+}
+
+// 輔助函數
+function getFitnessLevelText(level) {
+    const levels = {
+        'poor': '日常活動困難',
+        'fair': '容易疲勞',
+        'good': '尚可',
+        'excellent': '良好'
+    };
+    return levels[level] || level;
+}
+
+function getExerciseHabitText(habit) {
+    const habits = {
+        'none': '沒有運動習慣',
+        'light': '偶爾運動（每週1-2次）',
+        'moderate': '規律運動（每週3-4次）',
+        'active': '經常運動（每週5次以上）',
+        'student_athlete': '學生運動員或專業訓練'
+    };
+    return habits[habit] || habit;
+}
+
+function getIntensityText(intensity) {
+    const intensities = {
+        'light': '輕度強度 (RPE 3-4)',
+        'light-moderate': '輕度至中度強度 (RPE 4-5)',
+        'moderate': '中度強度 (RPE 5-6)',
+        'moderate-vigorous': '中度至劇烈強度 (RPE 6-7)'
+    };
+    return intensities[intensity] || intensity;
 }
 
 // 響應式設計支援
