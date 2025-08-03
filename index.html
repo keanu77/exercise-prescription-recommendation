@@ -7,6 +7,27 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js" 
+            onerror="loadFallbackQRCode()"></script>
+    <script>
+        // 備用QR碼庫載入
+        function loadFallbackQRCode() {
+            console.log('主要QR碼庫載入失敗，載入備用庫...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+            script.onerror = function() {
+                console.log('備用庫也載入失敗，嘗試第三個來源...');
+                const script2 = document.createElement('script');
+                script2.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+                script2.onerror = function() {
+                    console.log('所有QR碼庫都載入失敗');
+                    window.QRCodeLoadFailed = true;
+                };
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script);
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
@@ -67,6 +88,67 @@
             ring: 2px;
             ring-blue-500;
             ring-offset: 2px;
+        }
+        
+        .qr-code-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .qr-code-container:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .qr-code-container canvas,
+        .qr-code-container img {
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .qr-code-label {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .qr-close-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+        
+        .qr-close-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+        
+        .qr-close-btn:active {
+            transform: scale(0.95);
         }
     </style>
 </head>
@@ -361,6 +443,13 @@
 
     <!-- 結果頁 -->
     <div id="resultPage" class="page">
+        <!-- QR Code for PDF Download -->
+        <div id="qrCodeContainer" class="qr-code-container" style="display: none;">
+            <button class="qr-close-btn" onclick="hideQRCode()" title="關閉QR碼">×</button>
+            <div id="qrcode"></div>
+            <div class="qr-code-label">掃描下載 PDF</div>
+        </div>
+        
         <div class="max-w-6xl mx-auto px-4 py-8">
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">您的個人化運動處方</h2>

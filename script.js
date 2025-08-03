@@ -152,6 +152,16 @@ function showPage(pageId) {
     // 顯示指定頁面
     document.getElementById(pageId).classList.add('active');
     
+    // 顯示或隱藏QR碼
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (qrContainer) {
+        if (pageId === 'resultPage') {
+            qrContainer.style.display = 'block';
+        } else {
+            qrContainer.style.display = 'none';
+        }
+    }
+    
     // 滾動到頂部
     window.scrollTo(0, 0);
 }
@@ -336,6 +346,11 @@ function generatePrescription() {
         displayPrescriptionSummary(prescription);
         displayFITTPDetails(prescription);
         displayExerciseGuidelines(prescription);
+        
+        // 延遲生成QR碼，確保所有庫都載入完成
+        setTimeout(function() {
+            generateQRCode();
+        }, 500);
         
         console.log('Prescription displayed successfully');
     } catch (error) {
@@ -1234,6 +1249,193 @@ function getIntensityText(intensity) {
 window.addEventListener('resize', function() {
     // 處理視窗大小變化時的佈局調整
     // 目前使用 Tailwind CSS 的響應式類別已經足夠
+});
+
+// QR碼生成功能
+function generateQRCode() {
+    console.log('開始生成QR碼...');
+    
+    const qrContainer = document.getElementById('qrcode');
+    if (!qrContainer) {
+        console.error('找不到QR碼容器');
+        return;
+    }
+    
+    // 顯示載入中
+    qrContainer.innerHTML = '<div style="text-align: center; color: #6b7280; font-size: 12px; padding: 50px;">載入中...</div>';
+    
+    // 檢查是否所有庫都載入失敗
+    if (window.QRCodeLoadFailed) {
+        console.log('QR碼庫載入失敗，使用備用方案');
+        showFallbackQRCode(qrContainer);
+        return;
+    }
+    
+    // 檢查QRCode庫是否載入
+    if (typeof QRCode === 'undefined') {
+        console.log('QRCode庫未載入，等待載入...');
+        qrContainer.innerHTML = '<div style="text-align: center; color: #f59e0b; font-size: 12px; padding: 50px;">載入QR碼庫...</div>';
+        
+        // 設定最大重試次數
+        if (!window.qrRetryCount) window.qrRetryCount = 0;
+        window.qrRetryCount++;
+        
+        if (window.qrRetryCount < 5) {
+            setTimeout(generateQRCode, 2000);
+        } else {
+            console.log('重試次數超限，使用備用方案');
+            showFallbackQRCode(qrContainer);
+        }
+        return;
+    }
+    
+    try {
+        console.log('QRCode庫已載入，開始生成');
+        
+        // 使用當前頁面URL作為QR碼內容
+        const url = window.location.href;
+        console.log('QR碼內容:', url);
+        
+        // 清空容器
+        qrContainer.innerHTML = '';
+        
+        // 創建canvas元素
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '120px';
+        canvas.style.height = '120px';
+        
+        // 生成QR碼
+        QRCode.toCanvas(canvas, url, {
+            width: 120,
+            height: 120,
+            margin: 2,
+            color: {
+                dark: '#1f2937',
+                light: '#ffffff'
+            }
+        }, function (error) {
+            if (error) {
+                console.error('QR碼生成失敗:', error);
+                showFallbackQRCode(qrContainer);
+            } else {
+                console.log('QR碼生成成功');
+                qrContainer.appendChild(canvas);
+            }
+        });
+        
+    } catch (error) {
+        console.error('QR碼生成過程錯誤:', error);
+        showFallbackQRCode(qrContainer);
+    }
+}
+
+// 備用方案：顯示文字連結
+function showFallbackQRCode(container) {
+    const url = window.location.href;
+    container.innerHTML = `
+        <div style="text-align: center; padding: 20px; background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 8px;">
+            <div style="font-size: 14px; color: #475569; margin-bottom: 10px;">手機掃描功能暫時無法使用</div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">請複製以下連結到手機瀏覽器：</div>
+            <div style="font-size: 10px; color: #1e40af; word-break: break-all; background: white; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                ${url}
+            </div>
+            <button onclick="copyToClipboard('${url}')" 
+                    style="margin-top: 8px; padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">
+                複製連結
+            </button>
+        </div>
+    `;
+}
+
+// 複製到剪貼簿
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('連結已複製到剪貼簿');
+        }).catch(function() {
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "-9999px";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        alert('連結已複製到剪貼簿');
+    } catch (err) {
+        alert('無法自動複製，請手動複製連結');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// 隱藏QR碼
+function hideQRCode() {
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (qrContainer) {
+        qrContainer.style.display = 'none';
+        console.log('QR碼已隱藏');
+    }
+}
+
+// 顯示QR碼（可選功能，供需要時使用）
+function showQRCode() {
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (qrContainer) {
+        qrContainer.style.display = 'block';
+        console.log('QR碼已顯示');
+    }
+}
+
+// 生成PDF下載連結
+function generatePDFDownloadUrl() {
+    // 創建一個包含下載功能的URL
+    // 由於這是前端應用，我們創建一個JavaScript URL來觸發下載
+    const downloadScript = `
+        javascript:(function(){
+            if(typeof downloadPDF === 'function') {
+                downloadPDF();
+            } else {
+                window.location.href = '${window.location.href}';
+                alert('請在結果頁面使用下載功能');
+            }
+        })();
+    `;
+    
+    // 對於QR碼，我們使用當前頁面的URL，用戶掃描後可以在手機上查看並下載
+    return window.location.href.split('#')[0] + '#download';
+}
+
+// 監聽URL變化，處理QR碼掃描後的下載
+window.addEventListener('hashchange', function() {
+    if (window.location.hash === '#download') {
+        // 確保在結果頁面
+        const resultPage = document.getElementById('resultPage');
+        if (resultPage && resultPage.classList.contains('active')) {
+            // 延遲執行下載，讓頁面有時間載入
+            setTimeout(function() {
+                if (typeof downloadPDF === 'function') {
+                    downloadPDF();
+                }
+            }, 1000);
+        } else {
+            // 如果不在結果頁面，顯示提示
+            alert('請先填寫健康評估問卷以生成運動處方');
+        }
+        // 清除hash
+        history.replaceState('', document.title, window.location.pathname + window.location.search);
+    }
 });
 
 // 初始化
