@@ -110,6 +110,33 @@ function getMETActivitiesHtml(prescription) {
 // 用戶可以選擇「健康狀況良好」並且同時不勾選任何疾病選項
 // 或者選擇「有健康狀況需注意」並勾選相應的疾病選項
 
+// 疾病代碼到中文名稱的映射
+const diseaseMap = {
+    'overweight': '體重過重',
+    'asthma': '氣喘',
+    'hypertension': '高血壓',
+    'diabetes': '糖尿病',
+    'arthritis': '關節問題',
+    'heart_recovery': '心臟疾病',
+    'sarcopenia': '肌少症',
+    'pregnant': '孕婦',
+    'hyperlipidemia': '高血脂',
+    'cancer_recovery': '癌症康復'
+};
+
+// 將疾病代碼轉換為中文名稱
+function getDiseaseName(code) {
+    return diseaseMap[code] || code;
+}
+
+// 將疾病代碼數組轉換為中文名稱字符串
+function formatDiseases(diseases) {
+    if (!diseases || diseases.length === 0) {
+        return '健康狀況良好';
+    }
+    return diseases.map(getDiseaseName).join('、');
+}
+
 // BMI 計算功能
 function calculateBMI() {
     console.log('calculateBMI 被調用');
@@ -669,17 +696,17 @@ function assessPARQRisk(parqAnswers) {
         result.recommendations.push('您可以安全地開始運動計畫');
     } else if (result.yesCount === 1) {
         result.level = 'moderate';
-        result.recommendations.push('建議在開始運動前與專業人員討論');
+        result.recommendations.push('建議在開始運動前與運動醫學科醫師討論');
         result.recommendations.push('從低強度活動開始，逐步增加');
     } else {
         result.level = 'high';
-        result.recommendations.push('強烈建議在開始運動前諮詢醫師');
+        result.recommendations.push('強烈建議在開始運動前諮詢運動醫學科醫師');
         result.recommendations.push('需要專業監督下進行運動');
     }
 
     // 針對特定問題給予建議
     if (parqAnswers.parq_q1 === 'yes' || parqAnswers.parq_q6 === 'yes') {
-        result.recommendations.push('請攜帶此評估結果與您的心臟科醫師討論');
+        result.recommendations.push('請攜帶此評估結果與您的運動醫學科醫師討論');
     }
 
     if (parqAnswers.parq_q2 === 'yes' || parqAnswers.parq_q3 === 'yes') {
@@ -801,7 +828,7 @@ function calculateFITTVP(data) {
             } else if (data.bmi >= 27) {
                 prescription.recommendations.push('BMI偏高：建議以低衝擊有氧運動為主，配合飲食管理');
                 prescription.type = ['低衝擊有氧', '水中運動', '肌力訓練'];
-                prescription.warnings.push('建議諮詢醫師或營養師制定完整的體重管理計畫');
+                prescription.warnings.push('建議諮詢運動醫學科醫師或營養師制定完整的體重管理計畫');
             }
         }
     } else {
@@ -847,7 +874,7 @@ function calculateFITTVP(data) {
     if (data.diseases.includes('heart_recovery')) {
         prescription.intensity = 'light-moderate';
         prescription.warnings.push('嚴格監控心率，出現胸痛立即停止');
-        prescription.recommendations.push('建議在醫師監督下開始運動計畫');
+        prescription.recommendations.push('建議在運動醫學科醫師監督下開始運動計畫');
     }
     
     if (data.diseases.includes('sarcopenia')) {
@@ -859,6 +886,29 @@ function calculateFITTVP(data) {
         if (data.age >= 18) {
             prescription.frequency = Math.min(prescription.frequency + 1, 4);
         }
+    }
+
+    if (data.diseases.includes('pregnant')) {
+        prescription.intensity = 'light';
+        prescription.type = ['有氧運動', '柔軟度訓練', '骨盆底肌訓練'];
+        prescription.frequency = Math.min(prescription.frequency, 4);
+        prescription.time = Math.min(prescription.time, 30);
+        prescription.warnings.push('避免仰躺運動、高衝擊運動和有跌倒風險的活動');
+        prescription.warnings.push('懷孕期間運動強度不宜過高，以能說話為準');
+        prescription.warnings.push('出現任何不適症狀應立即停止並諮詢運動醫學科醫師');
+        prescription.recommendations.push('建議選擇游泳、散步、孕婦瑜珈等低衝擊運動');
+        prescription.recommendations.push('運動前請先諮詢運動醫學科醫師，確認身體狀況適合運動');
+        prescription.recommendations.push('避免過熱環境運動，補充充足水分');
+    }
+
+    if (data.diseases.includes('hyperlipidemia')) {
+        prescription.type.push('有氧運動', '阻力訓練');
+        prescription.warnings.push('高血脂患者運動前建議諮詢運動醫學科醫師，了解適合的運動強度');
+        prescription.warnings.push('運動中注意身體反應，避免過度勞累');
+        prescription.recommendations.push('建議以有氧運動為主，有助於改善血脂代謝');
+        prescription.recommendations.push('配合適當阻力訓練，增強肌肉量提升代謝');
+        prescription.recommendations.push('定期監測血脂指標，評估運動效果');
+        prescription.recommendations.push('搭配健康飲食，控制飽和脂肪攝取');
     }
     
     if (data.diseases.includes('cancer_recovery')) {
@@ -910,15 +960,15 @@ function calculateFITTVP(data) {
         case 'high':
             // 高風險：強烈建議醫師諮詢
             prescription.warnings.unshift('⚠️ 根據 PAR-Q 評估，您可能有運動風險因子');
-            prescription.recommendations.unshift('請在開始運動前諮詢醫師');
-            prescription.warnings.push('建議在醫師或運動專業人員監督下開始運動');
+            prescription.recommendations.unshift('請在開始運動前諮詢運動醫學科醫師');
+            prescription.warnings.push('建議在運動醫學科醫師或運動專業人員監督下開始運動');
 
             // 保守的運動處方
             if (data.age >= 18) {
                 prescription.frequency = Math.max(2, Math.floor(prescription.frequency * 0.5));
                 prescription.time = 15; // 非常保守的起始時間
                 prescription.intensity = '輕度 (50-60% HRmax)';
-                prescription.progression = '在醫師同意下，每週增加5%運動量';
+                prescription.progression = '在運動醫學科醫師同意下，每週增加5%運動量';
             }
             break;
 

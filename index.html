@@ -39,6 +39,48 @@
         .form-input {
             @apply w-full p-4 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none;
         }
+
+        /* 手機端表單優化 */
+        @media (max-width: 640px) {
+            .form-input {
+                @apply p-3 text-base;
+            }
+
+            .form-label {
+                @apply text-base mb-1;
+            }
+
+            .btn-primary {
+                @apply py-3 px-6 text-base w-full;
+            }
+
+            .btn-secondary {
+                @apply py-2 px-4 text-sm w-full;
+            }
+
+            .card {
+                @apply p-4 mx-2;
+            }
+
+            /* 確保表單輸入框在手機上不會縮放 */
+            .form-input {
+                font-size: 16px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                @apply p-3 mx-1;
+            }
+
+            .text-2xl {
+                @apply text-xl;
+            }
+
+            .text-xl {
+                @apply text-lg;
+            }
+        }
         
         .form-label {
             @apply block text-lg font-medium text-gray-700 mb-2;
@@ -75,6 +117,8 @@
             align-items: center;
             opacity: 0.5;
             transition: opacity 0.3s;
+            flex: 1;
+            min-width: 0;
         }
 
         .step-indicator.active {
@@ -96,6 +140,7 @@
             font-weight: bold;
             color: #6b7280;
             transition: all 0.3s;
+            flex-shrink: 0;
         }
 
         .step-indicator.active .step-circle {
@@ -114,6 +159,10 @@
             font-size: 14px;
             color: #6b7280;
             white-space: nowrap;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .step-indicator.active .step-label {
@@ -131,6 +180,51 @@
             background: #e5e7eb;
             margin: 0 -10px;
             margin-bottom: 30px;
+            flex-shrink: 0;
+        }
+
+        /* 手機端響應式優化 */
+        @media (max-width: 640px) {
+            .step-circle {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+
+            .step-label {
+                font-size: 12px;
+                margin-top: 4px;
+                max-width: 60px;
+            }
+
+            .step-line {
+                width: 30px;
+                margin: 0 -5px;
+                margin-bottom: 26px;
+            }
+
+            .step-indicator.active .step-circle {
+                transform: scale(1.05);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .step-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 11px;
+            }
+
+            .step-label {
+                font-size: 10px;
+                max-width: 50px;
+            }
+
+            .step-line {
+                width: 20px;
+                margin: 0 -3px;
+                margin-bottom: 24px;
+            }
         }
 
         .form-step {
@@ -210,14 +304,14 @@
 
     <!-- 表單頁 -->
     <div id="formPage" class="page">
-        <div class="max-w-4xl mx-auto px-4 py-8">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-bold text-gray-800 mb-4">健康評估問卷</h2>
-                <p class="text-lg text-gray-600">請填寫以下資訊，我們將為您量身打造運動處方</p>
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+            <div class="text-center mb-6 sm:mb-8">
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3 sm:mb-4">健康評估問卷</h2>
+                <p class="text-base sm:text-lg text-gray-600 px-2">請填寫以下資訊，我們將為您量身打造運動處方</p>
 
                 <!-- 步驟指示器 -->
                 <div class="mt-6 mb-4">
-                    <div class="flex justify-center items-center space-x-2 mb-4">
+                    <div class="flex justify-center items-center mb-4 px-4 sm:px-0 max-w-md mx-auto">
                         <div class="step-indicator active" data-step="1">
                             <div class="step-circle">1</div>
                             <div class="step-label">基本資料</div>
@@ -251,9 +345,9 @@
                 <form id="healthForm">
                     <!-- 步驟 1: 基本資料 -->
                     <div class="form-step active" data-step="1">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 1: 基本資料</h3>
-                        <div class="space-y-6">
-                            <div class="grid md:grid-cols-2 gap-6">
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">步驟 1: 基本資料</h3>
+                        <div class="space-y-4 sm:space-y-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
                             <label class="form-label">年齡 *</label>
                             <input type="number" id="age" name="age" min="6" max="120" required
@@ -275,7 +369,7 @@
                     </div>
                     
                     <!-- 身體資料 -->
-                    <div class="grid md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         <div>
                             <label class="form-label">身高 * (公分)</label>
                             <input type="number" id="height" name="height" min="100" max="250" required
@@ -310,10 +404,10 @@
                             </div>
 
                             <!-- BMR 和 TDEE 計算 -->
-                            <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                <h4 class="text-lg font-semibold text-blue-800 mb-4">熱量消耗計算</h4>
+                            <div class="mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <h4 class="text-base sm:text-lg font-semibold text-blue-800 mb-3 sm:mb-4">熱量消耗計算</h4>
 
-                                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                                     <div class="bg-white p-3 rounded-lg">
                                         <label class="text-sm text-gray-600">BMR 基礎代謝率</label>
                                         <div id="bmrDisplay" class="text-2xl font-bold text-blue-600">
@@ -347,11 +441,11 @@
                         </div>
 
                         <!-- 步驟 1 導航按鈕 -->
-                        <div class="flex justify-between mt-8">
-                            <button type="button" onclick="showPage('homePage')" class="btn-secondary">
+                        <div class="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 mt-6 sm:mt-8">
+                            <button type="button" onclick="showPage('homePage')" class="btn-secondary order-2 sm:order-1">
                                 返回首頁
                             </button>
-                            <button type="button" onclick="nextStep()" class="btn-primary">
+                            <button type="button" onclick="nextStep()" class="btn-primary order-1 sm:order-2">
                                 下一步 →
                             </button>
                         </div>
@@ -408,6 +502,14 @@
                             <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
                                 <span class="text-lg">肌少症</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="pregnant" class="w-5 h-5">
+                                <span class="text-lg">孕婦</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="diseases" value="hyperlipidemia" class="w-5 h-5">
+                                <span class="text-lg">高血脂</span>
                             </label>
                         </div>
                     </div>
