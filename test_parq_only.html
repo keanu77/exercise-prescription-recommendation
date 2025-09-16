@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAR-Q 測試頁面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .step-container {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .question {
+            background: white;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+        .question label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        .options {
+            display: flex;
+            gap: 24px;
+        }
+        .option {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .option input {
+            margin-right: 8px;
+        }
+        .intro {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .intro p {
+            color: #1e40af;
+            font-size: 14px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PAR-Q 問卷測試</h1>
+
+        <div class="step-container">
+            <h3>步驟 3: 運動準備評估 (PAR-Q)</h3>
+
+            <div class="intro">
+                <p>
+                    <strong>PAR-Q (Physical Activity Readiness Questionnaire)</strong><br>
+                    請誠實回答以下問題，以評估您是否適合開始運動計畫。如有任何疑慮，請諮詢醫師。
+                </p>
+            </div>
+
+            <div class="question">
+                <label>1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q1" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q1" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>2. 當您進行體能活動時是否會感到胸痛？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q2" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q2" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q3" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q3" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>4. 您是否會因為感到頭暈而失去平衡或意識？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q4" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q4" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>5. 您是否有骨骼或關節問題，可能因改變體能活動而惡化？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q5" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q5" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>6. 您的醫師目前是否為您的血壓或心臟狀況開立藥物？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q6" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q6" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="question">
+                <label>7. 您是否知道有任何其他原因不應該參與體能活動？</label>
+                <div class="options">
+                    <label class="option">
+                        <input type="radio" name="parq_q7" value="yes" required>
+                        <span>是</span>
+                    </label>
+                    <label class="option">
+                        <input type="radio" name="parq_q7" value="no" required>
+                        <span>否</span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="margin-top: 32px; text-align: center;">
+                <button style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 16px;">
+                    確認並繼續
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

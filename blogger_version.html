@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運動處方推薦系統</title>
+    
+    <!-- 外部資源載入 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        /* 重置 Blogger 預設樣式 */
+        .exercise-system * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .exercise-system {
+            font-family: 'Noto Sans TC', sans-serif;
+            min-height: 100vh;
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+        }
+        
+        .exercise-system .page {
+            display: none;
+        }
+        
+        .exercise-system .page.active {
+            display: block;
+        }
+        
+        .exercise-system .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.125rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .exercise-system .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        
+        .exercise-system .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .exercise-system .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        
+        .exercise-system .form-input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            border: 2px solid #d1d5db;
+            border-radius: 0.5rem;
+        }
+        
+        .exercise-system .form-input:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        
+        .exercise-system .form-label {
+            display: block;
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .exercise-system .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .exercise-system .prescription-card {
+            background: linear-gradient(to bottom right, #dbeafe, #dcfce7);
+            border-left: 4px solid #3b82f6;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .exercise-system .btn-icon-square {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 4rem;
+            height: 4rem;
+            background-color: white;
+            border: 2px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .exercise-system .btn-icon-square:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: #3b82f6;
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .exercise-system .btn-icon-square svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .exercise-system .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="exercise-system">
+        <!-- 導航列 -->
+        <nav style="background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 1px solid #e5e7eb;">
+            <div style="max-width: 72rem; margin: 0 auto; padding: 1rem;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between;">
+                    <h1 style="font-size: 1.5rem; font-weight: bold; color: #1f2937; margin-bottom: 0.5rem;">運動處方推薦系統</h1>
+                    <div style="font-size: 0.875rem; color: #6b7280;">
+                        <span style="font-weight: 500;">製作者：</span>
+                        <a href="https://wycswimming.blogspot.com/" target="_blank" 
+                           style="color: #2563eb; text-decoration: none;">
+                            運動醫學科 吳易澄醫師
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main>
+            <!-- 首頁 -->
+            <div id="homePage" class="page active" style="padding: 3rem 0;">
+                <div style="max-width: 64rem; margin: 0 auto; padding: 0 1rem;">
+                    <div style="text-align: center; margin-bottom: 3rem;">
+                        <h2 style="font-size: 2.5rem; font-weight: bold; color: #1f2937; margin-bottom: 1.5rem;">
+                            為你量身打造的運動處方
+                        </h2>
+                        <div class="card" style="max-width: 48rem; margin: 0 auto;">
+                            <div style="font-size: 1.25rem; color: #4b5563; line-height: 1.6;">
+                                <p style="margin-bottom: 1rem;">
+                                    <strong>適用於兒童、青少年、成人與銀髮族</strong>
+                                </p>
+                                <p style="margin-bottom: 1.5rem;">
+                                    根據美國運動醫學會（ACSM）的 FITT-VP 原則與世界衛生組織（WHO）身體活動建議指引，
+                                    為各年齡層提供個人化的運動建議，包含運動頻率、強度、時間、類型、總量與進展規劃。
+                                </p>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 1.125rem; color: #6b7280; margin-top: 1.5rem;">
+                                    <div style="background-color: #dbeafe; padding: 1rem; border-radius: 0.5rem;">
+                                        <p><strong>兒童 (6-11歲)</strong></p>
+                                        <p style="font-size: 0.875rem;">趣味性體能活動</p>
+                                    </div>
+                                    <div style="background-color: #dcfce7; padding: 1rem; border-radius: 0.5rem;">
+                                        <p><strong>青少年 (12-17歲)</strong></p>
+                                        <p style="font-size: 0.875rem;">多元運動發展</p>
+                                    </div>
+                                    <div style="background-color: #fed7aa; padding: 1rem; border-radius: 0.5rem;">
+                                        <p><strong>成人&銀髮族</strong></p>
+                                        <p style="font-size: 0.875rem;">健康維護與慢性病管理</p>
+                                    </div>
+                                </div>
+                                <p style="font-size: 1.125rem; color: #6b7280; margin-top: 1rem;">
+                                    • 年齡適性的運動指導<br>
+                                    • 考量個人健康狀況<br>
+                                    • 循序漸進的運動計畫
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <button onclick="showPage('formPage')" class="btn-primary" style="font-size: 1.25rem; padding: 1.25rem 3rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+                            開始使用
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表單頁 -->
+            <div id="formPage" class="page" style="padding: 2rem 0;">
+                <!-- 這裡包含完整的表單內容 -->
+                <!-- 為了節省空間，我會在另一個文件中提供完整的表單代碼 -->
+                <div style="text-align: center; padding: 2rem;">
+                    <p>表單內容過長，請查看完整版本...</p>
+                    <button onclick="showPage('homePage')" class="btn-secondary">返回首頁</button>
+                </div>
+            </div>
+
+            <!-- 結果頁 -->
+            <div id="resultPage" class="page">
+                <!-- 結果頁內容 -->
+                <div style="text-align: center; padding: 2rem;">
+                    <p>結果頁面...</p>
+                    <button onclick="showPage('homePage')" class="btn-secondary">返回首頁</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- 頁尾 -->
+        <footer style="background-color: #1f2937; color: white; padding: 2rem 0; margin-top: 3rem;">
+            <div style="max-width: 72rem; margin: 0 auto; padding: 0 1rem; text-align: center;">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">重要提醒</h3>
+                <div style="max-width: 64rem; margin: 0 auto; color: #d1d5db; line-height: 1.6;">
+                    <p style="color: #fbbf24; font-weight: 500; margin-bottom: 0.5rem;">⚠️ 免責說明</p>
+                    <p style="margin-bottom: 0.5rem;">
+                        本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。
+                        每個人的身體狀況、健康條件與運動需求皆不相同，建議在開始任何運動計畫前，
+                        請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。
+                    </p>
+                </div>
+                <div style="border-top: 1px solid #4b5563; padding-top: 1rem; margin-top: 1rem;">
+                    <p style="font-size: 0.875rem; color: #9ca3af;">
+                        © 運動處方推薦系統 | 製作者：
+                        <a href="https://wycswimming.blogspot.com/" target="_blank" 
+                           style="color: #60a5fa; text-decoration: none;">
+                            運動醫學科 吳易澄醫師
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 簡化版的 JavaScript 功能
+        function showPage(pageId) {
+            // 隱藏所有頁面
+            const pages = document.querySelectorAll('.exercise-system .page');
+            pages.forEach(page => page.classList.remove('active'));
+            
+            // 顯示指定頁面
+            document.getElementById(pageId).classList.add('active');
+            
+            // 滾動到頂部
+            window.scrollTo(0, 0);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage('homePage');
+        });
+    </script>
+</body>
+</html>

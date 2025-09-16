@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡化版多步驟表單</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .form-step {
+            display: none;
+        }
+        .form-step.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-2xl font-bold mb-6">簡化版多步驟表單測試</h1>
+
+        <!-- 步驟指示器 -->
+        <div class="flex justify-center mb-8">
+            <div class="flex items-center space-x-4">
+                <div class="step-indicator">
+                    <div class="step-circle bg-green-500 text-white">✓</div>
+                    <div class="step-label">基本資料</div>
+                </div>
+                <div class="step-indicator">
+                    <div class="step-circle bg-green-500 text-white">✓</div>
+                    <div class="step-label">健康狀況</div>
+                </div>
+                <div class="step-indicator active">
+                    <div class="step-circle bg-blue-500 text-white">3</div>
+                    <div class="step-label">運動準備</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 導航按鈕 -->
+        <div class="mb-4 text-center">
+            <button onclick="showStep(1)" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">步驟 1</button>
+            <button onclick="showStep(2)" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">步驟 2</button>
+            <button onclick="showStep(3)" class="bg-blue-500 text-white px-4 py-2 rounded">步驟 3</button>
+        </div>
+
+        <!-- 步驟 1 -->
+        <div class="form-step bg-white p-6 rounded-lg shadow" data-step="1">
+            <h3 class="text-xl font-semibold mb-4">步驟 1: 基本資料</h3>
+            <p>這是步驟 1 的內容</p>
+        </div>
+
+        <!-- 步驟 2 -->
+        <div class="form-step bg-white p-6 rounded-lg shadow" data-step="2">
+            <h3 class="text-xl font-semibold mb-4">步驟 2: 健康狀況</h3>
+            <p>這是步驟 2 的內容</p>
+        </div>
+
+        <!-- 步驟 3 -->
+        <div class="form-step bg-white p-6 rounded-lg shadow" data-step="3">
+            <h3 class="text-xl font-semibold mb-4">步驟 3: 運動準備評估 (PAR-Q)</h3>
+            <div class="space-y-6">
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <p><strong>PAR-Q 問卷說明</strong></p>
+                    <p>請誠實回答以下問題，以評估您是否適合開始運動計畫。</p>
+                </div>
+
+                <!-- PAR-Q 問題 1 -->
+                <div class="bg-gray-50 p-4 rounded">
+                    <label class="block font-medium mb-2">1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</label>
+                    <div class="flex gap-4">
+                        <label><input type="radio" name="q1" value="yes" class="mr-2">是</label>
+                        <label><input type="radio" name="q1" value="no" class="mr-2">否</label>
+                    </div>
+                </div>
+
+                <!-- PAR-Q 問題 2 -->
+                <div class="bg-gray-50 p-4 rounded">
+                    <label class="block font-medium mb-2">2. 當您進行體能活動時是否會感到胸痛？</label>
+                    <div class="flex gap-4">
+                        <label><input type="radio" name="q2" value="yes" class="mr-2">是</label>
+                        <label><input type="radio" name="q2" value="no" class="mr-2">否</label>
+                    </div>
+                </div>
+
+                <!-- PAR-Q 問題 3 -->
+                <div class="bg-gray-50 p-4 rounded">
+                    <label class="block font-medium mb-2">3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</label>
+                    <div class="flex gap-4">
+                        <label><input type="radio" name="q3" value="yes" class="mr-2">是</label>
+                        <label><input type="radio" name="q3" value="no" class="mr-2">否</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showStep(step) {
+            console.log('Showing step:', step);
+
+            // 隱藏所有步驟
+            const allSteps = document.querySelectorAll('.form-step');
+            allSteps.forEach(s => {
+                s.classList.remove('active');
+                console.log('Hiding step:', s.dataset.step);
+            });
+
+            // 顯示選定步驟
+            const targetStep = document.querySelector(`.form-step[data-step="${step}"]`);
+            if (targetStep) {
+                targetStep.classList.add('active');
+                console.log('Showing step:', step, targetStep);
+            } else {
+                console.error('Step not found:', step);
+            }
+        }
+
+        // 初始化
+        showStep(3);
+    </script>
+</body>
+</html>

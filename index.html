@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運動處方推薦系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- PDF 函式庫延遲載入，僅在需要時載入 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
@@ -24,7 +23,7 @@
         .page {
             display: none;
         }
-        
+
         .page.active {
             display: block;
         }
@@ -68,7 +67,80 @@
             ring-blue-500;
             ring-offset: 2px;
         }
-        
+
+        /* 步驟指示器樣式 */
+        .step-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .step-indicator.active {
+            opacity: 1;
+        }
+
+        .step-indicator.completed {
+            opacity: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6b7280;
+            transition: all 0.3s;
+        }
+
+        .step-indicator.active .step-circle {
+            background: #3b82f6;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-indicator.completed .step-circle {
+            background: #10b981;
+            color: white;
+        }
+
+        .step-label {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+
+        .step-indicator.active .step-label {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .step-indicator.completed .step-label {
+            color: #10b981;
+        }
+
+        .step-line {
+            width: 60px;
+            height: 2px;
+            background: #e5e7eb;
+            margin: 0 -10px;
+            margin-bottom: 30px;
+        }
+
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -142,16 +214,50 @@
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">健康評估問卷</h2>
                 <p class="text-lg text-gray-600">請填寫以下資訊，我們將為您量身打造運動處方</p>
+
+                <!-- 步驟指示器 -->
+                <div class="mt-6 mb-4">
+                    <div class="flex justify-center items-center space-x-2 mb-4">
+                        <div class="step-indicator active" data-step="1">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">基本資料</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step-indicator" data-step="2">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">健康狀況</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step-indicator" data-step="3">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">運動準備</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 進度條 -->
+                <div class="mt-4 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-600">完成進度</span>
+                        <span id="progressText" class="text-sm font-semibold text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="card">
-                <form id="healthForm" class="space-y-8">
-                    <!-- 基本資料 -->
-                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <form id="healthForm">
+                    <!-- 步驟 1: 基本資料 -->
+                    <div class="form-step active" data-step="1">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 1: 基本資料</h3>
+                        <div class="space-y-6">
+                            <div class="grid md:grid-cols-2 gap-6">
                         <div>
                             <label class="form-label">年齡 *</label>
-                            <input type="number" id="age" name="age" min="6" max="120" required 
-                                   class="form-input" placeholder="輸入年齡（6歲以上）" onchange="calculateBMI()">
+                            <input type="number" id="age" name="age" min="6" max="120" required
+                                   class="form-input" placeholder="輸入年齡（6歲以上）" onchange="calculateBMI(); calculateBMR()">
                             <div id="ageInfo" class="hidden mt-2 p-3 rounded-lg">
                                 <!-- 動態顯示年齡層資訊 -->
                             </div>
@@ -159,7 +265,7 @@
                         
                         <div>
                             <label class="form-label">性別 *</label>
-                            <select id="gender" name="gender" required class="form-input">
+                            <select id="gender" name="gender" required class="form-input" onchange="calculateBMR()">
                                 <option value="">請選擇</option>
                                 <option value="male">男</option>
                                 <option value="female">女</option>
@@ -172,14 +278,14 @@
                     <div class="grid md:grid-cols-3 gap-6">
                         <div>
                             <label class="form-label">身高 * (公分)</label>
-                            <input type="number" id="height" name="height" min="100" max="250" required 
-                                   class="form-input" placeholder="輸入身高" onchange="calculateBMI()">
+                            <input type="number" id="height" name="height" min="100" max="250" required
+                                   class="form-input" placeholder="輸入身高" onchange="calculateBMI(); calculateBMR()">
                         </div>
                         
                         <div>
                             <label class="form-label">體重 * (公斤)</label>
-                            <input type="number" id="weight" name="weight" min="20" max="300" required 
-                                   class="form-input" placeholder="輸入體重" onchange="calculateBMI()">
+                            <input type="number" id="weight" name="weight" min="20" max="300" required
+                                   class="form-input" placeholder="輸入體重" onchange="calculateBMI(); calculateBMR()">
                         </div>
                         
                         <div>
@@ -189,8 +295,73 @@
                                 <span id="bmiCategory" class="text-sm px-2 py-1 rounded"></span>
                             </div>
                         </div>
+                            </div>
+
+                            <!-- 活動水平選擇 -->
+                            <div class="mt-6">
+                                <label class="form-label">選擇您的活動水平（用於計算 TDEE）</label>
+                                <select id="activityLevel" name="activityLevel" class="form-input" onchange="calculateTDEE()">
+                                    <option value="1.2">久坐（幾乎不運動）</option>
+                                    <option value="1.375" selected>輕度活動（每週運動1-3天）</option>
+                                    <option value="1.55">中度活動（每週運動3-5天）</option>
+                                    <option value="1.725">高度活動（每週運動6-7天）</option>
+                                    <option value="1.9">非常高度活動（體力勞動或專業運動員）</option>
+                                </select>
+                            </div>
+
+                            <!-- BMR 和 TDEE 計算 -->
+                            <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <h4 class="text-lg font-semibold text-blue-800 mb-4">熱量消耗計算</h4>
+
+                                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                    <div class="bg-white p-3 rounded-lg">
+                                        <label class="text-sm text-gray-600">BMR 基礎代謝率</label>
+                                        <div id="bmrDisplay" class="text-2xl font-bold text-blue-600">
+                                            <span id="bmrValue">待計算</span>
+                                            <span class="text-sm font-normal text-gray-600">大卡/天</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">完全靜態時的熱量消耗</p>
+                                    </div>
+
+                                    <div class="bg-white p-3 rounded-lg">
+                                        <label class="text-sm text-gray-600">TDEE 每日總消耗</label>
+                                        <div id="tdeeDisplay" class="text-2xl font-bold text-green-600">
+                                            <span id="tdeeValue">待計算</span>
+                                            <span class="text-sm font-normal text-gray-600">大卡/天</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">包含活動的總熱量消耗</p>
+                                    </div>
+                                </div>
+
+
+                                <!-- 熱量建議 -->
+                                <div id="calorieAdvice" class="mt-3 p-3 bg-yellow-50 rounded text-sm hidden">
+                                    <p class="font-semibold text-yellow-800 mb-1">熱量攝取建議：</p>
+                                    <ul class="text-yellow-700 space-y-1">
+                                        <li>• 維持體重：<span id="maintainCalories" class="font-semibold"></span> 大卡/天</li>
+                                        <li>• 減重（-500卡）：<span id="loseCalories" class="font-semibold"></span> 大卡/天</li>
+                                        <li>• 增重（+300卡）：<span id="gainCalories" class="font-semibold"></span> 大卡/天</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 步驟 1 導航按鈕 -->
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="showPage('homePage')" class="btn-secondary">
+                                返回首頁
+                            </button>
+                            <button type="button" onclick="nextStep()" class="btn-primary">
+                                下一步 →
+                            </button>
+                        </div>
+                        </div>
                     </div>
 
+                    <!-- 步驟 2: 健康狀況 -->
+                    <div class="form-step" data-step="2">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 2: 健康狀況</h3>
+                        <div class="space-y-6">
                     <!-- 健康狀況 -->
                     <div>
                         <label class="form-label">健康狀況</label>
@@ -264,96 +435,258 @@
                         </div>
                     </div>
 
-                    <!-- 運動習慣 -->
-                    <div>
-                        <label class="form-label">目前運動習慣 *</label>
-                        <div class="grid md:grid-cols-2 gap-4 mt-3">
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="exercise_habit" value="none" required class="w-5 h-5">
-                                <span class="text-lg">沒有運動習慣</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="exercise_habit" value="light" required class="w-5 h-5">
-                                <span class="text-lg">偶爾運動（每週1-2次）</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="exercise_habit" value="moderate" required class="w-5 h-5">
-                                <span class="text-lg">規律運動（每週3-4次）</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="exercise_habit" value="active" required class="w-5 h-5">
-                                <span class="text-lg">經常運動（每週5次以上）</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="exercise_habit" value="student_athlete" required class="w-5 h-5">
-                                <span class="text-lg">學生運動員或專業訓練</span>
-                            </label>
+                        <!-- 步驟 2 導航按鈕 -->
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="prevStep()" class="btn-secondary">
+                                ← 上一步
+                            </button>
+                            <button type="button" onclick="nextStep()" class="btn-primary">
+                                下一步 →
+                            </button>
+                        </div>
                         </div>
                     </div>
 
-                    <!-- 運動限制 -->
-                    <div>
-                        <label class="form-label">運動限制或擔憂（可複選）</label>
-                        <div class="grid md:grid-cols-2 gap-4 mt-3">
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="none" class="w-5 h-5">
-                                <span class="text-lg">無特別限制</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="time_constraint" class="w-5 h-5">
-                                <span class="text-lg">時間限制</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="lack_motivation" class="w-5 h-5">
-                                <span class="text-lg">缺乏動機</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="pain" class="w-5 h-5">
-                                <span class="text-lg">疼痛問題</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="injury_history" class="w-5 h-5">
-                                <span class="text-lg">運動傷害史</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="balance" class="w-5 h-5">
-                                <span class="text-lg">平衡感不佳</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="breathing" class="w-5 h-5">
-                                <span class="text-lg">呼吸困難</span>
-                            </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" name="limitations" value="equipment_access" class="w-5 h-5">
-                                <span class="text-lg">缺乏運動設備</span>
-                            </label>
+                    <!-- 步驟 3: 運動準備 -->
+                    <div class="form-step" data-step="3">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 3: 運動準備</h3>
+                        <div class="space-y-6">
+
+                            <!-- 目前運動習慣 -->
+                            <div>
+                                <label class="form-label">目前運動習慣 *</label>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_habit" value="none" required class="w-5 h-5">
+                                        <span class="text-lg">沒有運動習慣</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_habit" value="light" required class="w-5 h-5">
+                                        <span class="text-lg">偶爾運動（每週1-2次）</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_habit" value="moderate" required class="w-5 h-5">
+                                        <span class="text-lg">規律運動（每週3-4次）</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_habit" value="active" required class="w-5 h-5">
+                                        <span class="text-lg">經常運動（每週5次以上）</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer md:col-span-2">
+                                        <input type="radio" name="exercise_habit" value="student_athlete" required class="w-5 h-5">
+                                        <span class="text-lg">學生運動員或專業訓練</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 運動限制或擔憂 -->
+                            <div>
+                                <label class="form-label text-gray-600">運動限制或擔憂（可複選）</label>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="none" class="w-5 h-5">
+                                        <span class="text-lg">無特別限制</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="time" class="w-5 h-5">
+                                        <span class="text-lg">時間限制</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="motivation" class="w-5 h-5">
+                                        <span class="text-lg">缺乏動機</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="pain" class="w-5 h-5">
+                                        <span class="text-lg">疼痛問題</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="injury_history" class="w-5 h-5">
+                                        <span class="text-lg">運動傷害史</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="balance" class="w-5 h-5">
+                                        <span class="text-lg">平衡感不佳</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="palpitation" class="w-5 h-5">
+                                        <span class="text-lg">呼吸困難</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" name="limitations" value="equipment" class="w-5 h-5">
+                                        <span class="text-lg">缺乏運動設備</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 運動目標 -->
+                            <div>
+                                <label class="form-label">運動目標 *</label>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="health" required class="w-5 h-5">
+                                        <span class="text-lg">健康維護</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="weight_loss" required class="w-5 h-5">
+                                        <span class="text-lg">減重瘦身</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="muscle_building" required class="w-5 h-5">
+                                        <span class="text-lg">增肌塑形</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="endurance" required class="w-5 h-5">
+                                        <span class="text-lg">增強體能</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="rehabilitation" required class="w-5 h-5">
+                                        <span class="text-lg">復健治療</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input type="radio" name="exercise_goal" value="performance" required class="w-5 h-5">
+                                        <span class="text-lg">運動表現提升</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- PAR-Q 評估 -->
+                            <div class="mt-8">
+                                <h4 class="text-xl font-semibold text-gray-800 mb-6">運動準備評估 (PAR-Q)</h4>
+
+                                <!-- PAR-Q 說明 -->
+                                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                                    <div class="flex">
+                                        <div class="ml-3">
+                                            <p class="text-sm text-blue-700">
+                                                <strong>PAR-Q (Physical Activity Readiness Questionnaire)</strong><br>
+                                                請誠實回答以下問題，以評估您是否適合開始運動計畫。如有任何疑慮，請諮詢醫師。
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 1 -->
+                                <div class="mb-6">
+                                    <label class="form-label">1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q1" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q1" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 2 -->
+                                <div class="mb-6">
+                                    <label class="form-label">2. 當您進行體能活動時是否會感到胸痛？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q2" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q2" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 3 -->
+                                <div class="mb-6">
+                                    <label class="form-label">3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q3" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q3" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 4 -->
+                                <div class="mb-6">
+                                    <label class="form-label">4. 您是否會因為感到頭暈而失去平衡或意識？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q4" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q4" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 5 -->
+                                <div class="mb-6">
+                                    <label class="form-label">5. 您是否有骨骼或關節問題，可能因改變體能活動而惡化？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q5" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q5" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 6 -->
+                                <div class="mb-6">
+                                    <label class="form-label">6. 您的醫師目前是否為您的血壓或心臟狀況開立藥物？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q6" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q6" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- PAR-Q 問題 7 -->
+                                <div class="mb-6">
+                                    <label class="form-label">7. 您是否知道有任何其他原因不應該參與體能活動？</label>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q7" value="yes" required class="w-5 h-5">
+                                            <span class="text-lg">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="parq_q7" value="no" required class="w-5 h-5">
+                                            <span class="text-lg">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- 步驟 3 導航按鈕 -->
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="prevStep()" class="btn-secondary">
+                                ← 上一步
+                            </button>
+                            <button type="submit" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 text-lg shadow-lg transform hover:scale-105 transition-all duration-200">
+                                產生運動處方 ➔ ✓
+                            </button>
                         </div>
                     </div>
 
-                    <!-- 提交按鈕 -->
-                    <div class="text-center pt-6">
-                        <div id="formError" class="hidden mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
-                            <p class="text-red-700">請完成所有必填欄位後再送出</p>
-                        </div>
-                        
-                        <div class="flex justify-center items-center space-x-8">
-                            <div class="text-center">
-                                <button type="button" onclick="showPage('homePage')" class="btn-icon-square" title="返回首頁">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                    </svg>
-                                </button>
-                                <p class="text-sm text-gray-600 mt-2">返回首頁</p>
-                            </div>
-                            <div class="text-center">
-                                <button type="submit" class="btn-icon-square bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700" title="產生運動處方">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                </button>
-                                <p class="text-sm text-gray-600 mt-2">產生運動處方</p>
-                            </div>
-                        </div>
+                    <!-- 錯誤提示 -->
+                    <div id="formError" class="hidden mt-4 p-4 bg-red-100 border border-red-300 rounded-lg text-center">
+                        <p class="text-red-700">請完成當前步驟的必填欄位</p>
                     </div>
                 </form>
             </div>
@@ -512,5 +845,33 @@
     </footer>
 
     <script src="script.js"></script>
+    <script src="multi-step-form.js"></script>
+    <script>
+        // 延遲載入 PDF 相關函式庫
+        let pdfLibrariesLoaded = false;
+
+        async function loadPDFLibraries() {
+            if (pdfLibrariesLoaded) return Promise.resolve();
+
+            return Promise.all([
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+            ]).then(() => {
+                pdfLibrariesLoaded = true;
+            });
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+
+    </script>
 </body>
 </html>

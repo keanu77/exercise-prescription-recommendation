@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAR-Q+ 運動準備問卷系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PDF 函式庫延遲載入，僅在需要時載入 -->
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.125rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
+
+        .btn-success {
+            background-color: #16a34a;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-success:hover {
+            background-color: #15803d;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            border: 2px solid #d1d5db;
+            border-radius: 0.5rem;
+        }
+
+        .form-input:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .question-card {
+            border-left: 4px solid #3b82f6;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+        }
+
+        .radio-option:hover {
+            background-color: #f3f4f6;
+            border-color: #3b82f6;
+        }
+
+        .radio-option.selected {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+
+        .radio-option.yes-selected {
+            background-color: #fef2f2;
+            border-color: #dc2626;
+        }
+
+        .risk-low {
+            background: linear-gradient(to right, #10b981, #22c55e);
+            color: white;
+        }
+
+        .risk-medium {
+            background: linear-gradient(to right, #f59e0b, #f97316);
+            color: white;
+        }
+
+        .risk-high {
+            background: linear-gradient(to right, #dc2626, #ef4444);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 導航列 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <h1 class="text-2xl font-bold text-gray-800">PAR-Q+ 運動準備問卷系統</h1>
+                <div class="mt-2 md:mt-0 text-sm text-gray-600">
+                    <span class="font-medium">製作者：</span>
+                    <a href="https://wycswimming.blogspot.com/" target="_blank"
+                       class="text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200">
+                        運動醫學科 吳易澄醫師
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- 首頁 -->
+        <div id="homePage" class="page active">
+            <div class="max-w-4xl mx-auto px-4 py-12">
+                <div class="text-center mb-12">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+                        PAR-Q+ 運動準備問卷
+                    </h2>
+                    <div class="card max-w-3xl mx-auto">
+                        <div class="text-xl text-gray-600 leading-relaxed space-y-4">
+                            <p>
+                                <strong>Physical Activity Readiness Questionnaire Plus</strong>
+                            </p>
+                            <p>
+                                PAR-Q+ 是國際公認的運動前健康篩檢標準工具，由加拿大運動生理學會開發，
+                                被稱為「運動前參與篩檢的國際標準」。
+                            </p>
+                            <div class="grid md:grid-cols-3 gap-4 text-lg text-gray-500 mt-6">
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <p><strong>初步健康篩檢</strong></p>
+                                    <p class="text-sm">識別運動前健康風險因子</p>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <p><strong>安全性評估</strong></p>
+                                    <p class="text-sm">確保安全參與體育活動</p>
+                                </div>
+                                <div class="bg-orange-50 p-4 rounded-lg">
+                                    <p><strong>風險分層指引</strong></p>
+                                    <p class="text-sm">提供個人化運動建議</p>
+                                </div>
+                            </div>
+                            <p class="text-lg text-gray-500 mt-4">
+                                • 國際標準運動前篩檢工具<br>
+                                • 7個核心健康問題評估<br>
+                                • 專業風險分層與運動建議
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button onclick="showPage('basicInfoPage')" class="btn-primary text-xl px-12 py-5 shadow-lg">
+                        開始評估
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 基本資料頁 -->
+        <div id="basicInfoPage" class="page">
+            <div class="max-w-4xl mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">基本資料</h2>
+                    <p class="text-lg text-gray-600">請填寫基本資訊以便提供個人化建議</p>
+                </div>
+
+                <div class="card">
+                    <form id="basicInfoForm" class="space-y-6">
+                        <!-- 基本資料 -->
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="form-label">年齡 *</label>
+                                <input type="number" id="age" name="age" min="15" max="120" required
+                                       class="form-input" placeholder="輸入年齡（15歲以上）" onchange="calculateBMR()">
+                            </div>
+
+                            <div>
+                                <label class="form-label">性別 *</label>
+                                <select id="gender" name="gender" required class="form-input" onchange="calculateBMR()">
+                                    <option value="">請選擇</option>
+                                    <option value="male">男</option>
+                                    <option value="female">女</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 身體資料 -->
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="form-label">身高 * (公分)</label>
+                                <input type="number" id="height" name="height" min="120" max="250" required
+                                       class="form-input" placeholder="輸入身高" onchange="calculateBMI(); calculateBMR()">
+                            </div>
+
+                            <div>
+                                <label class="form-label">體重 * (公斤)</label>
+                                <input type="number" id="weight" name="weight" min="30" max="300" required
+                                       class="form-input" placeholder="輸入體重" onchange="calculateBMI(); calculateBMR()">
+                            </div>
+
+                            <div>
+                                <label class="form-label">BMI 指數</label>
+                                <div id="bmiDisplay" class="form-input bg-gray-50 flex items-center justify-between">
+                                    <span id="bmiValue" class="text-gray-500">待計算</span>
+                                    <span id="bmiCategory" class="text-sm px-2 py-1 rounded"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BMR 和 TDEE 計算 -->
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h4 class="text-lg font-semibold text-blue-800 mb-4">熱量消耗計算</h4>
+
+                            <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                <div class="bg-white p-3 rounded-lg">
+                                    <label class="text-sm text-gray-600">BMR 基礎代謝率</label>
+                                    <div id="bmrDisplay" class="text-2xl font-bold text-blue-600">
+                                        <span id="bmrValue">待計算</span>
+                                        <span class="text-sm font-normal text-gray-600">大卡/天</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">完全靜態時的熱量消耗</p>
+                                </div>
+
+                                <div class="bg-white p-3 rounded-lg">
+                                    <label class="text-sm text-gray-600">TDEE 每日總消耗</label>
+                                    <div id="tdeeDisplay" class="text-2xl font-bold text-green-600">
+                                        <span id="tdeeValue">待計算</span>
+                                        <span class="text-sm font-normal text-gray-600">大卡/天</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">包含活動的總熱量消耗</p>
+                                </div>
+                            </div>
+
+                            <!-- 活動水平選擇 -->
+                            <div>
+                                <label class="form-label text-sm">選擇您的活動水平（用於計算 TDEE）</label>
+                                <select id="activityLevel" name="activityLevel" class="form-input text-sm" onchange="calculateTDEE()">
+                                    <option value="1.2">久坐（幾乎不運動）</option>
+                                    <option value="1.375" selected>輕度活動（每週運動1-3天）</option>
+                                    <option value="1.55">中度活動（每週運動3-5天）</option>
+                                    <option value="1.725">高度活動（每週運動6-7天）</option>
+                                    <option value="1.9">非常高度活動（體力勞動或專業運動員）</option>
+                                </select>
+                            </div>
+
+                            <!-- 熱量建議 -->
+                            <div id="calorieAdvice" class="mt-3 p-3 bg-yellow-50 rounded text-sm hidden">
+                                <p class="font-semibold text-yellow-800 mb-1">熱量攝取建議：</p>
+                                <ul class="text-yellow-700 space-y-1">
+                                    <li>• 維持體重：<span id="maintainCalories" class="font-semibold"></span> 大卡/天</li>
+                                    <li>• 減重（-500卡）：<span id="loseCalories" class="font-semibold"></span> 大卡/天</li>
+                                    <li>• 增重（+300卡）：<span id="gainCalories" class="font-semibold"></span> 大卡/天</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 導航按鈕 -->
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="showPage('homePage')" class="btn-secondary">
+                                返回首頁
+                            </button>
+                            <button type="button" onclick="proceedToPARQ()" class="btn-primary">
+                                進入 PAR-Q+ 問卷 →
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAR-Q+ 問卷頁 -->
+        <div id="parqPage" class="page">
+            <div class="max-w-4xl mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">PAR-Q+ 運動準備問卷</h2>
+                    <p class="text-lg text-gray-600">請誠實回答以下 7 個健康問題</p>
+                    <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p class="text-amber-800 text-sm">
+                            <strong>重要提醒：</strong>如果您對任何問題回答「是」，建議在開始運動前諮詢醫療專業人員
+                        </p>
+                    </div>
+                </div>
+
+                <form id="parqForm" class="space-y-6">
+                    <!-- PAR-Q+ 問題 1 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            1. 醫生是否曾告訴過您有心臟病，且只能在醫療監督下運動？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(1, 'yes')">
+                                <input type="radio" name="q1" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(1, 'no')">
+                                <input type="radio" name="q1" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 2 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            2. 您是否在運動時感到胸痛？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(2, 'yes')">
+                                <input type="radio" name="q2" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(2, 'no')">
+                                <input type="radio" name="q2" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 3 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            3. 在過去一個月內，您是否曾在非運動狀態下感到胸痛？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(3, 'yes')">
+                                <input type="radio" name="q3" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(3, 'no')">
+                                <input type="radio" name="q3" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 4 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            4. 您是否會因為頭暈而失去平衡，或曾經失去意識？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(4, 'yes')">
+                                <input type="radio" name="q4" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(4, 'no')">
+                                <input type="radio" name="q4" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 5 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            5. 您是否有骨關節問題，可能因運動而惡化？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(5, 'yes')">
+                                <input type="radio" name="q5" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(5, 'no')">
+                                <input type="radio" name="q5" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 6 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            6. 您目前是否正在服用血壓或心臟疾病的處方藥物？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(6, 'yes')">
+                                <input type="radio" name="q6" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(6, 'no')">
+                                <input type="radio" name="q6" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- PAR-Q+ 問題 7 -->
+                    <div class="card question-card">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            7. 您是否知道任何其他不應該參與運動的理由？
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="radio-option" onclick="selectAnswer(7, 'yes')">
+                                <input type="radio" name="q7" value="yes" class="mr-3 w-5 h-5">
+                                <span class="text-lg">是</span>
+                            </label>
+                            <label class="radio-option" onclick="selectAnswer(7, 'no')">
+                                <input type="radio" name="q7" value="no" class="mr-3 w-5 h-5">
+                                <span class="text-lg">否</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 導航按鈕 -->
+                    <div class="flex justify-between mt-8">
+                        <button type="button" onclick="showPage('basicInfoPage')" class="btn-secondary">
+                            ← 返回基本資料
+                        </button>
+                        <button type="button" onclick="generateAssessment()" class="btn-primary">
+                            完成評估並查看結果 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 結果頁 -->
+        <div id="resultPage" class="page">
+            <div class="max-w-6xl mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">PAR-Q+ 評估結果</h2>
+                    <p class="text-lg text-gray-600">根據您的回答，以下是您的風險評估和運動建議</p>
+                </div>
+
+                <!-- 風險評估結果 -->
+                <div id="riskAssessment" class="card mb-8">
+                    <!-- 動態生成內容 -->
+                </div>
+
+                <!-- 運動建議 -->
+                <div id="exerciseRecommendations" class="grid lg:grid-cols-2 gap-8 mb-8">
+                    <!-- 動態生成內容 -->
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="text-center">
+                    <div class="flex justify-center items-center space-x-6">
+                        <button onclick="downloadPDF()" class="btn-primary">
+                            📄 下載評估報告
+                        </button>
+                        <button onclick="showPage('parqPage')" class="btn-secondary">
+                            ✏️ 重新評估
+                        </button>
+                        <button onclick="showPage('homePage')" class="btn-secondary">
+                            🏠 返回首頁
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 頁尾免責說明 -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center">
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold mb-2">重要提醒</h3>
+                    <div class="max-w-4xl mx-auto text-gray-300 leading-relaxed space-y-2">
+                        <p class="text-yellow-300 font-medium">⚠️ 免責說明</p>
+                        <p>
+                            PAR-Q+ 問卷僅為初步健康篩檢工具，無法取代完整的醫學檢查。
+                            如果您對任何問題回答「是」，強烈建議在開始運動前諮詢醫療專業人員。
+                        </p>
+                        <p>
+                            高風險者請務必接受專業醫療評估後再開始運動計畫。
+                            運動過程中如出現不適症狀，請立即停止並就醫。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-600 pt-4">
+                    <p class="text-sm text-gray-400">
+                        © PAR-Q+ 運動準備問卷系統 | 製作者：
+                        <a href="https://wycswimming.blogspot.com/" target="_blank"
+                           class="text-blue-400 hover:text-blue-300 hover:underline transition-colors duration-200">
+                            運動醫學科 吳易澄醫師
+                        </a>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        基於 PAR-Q+ 國際標準運動前篩檢工具
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="parq-script.js"></script>
+    <script>
+        // 延遲載入 PDF 相關函式庫
+        let pdfLibrariesLoaded = false;
+
+        async function loadPDFLibraries() {
+            if (pdfLibrariesLoaded) return Promise.resolve();
+
+            return Promise.all([
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+            ]).then(() => {
+                pdfLibrariesLoaded = true;
+            });
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+    </script>
+</body>
+</html>

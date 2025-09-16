@@ -1,0 +1,351 @@
+<!-- 貼到 Blogger 文章/頁面的 HTML 編輯模式中 -->
+
+<div id="exercise-prescription-system" style="font-family: 'Noto Sans TC', sans-serif; max-width: 100%; margin: 0; padding: 20px; background: #f9fafb; border-radius: 10px;">
+    
+    <style>
+        #exercise-prescription-system * {
+            box-sizing: border-box;
+        }
+        #exercise-prescription-system .page {
+            display: none;
+        }
+        #exercise-prescription-system .page.active {
+            display: block;
+        }
+        #exercise-prescription-system .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background 0.2s;
+        }
+        #exercise-prescription-system .btn:hover {
+            background: #1d4ed8;
+        }
+        #exercise-prescription-system .btn-secondary {
+            background: #6b7280;
+        }
+        #exercise-prescription-system .btn-secondary:hover {
+            background: #4b5563;
+        }
+        #exercise-prescription-system .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        #exercise-prescription-system input, 
+        #exercise-prescription-system select, 
+        #exercise-prescription-system textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 5px 0;
+        }
+        #exercise-prescription-system input:focus,
+        #exercise-prescription-system select:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        #exercise-prescription-system label {
+            display: block;
+            font-weight: bold;
+            margin: 15px 0 5px 0;
+            color: #374151;
+        }
+        #exercise-prescription-system .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        #exercise-prescription-system .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #exercise-prescription-system .checkbox-item:hover {
+            background: #f3f4f6;
+        }
+        #exercise-prescription-system .checkbox-item input {
+            width: auto;
+            margin-right: 10px;
+        }
+    </style>
+
+    <!-- 首頁 -->
+    <div id="home-page" class="page active">
+        <div style="text-align: center;">
+            <h1 style="font-size: 2.5em; color: #1f2937; margin-bottom: 20px;">運動處方推薦系統</h1>
+            
+            <div class="card">
+                <h2 style="color: #2563eb; margin-bottom: 15px;">為你量身打造的運動建議</h2>
+                <p style="font-size: 1.1em; line-height: 1.6; color: #4b5563;">
+                    根據美國運動醫學會（ACSM）的 FITT-VP 原則與世界衛生組織（WHO）身體活動建議指引，
+                    為各年齡層提供個人化的運動建議。
+                </p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                        <strong>兒童 (6-11歲)</strong><br>
+                        <small>趣味性體能活動</small>
+                    </div>
+                    <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                        <strong>青少年 (12-17歲)</strong><br>
+                        <small>多元運動發展</small>
+                    </div>
+                    <div style="background: #fed7aa; padding: 15px; border-radius: 8px;">
+                        <strong>成人&銀髮族</strong><br>
+                        <small>健康維護與慢性病管理</small>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="showExercisePage('form-page')">開始評估</button>
+        </div>
+    </div>
+
+    <!-- 表單頁 -->
+    <div id="form-page" class="page">
+        <div class="card">
+            <h2 style="text-align: center; color: #1f2937; margin-bottom: 20px;">健康評估問卷</h2>
+            
+            <form id="health-form">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div>
+                        <label>年齡 *</label>
+                        <input type="number" id="age" min="6" max="120" required placeholder="請輸入年齡">
+                    </div>
+                    <div>
+                        <label>性別 *</label>
+                        <select id="gender" required>
+                            <option value="">請選擇</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>身高 (公分) *</label>
+                        <input type="number" id="height" min="100" max="250" required placeholder="請輸入身高">
+                    </div>
+                    <div>
+                        <label>體重 (公斤) *</label>
+                        <input type="number" id="weight" min="20" max="300" required placeholder="請輸入體重">
+                    </div>
+                </div>
+
+                <label>健康狀況 *</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="radio" name="health_status" value="healthy" required>
+                        <span>健康狀況良好</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="health_status" value="has_conditions" required>
+                        <span>有健康狀況需注意</span>
+                    </div>
+                </div>
+
+                <label>體能自評 *</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="radio" name="fitness_level" value="excellent" required>
+                        <span>良好</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="fitness_level" value="good" required>
+                        <span>尚可</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="fitness_level" value="fair" required>
+                        <span>容易疲勞</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="fitness_level" value="poor" required>
+                        <span>日常活動困難</span>
+                    </div>
+                </div>
+
+                <label>目前運動習慣 *</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="radio" name="exercise_habit" value="none" required>
+                        <span>沒有運動習慣</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="exercise_habit" value="light" required>
+                        <span>偶爾運動（每週1-2次）</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="exercise_habit" value="moderate" required>
+                        <span>規律運動（每週3-4次）</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" name="exercise_habit" value="active" required>
+                        <span>經常運動（每週5次以上）</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="showExercisePage('home-page')">返回</button>
+                    <button type="submit" class="btn">生成運動處方</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 結果頁 -->
+    <div id="result-page" class="page">
+        <div class="card">
+            <h2 style="text-align: center; color: #1f2937; margin-bottom: 20px;">您的個人化運動處方</h2>
+            <div id="prescription-result"></div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button type="button" class="btn btn-secondary" onclick="showExercisePage('form-page')">重新填寫</button>
+                <button type="button" class="btn btn-secondary" onclick="showExercisePage('home-page')">返回首頁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 免責聲明 -->
+    <div style="background: #1f2937; color: white; padding: 20px; border-radius: 10px; margin-top: 30px; text-align: center;">
+        <h3 style="color: #fbbf24; margin-bottom: 10px;">⚠️ 重要提醒</h3>
+        <p style="font-size: 0.9em; line-height: 1.5;">
+            本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。
+            建議在開始任何運動計畫前，請諮詢專業醫療人員或運動醫學科醫師。
+        </p>
+        <p style="font-size: 0.8em; color: #d1d5db; margin-top: 15px;">
+            製作者：<a href="https://wycswimming.blogspot.com/" target="_blank" style="color: #60a5fa;">運動醫學科 吳易澄醫師</a>
+        </p>
+    </div>
+</div>
+
+<script>
+// JavaScript 功能
+function showExercisePage(pageId) {
+    // 隱藏所有頁面
+    const pages = document.querySelectorAll('#exercise-prescription-system .page');
+    pages.forEach(page => page.classList.remove('active'));
+    
+    // 顯示指定頁面
+    document.getElementById(pageId).classList.add('active');
+}
+
+// 簡化的處方生成
+function generateSimplePrescription(data) {
+    const age = parseInt(data.age);
+    let frequency = 3, time = 30, intensity = '中度';
+    
+    // 根據年齡調整
+    if (age >= 6 && age <= 11) {
+        frequency = 7;
+        time = 60;
+        intensity = '中度至劇烈';
+    } else if (age >= 12 && age <= 17) {
+        frequency = 7;
+        time = 60;
+        intensity = '中度至劇烈';
+    } else if (age >= 65) {
+        frequency = 5;
+        time = 30;
+        intensity = '輕度至中度';
+    }
+    
+    // 根據體能水平調整
+    switch(data.fitness_level) {
+        case 'poor':
+            frequency = Math.max(3, frequency - 2);
+            time = Math.max(20, time - 10);
+            break;
+        case 'excellent':
+            frequency = Math.min(6, frequency + 1);
+            time = Math.min(45, time + 10);
+            break;
+    }
+    
+    return {
+        frequency: frequency,
+        time: time,
+        intensity: intensity,
+        type: age < 18 ? '體能遊戲、有氧運動、肌力訓練' : '有氧運動、肌力訓練'
+    };
+}
+
+// 表單提交處理
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('health-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            
+            // 驗證必填欄位
+            if (!data.age || !data.gender || !data.height || !data.weight || 
+                !data.health_status || !data.fitness_level || !data.exercise_habit) {
+                alert('請填寫所有必填欄位');
+                return;
+            }
+            
+            // 計算 BMI
+            const height_m = parseFloat(data.height) / 100;
+            const bmi = (parseFloat(data.weight) / (height_m * height_m)).toFixed(1);
+            
+            // 生成處方
+            const prescription = generateSimplePrescription(data);
+            
+            // 顯示結果
+            const resultDiv = document.getElementById('prescription-result');
+            resultDiv.innerHTML = `
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%); padding: 25px; border-radius: 10px; border-left: 5px solid #2563eb; margin-bottom: 20px;">
+                    <h3 style="color: #1e40af; margin-bottom: 15px; text-align: center;">您的運動處方</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center; margin-bottom: 20px;">
+                        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="font-size: 1.5em; font-weight: bold; color: #2563eb;">${prescription.frequency}</div>
+                            <div style="color: #6b7280;">次/週</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="font-size: 1.5em; font-weight: bold; color: #16a34a;">${prescription.time}</div>
+                            <div style="color: #6b7280;">分鐘/次</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 1.1em;">
+                        <p><strong>運動類型：</strong>${prescription.type}</p>
+                        <p><strong>運動強度：</strong>${prescription.intensity}</p>
+                        <p style="margin-top: 10px; color: #6b7280;"><strong>您的BMI：</strong>${bmi}</p>
+                    </div>
+                </div>
+                
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; border: 1px solid #0ea5e9;">
+                    <h4 style="color: #0c4a6e; margin-bottom: 10px;">運動建議</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #0369a1;">
+                        <li>運動前進行5-10分鐘暖身</li>
+                        <li>運動後進行5-10分鐘緩和運動</li>
+                        <li>保持適當水分補充</li>
+                        <li>如有不適，請立即停止運動</li>
+                        <li>建議諮詢專業教練或醫師</li>
+                    </ul>
+                </div>
+            `;
+            
+            showExercisePage('result-page');
+        });
+    }
+});
+</script>
+
+<!-- 載入字體 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
