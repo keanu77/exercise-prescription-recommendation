@@ -14,6 +14,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 信任反向代理（Zeabur、Vercel、Heroku 等雲端平台需要）
+app.set('trust proxy', 1);
+
 // ============== 安全性 Middleware ==============
 
 // 安全標頭 (Helmet)
