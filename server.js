@@ -37,21 +37,9 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
-// CORS 配置 - 限制允許的來源
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
-
+// CORS 配置 - 允許所有來源（因為是公開服務）
 app.use(cors({
-    origin: function(origin, callback) {
-        // 允許無 origin 的請求（如同源請求或 Postman）
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-            callback(null, true);
-        } else {
-            callback(new Error('CORS 政策不允許此來源'));
-        }
-    },
+    origin: true,  // 允許所有來源
     credentials: true
 }));
 
@@ -723,6 +711,23 @@ app.get('/api/providers', (req, res) => {
 // 首頁路由
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// 404 處理 - API 路由
+app.use('/api/*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'API 端點不存在'
+    });
+});
+
+// 全域錯誤處理 - 確保返回 JSON
+app.use((err, req, res, next) => {
+    console.error('Server Error:', err);
+    res.status(500).json({
+        success: false,
+        error: '伺服器發生錯誤，請稍後再試'
+    });
 });
 
 // 啟動伺服器
