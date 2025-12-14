@@ -235,6 +235,60 @@
             display: block;
         }
 
+        /* AI 建議區塊樣式 */
+        .ai-section {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .ai-section h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #4c1d95;
+            margin-bottom: 12px;
+        }
+
+        .ai-section p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 8px;
+        }
+
+        .ai-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .ai-section ul li {
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .ai-section ul li::before {
+            content: "•";
+            position: absolute;
+            left: 8px;
+            color: #8b5cf6;
+            font-weight: bold;
+        }
+
+        #aiContent {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -801,6 +855,112 @@
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">您的個人化運動處方</h2>
                 <p class="text-lg text-gray-600">根據 ACSM FITT-VP 原則為您量身打造</p>
+            </div>
+
+            <!-- AI 建議區塊 -->
+            <div id="aiRecommendationSection" class="mb-8">
+                <div class="card bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-2xl font-bold text-purple-800 flex items-center">
+                            <svg class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                            AI 智慧建議
+                        </h3>
+                        <button id="refreshAiBtn" onclick="fetchAIRecommendation()" class="text-purple-600 hover:text-purple-800 flex items-center text-sm">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            重新生成
+                        </button>
+                    </div>
+
+                    <!-- AI 載入中狀態 -->
+                    <div id="aiLoading" class="text-center py-8">
+                        <div class="inline-flex items-center">
+                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-lg text-purple-700">AI 正在分析您的資料，請稍候...</span>
+                        </div>
+                    </div>
+
+                    <!-- AI 建議內容 -->
+                    <div id="aiContent" class="hidden prose prose-purple max-w-none">
+                        <!-- 動態插入 AI 回應 -->
+                    </div>
+
+                    <!-- AI 錯誤狀態 -->
+                    <div id="aiError" class="hidden">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-yellow-800 font-medium">AI 建議暫時無法使用</p>
+                                    <p id="aiErrorMessage" class="text-yellow-700 text-sm mt-1">請查看下方的標準運動處方建議。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI 提供商標示 -->
+                    <div id="aiProviderBadge" class="hidden mt-4 text-right">
+                        <span class="text-xs text-gray-500">由 <span id="aiProviderName">AI</span> 提供建議</span>
+                    </div>
+
+                    <!-- 進階版 AI 設定 -->
+                    <div class="mt-4 pt-4 border-t border-purple-200">
+                        <button id="toggleAdvancedAI" onclick="toggleAdvancedAISettings()" class="text-sm text-purple-600 hover:text-purple-800 flex items-center">
+                            <svg id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                            進階設定：使用自己的 API 金鑰
+                        </button>
+                        <div id="advancedAISettings" class="hidden mt-4 space-y-4">
+                            <div class="bg-white rounded-lg p-4 border border-purple-100">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">選擇 AI 提供商</label>
+                                <select id="aiProviderSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm" onchange="onProviderChange()">
+                                    <option value="auto">自動選擇（免費版）</option>
+                                    <option value="groq">Groq - 免費高速推理</option>
+                                    <option value="openai">OpenAI - GPT 系列</option>
+                                    <option value="claude">Claude - Anthropic</option>
+                                    <option value="gemini">Gemini - Google AI</option>
+                                </select>
+                            </div>
+
+                            <div id="modelSelectSection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">選擇模型</label>
+                                <select id="modelSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                    <!-- 動態生成模型選項 -->
+                                </select>
+                            </div>
+
+                            <div id="customApiKeySection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <span id="apiKeyLabel">API 金鑰</span>
+                                    <span class="text-gray-400 font-normal">（選填，留空使用系統預設）</span>
+                                </label>
+                                <input type="password" id="customApiKey" placeholder="輸入您的 API 金鑰"
+                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
+                                <p id="apiKeyHint" class="text-xs text-gray-500 mt-1"></p>
+                            </div>
+
+                            <div class="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
+                                <p class="font-medium text-blue-800 mb-1">💡 AI 提供商說明</p>
+                                <ul class="text-blue-700 space-y-1">
+                                    <li>• <strong>Groq</strong>：免費、快速，推薦一般使用</li>
+                                    <li>• <strong>OpenAI</strong>：GPT-4o 強大準確，需付費</li>
+                                    <li>• <strong>Claude</strong>：擅長中文、細緻分析</li>
+                                    <li>• <strong>Gemini</strong>：Google AI，多模態能力強</li>
+                                </ul>
+                                <p class="mt-2">🔒 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 運動處方摘要卡片 -->

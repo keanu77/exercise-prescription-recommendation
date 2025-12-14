@@ -1,0 +1,18 @@
+# Zeabur 部署配置
+# 運動處方 AI 建議系統
+
+build:
+  type: nodejs
+  build_command: npm install
+  start_command: npm start
+
+# 環境變數設定（請在 Zeabur 控制台設定實際值）
+# 必要環境變數：
+#   - GROQ_API_KEY: Groq API 金鑰（免費）
+#   - NODE_ENV: production
+#   - ALLOWED_ORIGINS: 您的網域（如 https://your-app.zeabur.app）
+#
+# 可選環境變數（進階版）：
+#   - ANTHROPIC_API_KEY: Claude API 金鑰
+#   - GEMINI_API_KEY: Gemini API 金鑰
+#   - OPENAI_API_KEY: OpenAI API 金鑰
