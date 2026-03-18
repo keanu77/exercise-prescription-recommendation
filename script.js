@@ -997,6 +997,142 @@ function calculateFITTVP(data) {
     }
   }
 
+  // ===== 根據「目前運動習慣」調整起始處方（避免運動量驟增）=====
+  if (data.age >= 18) {
+    // 先記錄年齡 + 體能水平計算出的「目標處方」
+    const targetFreq = prescription.frequency;
+    const targetTime = prescription.time;
+    const targetIntensity = prescription.intensity;
+
+    switch (data.exercise_habit) {
+      case "none":
+        // 無運動習慣：從非常保守的起點開始
+        prescription.frequency = Math.min(targetFreq, 3);
+        prescription.time = Math.min(targetTime, 20);
+        if (
+          targetIntensity === "moderate" ||
+          targetIntensity === "moderate-vigorous"
+        ) {
+          prescription.intensity = "light";
+        }
+        prescription.progression = `前4週：每週${prescription.frequency}次、每次${prescription.time}分鐘輕度運動 → 之後每2週增加10%，目標達到每週${targetFreq}次、每次${targetTime}分鐘`;
+        prescription.recommendations.push(
+          "目前無運動習慣，建議從散步、伸展等輕度活動開始",
+        );
+        prescription.recommendations.push("前2-4週以適應為主，不追求運動量");
+        break;
+      case "light":
+        // 偶爾運動（1-2次/週）：略為保守
+        prescription.frequency = Math.min(targetFreq, 3);
+        prescription.time = Math.min(targetTime, 25);
+        if (targetIntensity === "moderate-vigorous") {
+          prescription.intensity = "light-moderate";
+        }
+        prescription.progression = `目前每週1-2次 → 先穩定至每週${prescription.frequency}次，再每2週增加10%，目標每週${targetFreq}次、每次${targetTime}分鐘`;
+        prescription.recommendations.push(
+          "目前運動量偏低，先穩定頻率再逐步增加時間和強度",
+        );
+        break;
+      case "moderate":
+        // 規律運動（3-4次/週）：接近目標，微調即可
+        // 保持體能水平計算的處方，不額外降低
+        break;
+      case "active":
+        // 經常運動：可以接受較高起點
+        prescription.frequency = Math.max(targetFreq, 5);
+        prescription.time = Math.max(targetTime, 30);
+        break;
+      case "student_athlete":
+        // 專業訓練：可以接受高強度
+        prescription.frequency = Math.max(targetFreq, 5);
+        prescription.time = Math.max(targetTime, 40);
+        if (
+          targetIntensity === "light" ||
+          targetIntensity === "light-moderate"
+        ) {
+          prescription.intensity = "moderate";
+        }
+        break;
+    }
+  }
+
+  // ===== 根據「運動目標」微調處方重點 =====
+  if (data.age >= 18) {
+    switch (data.exercise_goal) {
+      case "weight_loss":
+        // 減重：優先增加有氧頻率與時間，中等強度
+        prescription.frequency = Math.max(prescription.frequency, 4);
+        if (!prescription.type.includes("有氧運動")) {
+          prescription.type.unshift("有氧運動");
+        }
+        prescription.recommendations.push(
+          "減重目標：建議每週累積200-300分鐘中等強度有氧運動",
+        );
+        prescription.recommendations.push(
+          "搭配飲食控制效果更佳，建議每日減少300-500大卡",
+        );
+        break;
+      case "muscle_building":
+        // 增肌：強調阻力訓練
+        if (!prescription.type.includes("肌力訓練")) {
+          prescription.type.push("肌力訓練");
+        }
+        prescription.resistanceTraining =
+          prescription.resistanceTraining ||
+          "每週2-3天，涵蓋主要肌群，每組8-12次";
+        prescription.recommendations.push(
+          "增肌目標：阻力訓練為核心，搭配足夠蛋白質攝取（每公斤體重1.2-1.6g）",
+        );
+        break;
+      case "endurance":
+        // 增強體能：漸進式增加強度
+        prescription.recommendations.push(
+          "體能提升目標：可逐步加入間歇訓練（如快跑30秒＋慢走60秒）",
+        );
+        prescription.recommendations.push(
+          "以RPE（自覺用力程度）6-7分為訓練基準",
+        );
+        break;
+      case "rehabilitation":
+        // 復健：保守、安全優先
+        prescription.intensity = "light";
+        prescription.frequency = Math.min(prescription.frequency, 4);
+        prescription.time = Math.min(prescription.time, 25);
+        prescription.warnings.push("復健階段：請在醫療人員指導下循序漸進");
+        prescription.recommendations.push(
+          "復健目標：以恢復基本功能和活動度為優先",
+        );
+        break;
+      case "performance":
+        // 運動表現：較高量，需有基礎
+        if (data.exercise_habit === "none" || data.exercise_habit === "light") {
+          prescription.recommendations.push(
+            "提醒：目前運動基礎較弱，建議先建立規律運動習慣（4-8週），再進入專項訓練",
+          );
+        } else {
+          prescription.recommendations.push(
+            "表現提升目標：可納入週期化訓練（基礎期→強化期→比賽期→恢復期）",
+          );
+        }
+        break;
+      case "health":
+      default:
+        // 健康維護：標準WHO建議
+        break;
+    }
+  }
+
+  // 重新計算 weeklyMinutes 和 volume（反映習慣/目標調整後的值）
+  if (data.age >= 18) {
+    prescription.weeklyMinutes = prescription.frequency * prescription.time;
+    if (prescription.volume > 0) {
+      const metValue = getIntensityMET(prescription.intensity);
+      prescription.volume = Math.round(
+        metValue * prescription.time * prescription.frequency,
+      );
+    }
+  }
+
   // 根據疾病史調整運動類型和注意事項
   if (data.diseases.includes("hypertension")) {
     prescription.type.push("有氧運動");
