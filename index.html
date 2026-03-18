@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運動處方推薦系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PDF 函式庫延遲載入，僅在需要時載入 -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
         body {
             font-family: 'Noto Sans TC', sans-serif;
@@ -289,6 +291,133 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* 表單驗證狀態樣式 */
+        .input-wrapper {
+            position: relative;
+        }
+
+        .validation-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        .form-input.field-valid {
+            border-color: #10b981 !important;
+            background-color: #f0fdf4;
+        }
+
+        .form-input.field-invalid {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2;
+        }
+
+        .validation-icon.icon-valid {
+            color: #10b981;
+        }
+
+        .validation-icon.icon-invalid {
+            color: #ef4444;
+        }
+
+        .field-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .field-error-msg {
+            font-size: 12px;
+            color: #ef4444;
+            margin-top: 4px;
+        }
+
+        /* Tooltip 樣式 */
+        .tooltip-trigger {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip-trigger .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            z-index: 100;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1f2937;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: max-content;
+            max-width: 250px;
+            text-align: center;
+            margin-bottom: 8px;
+            transition: opacity 0.2s;
+            line-height: 1.4;
+        }
+
+        .tooltip-trigger .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+
+        .tooltip-trigger:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* PDF 載入 Modal */
+        .loading-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-modal.active {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 32px 48px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -404,8 +533,12 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
                             <label class="form-label">年齡 *</label>
-                            <input type="number" id="age" name="age" min="6" max="120" required
-                                   class="form-input" placeholder="輸入年齡（6歲以上）" onchange="calculateBMI(); calculateBMR()">
+                            <div class="input-wrapper">
+                                <input type="number" id="age" name="age" min="6" max="120" required
+                                       class="form-input" placeholder="例如：35（6-120 歲）"
+                                       oninput="validateField(this, 6, 120); calculateBMI(); calculateBMR()">
+                                <span id="ageIcon" class="validation-icon"></span>
+                            </div>
                             <div id="ageInfo" class="hidden mt-2 p-3 rounded-lg">
                                 <!-- 動態顯示年齡層資訊 -->
                             </div>
@@ -426,14 +559,22 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         <div>
                             <label class="form-label">身高 * (公分)</label>
-                            <input type="number" id="height" name="height" min="100" max="250" required
-                                   class="form-input" placeholder="輸入身高" onchange="calculateBMI(); calculateBMR()">
+                            <div class="input-wrapper">
+                                <input type="number" id="height" name="height" min="100" max="250" required
+                                       class="form-input" placeholder="例如：165（100-250 cm）"
+                                       oninput="validateField(this, 100, 250); calculateBMI(); calculateBMR()">
+                                <span id="heightIcon" class="validation-icon"></span>
+                            </div>
                         </div>
-                        
+
                         <div>
                             <label class="form-label">體重 * (公斤)</label>
-                            <input type="number" id="weight" name="weight" min="20" max="300" required
-                                   class="form-input" placeholder="輸入體重" onchange="calculateBMI(); calculateBMR()">
+                            <div class="input-wrapper">
+                                <input type="number" id="weight" name="weight" min="20" max="300" required
+                                       class="form-input" placeholder="例如：60（20-300 kg）"
+                                       oninput="validateField(this, 20, 300); calculateBMI(); calculateBMR()">
+                                <span id="weightIcon" class="validation-icon"></span>
+                            </div>
                         </div>
                         
                         <div>
@@ -527,43 +668,52 @@
 
                     <!-- 相關健康狀況 -->
                     <div>
-                        <label class="form-label text-gray-600">請選擇相關健康狀況（可複選）</label>
+                        <label class="form-label text-gray-600">請選擇相關健康狀況（可複選，滑鼠移至選項可查看說明）</label>
                         <div class="grid md:grid-cols-2 gap-4 mt-3">
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="overweight" class="w-5 h-5">
                                 <span class="text-lg">體重過重</span>
+                                <span class="tooltip-text">BMI ≥ 24，建議增加有氧運動頻率，搭配飲食控制</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="asthma" class="w-5 h-5">
                                 <span class="text-lg">氣喘</span>
+                                <span class="tooltip-text">運動時需注意呼吸調控，避免過度激烈，建議充分暖身</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="hypertension" class="w-5 h-5">
                                 <span class="text-lg">高血壓</span>
+                                <span class="tooltip-text">避免閉氣用力動作（Valsalva），建議運動前後量血壓</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="diabetes" class="w-5 h-5">
                                 <span class="text-lg">糖尿病</span>
+                                <span class="tooltip-text">建議餐後 1-2 小時運動，注意血糖監測，隨身攜帶糖果</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="arthritis" class="w-5 h-5">
                                 <span class="text-lg">關節問題</span>
+                                <span class="tooltip-text">建議低衝擊運動如游泳、騎車、水中運動，避免跳躍動作</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="heart_recovery" class="w-5 h-5">
                                 <span class="text-lg">心臟疾病</span>
+                                <span class="tooltip-text">需醫師評估後開始運動，從低強度開始，監控心率</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
                                 <span class="text-lg">肌少症</span>
+                                <span class="tooltip-text">重點加強阻力訓練，每週至少 2-3 次，搭配足夠蛋白質攝取</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="pregnant" class="w-5 h-5">
                                 <span class="text-lg">孕婦</span>
+                                <span class="tooltip-text">避免仰躺、高衝擊及有跌倒風險的運動，建議游泳或散步</span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
                                 <input type="checkbox" name="diseases" value="hyperlipidemia" class="w-5 h-5">
                                 <span class="text-lg">高血脂</span>
+                                <span class="tooltip-text">有氧運動有助改善血脂，建議每週 150 分鐘中等強度運動</span>
                             </label>
                         </div>
                     </div>
@@ -1015,7 +1165,7 @@
                 <h3 class="text-xl font-semibold text-blue-800 mb-4">MET (代謝當量) 說明</h3>
                 <div class="text-blue-700 space-y-3">
                     <p><strong>定義：</strong>MET (Metabolic Equivalent of Task) 代表代謝當量，是衡量身體活動強度的標準單位。1 MET = 安靜時的能量消耗 (約每公斤體重每分鐘消耗3.5毫升氧氣)。</p>
-                    
+
                     <div class="grid md:grid-cols-3 gap-4 mt-4">
                         <div class="bg-green-100 p-3 rounded">
                             <h4 class="font-semibold text-green-800">輕度活動</h4>
@@ -1030,7 +1180,7 @@
                             <p class="text-sm text-red-700">≥6.0 METs<br>只能說少數字詞</p>
                         </div>
                     </div>
-                    
+
                     <p><strong>WHO建議：</strong>成人每週累積500-1000 MET-分鐘的中高強度活動。</p>
                     <p><strong>計算方式：</strong>MET值 × 運動時間(分鐘) = MET-分鐘</p>
                     <p><strong>熱量計算：</strong>消耗熱量(大卡) = MET值 × 體重(公斤) × 運動時間(小時)</p>
@@ -1069,6 +1219,15 @@
         </div>
     </div>
     </main>
+
+    <!-- PDF 載入 Modal -->
+    <div id="loadingModal" class="loading-modal">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="text-lg font-semibold text-gray-700">正在生成 PDF...</p>
+            <p class="text-sm text-gray-500 mt-2">請稍候，這可能需要幾秒鐘</p>
+        </div>
+    </div>
 
     <!-- 頁尾免責說明 -->
     <footer class="bg-gray-800 text-white py-8 mt-12">
