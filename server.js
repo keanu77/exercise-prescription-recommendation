@@ -59,25 +59,39 @@ app.use(
 // 回應壓縮（gzip/brotli）— 大幅縮小 script.js / index.html 等文字資源的傳輸量
 app.use(compression());
 
-// CORS 配置 - 若設定 ALLOWED_ORIGINS 則套用白名單，否則維持開放（公開服務）
+// CORS 配置：
+// - 前端「同源」請求（瀏覽器載入本站頁面後呼叫自家 /api）一律放行，永遠不會被自家後端鎖死。
+// - 「跨來源」僅放行 ALLOWED_ORIGINS 白名單（比對前正規化結尾斜線，避免常見設定誤差）。
+// - 被拒的跨來源「不設 CORS 標頭」即可（瀏覽器自會擋下），不丟 500 造成伺服器錯誤。
+// - 無 Origin（伺服器對伺服器 / curl / 同源簡單請求）放行。
+const stripSlash = (o) => o.replace(/\/+$/, "");
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
-  .map((o) => o.trim())
+  .map((o) => stripSlash(o.trim()))
   .filter(Boolean);
 
 app.use(
-  cors({
-    // 此 API 不使用 cookie，故不開啟 credentials，避免帶憑證跨站
-    origin:
-      allowedOrigins.length > 0
-        ? (origin, callback) => {
-            // 同源或伺服器對伺服器請求沒有 Origin，一律放行
-            if (!origin || allowedOrigins.includes(origin)) {
-              return callback(null, true);
-            }
-            return callback(new Error("CORS: 來源不被允許"));
-          }
-        : true,
+  // 此 API 不使用 cookie，故不開啟 credentials（預設 false），避免帶憑證跨站
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    if (!origin) return callback(null, { origin: true });
+
+    let originHost = "";
+    try {
+      originHost = new URL(origin).host;
+    } catch (e) {
+      /* 非法 origin，視為不放行 */
+    }
+    // 同站主機判斷：比對 Host 與反向代理（Zeabur）的 X-Forwarded-Host
+    const xfHost = (req.header("X-Forwarded-Host") || "").split(",")[0].trim();
+    const sameSite =
+      !!originHost &&
+      (originHost === req.header("Host") || originHost === xfHost);
+
+    if (sameSite || allowedOrigins.includes(stripSlash(origin))) {
+      return callback(null, { origin: true });
+    }
+    return callback(null, { origin: false });
   }),
 );
 
