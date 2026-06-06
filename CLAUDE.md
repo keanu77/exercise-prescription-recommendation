@@ -16,7 +16,7 @@ npm run build:css  # 重新編譯 Tailwind：src/input.css → tailwind.css（�
 python met_introduction.py          # 各檔皆有 __main__ demo，直接印出該領域知識
 ```
 
-- **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`（由 `src/input.css` 經 tailwind CLI 編譯，已 commit）。**新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css` 重編譯並 commit**，否則新 class 被 purge 掉不會生效。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。Zeabur 只跑 `npm install`（不跑 build），靠 commit 進去的 `tailwind.css`。
+- **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`（由 `src/input.css` 經 tailwind CLI 編譯，已 commit）。**新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css` 重編譯並 commit**，否則新 class 被 purge 掉不會生效。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。**Zeabur 的 nodejs builder 會自動執行 `npm run build`**（只要 package.json 有 `build` script），但部署容器的 `npm install` 只裝 production deps、不裝 devDeps（`tailwindcss` 在 devDependencies）。因此 `build` script 必須維持 **no-op echo**，靠 commit 進去的 `tailwind.css` 服務；**絕對不要把 `build` 改成 `npm run build:css`**，否則部署容器找不到 tailwindcss 會 `exit 127` 部署失敗（2026-06 曾因此連兩次部署失敗）。
   - `blogger_version.html` / `blogger-embed-code.html` 仍用 Tailwind CDN（供貼進 Blogger，外部網域不受本站 CSP 限制）；直接在本站網域開這兩個檔不會套到樣式，屬預期。
 - **沒有自動化測試框架**：用 Playwright（Python，`PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3`，chromium 在 `~/Library/Caches/ms-playwright/chromium_headless_shell-1217/...`）以 `page.evaluate` 直接驅動函式驗證。
 - 本機驗證 server 改動：啟動後打 `GET /api/health`（回傳各 provider 是否已設定金鑰）。
@@ -46,7 +46,7 @@ python met_introduction.py          # 各檔皆有 __main__ demo，直接印出�
 
 ## 部署與 CSP（最容易踩雷處）
 
-- 部署平台為 **Zeabur**（`zeabur.json` / `zeabur.yaml`，nodejs，`npm install` → `npm start`）。
+- 部署平台為 **Zeabur**（`zeabur.json` / `zeabur.yaml`，nodejs，git 連結 main 自動部署，`npm install` → `npm run build`(no-op) → `npm start`）。服務為 git-connected（push main 自動觸發 build），非 CLI 上傳。
 - `app.set('trust proxy', 1)` 是反向代理（Zeabur）下 rate-limit 正常運作的必要設定，勿移除。
 - **新增任何外部資源時，必須同步更新 `server.js` 的 helmet CSP `directives`**，否則資源被擋：
   - 外部 JS（DOMPurify/jsPDF/html2canvas 等 cdnjs）→ `scriptSrc`；Google Fonts → `styleSrc` / `fontSrc`
