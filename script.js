@@ -465,18 +465,94 @@ function updateFormProgress() {
   }
 }
 
+// ===== 表單自動暫存（sessionStorage）：避免重整 / 誤觸返回 / AI 逾時後重整時丟失整份填寫 =====
+const FORM_DRAFT_KEY = "exerciseRxFormDraft";
+
+function saveFormDraft() {
+  const form = document.getElementById("healthForm");
+  if (!form) return;
+  const data = {};
+  form.querySelectorAll("input, select").forEach((el) => {
+    const key = el.name || el.id;
+    if (!key) return;
+    if (el.type === "checkbox") {
+      if (!data[key]) data[key] = [];
+      if (el.checked) data[key].push(el.value);
+    } else if (el.type === "radio") {
+      if (el.checked) data[key] = el.value;
+    } else {
+      data[key] = el.value;
+    }
+  });
+  try {
+    sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(data));
+  } catch (e) {
+    /* sessionStorage 不可用時略過 */
+  }
+}
+
+function restoreFormDraft() {
+  let raw;
+  try {
+    raw = sessionStorage.getItem(FORM_DRAFT_KEY);
+  } catch (e) {
+    return;
+  }
+  if (!raw) return;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    return;
+  }
+  const form = document.getElementById("healthForm");
+  if (!form) return;
+  form.querySelectorAll("input, select").forEach((el) => {
+    const key = el.name || el.id;
+    if (!key || !(key in data)) return;
+    const val = data[key];
+    if (el.type === "checkbox") {
+      el.checked = Array.isArray(val) && val.includes(el.value);
+    } else if (el.type === "radio") {
+      el.checked = el.value === val;
+    } else {
+      el.value = val;
+    }
+  });
+  // 還原後重算 BMI/BMR/TDEE 與進度
+  try {
+    if (typeof calculateBMI === "function") calculateBMI();
+    if (typeof updateFormProgress === "function") updateFormProgress();
+  } catch (e) {
+    /* 還原後重算失敗不影響填寫 */
+  }
+}
+
+function clearFormDraft() {
+  try {
+    sessionStorage.removeItem(FORM_DRAFT_KEY);
+  } catch (e) {
+    /* 略過 */
+  }
+}
+
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
   // 驗證統一使用 HTML oninput 的 validateField() 系統
 
-  // 設置進度監聽
+  // 還原上次未完成的填寫（同分頁 session 內有效）
+  restoreFormDraft();
+
+  // 設置進度監聽 + 自動暫存
   const formElement = DOMCache.get("healthForm");
   if (formElement) {
     formElement.addEventListener("input", () => {
       updateFormProgress();
+      saveFormDraft();
     });
     formElement.addEventListener("change", () => {
       updateFormProgress();
+      saveFormDraft();
     });
   }
 
@@ -552,6 +628,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (validateForm()) {
         generatePrescription();
+        clearFormDraft(); // 成功產生處方後清除暫存
         showPage("resultPage");
       }
       // validateForm() 已在失敗時自動顯示錯誤訊息
@@ -2613,9 +2690,11 @@ async function fetchAIRecommendation() {
       throw new Error(result.error || "AI 服務回應錯誤");
     }
 
-    // 顯示 AI 建議
+    // 顯示 AI 建議：先以 DOMPurify 清洗，移除 <script>/on* 事件等 XSS 向量（保留表格與樣式）
     loadingEl.classList.add("hidden");
-    contentEl.innerHTML = result.recommendation;
+    contentEl.innerHTML = window.DOMPurify
+      ? window.DOMPurify.sanitize(result.recommendation)
+      : result.recommendation;
     contentEl.classList.remove("hidden");
 
     // 顯示提供商標示

@@ -185,7 +185,6 @@ function selectAnswer(questionNumber, answer) {
         }
     });
 
-    console.log('Current PAR-Q+ answers:', parqAnswers);
 }
 
 // 生成評估結果

@@ -3,134 +3,227 @@
  * 支援多種 AI 提供商：Groq（免費）、Claude、Gemini、OpenAI
  */
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const validator = require('validator');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const validator = require("validator");
+const compression = require("compression");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 信任反向代理（Zeabur、Vercel、Heroku 等雲端平台需要）
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // ============== 安全性 Middleware ==============
 
 // 安全標頭 (Helmet)
-app.use(helmet({
+app.use(
+  helmet({
     contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-            scriptSrcAttr: ["'unsafe-inline'"],  // 允許 onclick 等內聯事件處理器
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "https://api.groq.com", "https://api.anthropic.com", "https://generativelanguage.googleapis.com", "https://api.openai.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com", "data:"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: []
-        }
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          // 已移除 'unsafe-eval' 與 cdn.tailwindcss.com：Tailwind 改用預編譯的 /tailwind.css
+          "https://cdnjs.cloudflare.com",
+        ],
+        scriptSrcAttr: ["'unsafe-inline'"], // 允許 onclick 等內聯事件處理器
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://api.groq.com",
+          "https://api.anthropic.com",
+          "https://generativelanguage.googleapis.com",
+          "https://api.openai.com",
+        ],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://fonts.googleapis.com",
+          "data:",
+        ],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
     },
-    crossOriginEmbedderPolicy: false
-}));
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
-// CORS 配置 - 允許所有來源（因為是公開服務）
-app.use(cors({
-    origin: true,  // 允許所有來源
-    credentials: true
-}));
+// 回應壓縮（gzip/brotli）— 大幅縮小 script.js / index.html 等文字資源的傳輸量
+app.use(compression());
+
+// CORS 配置 - 若設定 ALLOWED_ORIGINS 則套用白名單，否則維持開放（公開服務）
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    // 此 API 不使用 cookie，故不開啟 credentials，避免帶憑證跨站
+    origin:
+      allowedOrigins.length > 0
+        ? (origin, callback) => {
+            // 同源或伺服器對伺服器請求沒有 Origin，一律放行
+            if (!origin || allowedOrigins.includes(origin)) {
+              return callback(null, true);
+            }
+            return callback(new Error("CORS: 來源不被允許"));
+          }
+        : true,
+  }),
+);
 
 // 速率限制 - API 端點
 const apiLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 分鐘
-    max: 10, // 每分鐘最多 10 次 AI 請求
-    message: {
-        success: false,
-        error: '請求過於頻繁，請稍後再試（每分鐘最多 10 次）'
-    },
-    standardHeaders: true,
-    legacyHeaders: false
+  windowMs: 1 * 60 * 1000, // 1 分鐘
+  max: 10, // 每分鐘最多 10 次 AI 請求
+  message: {
+    success: false,
+    error: "請求過於頻繁，請稍後再試（每分鐘最多 10 次）",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // 一般速率限制
 const generalLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 100,
-    message: { success: false, error: '請求過於頻繁' }
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  message: { success: false, error: "請求過於頻繁" },
 });
 
-app.use('/api/ai-recommendation', apiLimiter);
-app.use('/api/', generalLimiter);
+app.use("/api/ai-recommendation", apiLimiter);
+app.use("/api/", generalLimiter);
 
 // JSON 解析 - 限制請求大小
-app.use(express.json({ limit: '100kb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
-// 靜態檔案服務
-app.use(express.static(path.join(__dirname)));
+// 靜態檔案服務（搭配 compression 壓縮 + 快取；HTML 不快取以利更新即時生效）
+app.use(
+  express.static(path.join(__dirname), {
+    dotfiles: "ignore", // 不對外服務 .env / .env.example 等 dotfile
+    etag: true,
+    maxAge: "1h",
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }),
+);
 
 // ============== 輸入驗證函數 ==============
 function validateUserData(userData) {
-    const errors = [];
+  const errors = [];
 
-    if (!userData || typeof userData !== 'object') {
-        return { valid: false, errors: ['用戶資料格式錯誤'] };
+  if (!userData || typeof userData !== "object") {
+    return { valid: false, errors: ["用戶資料格式錯誤"] };
+  }
+
+  // 驗證年齡（與前端一致：6-120 歲；本系統處方邏輯未涵蓋 6 歲以下）
+  if (userData.age !== undefined) {
+    const age = parseInt(userData.age, 10);
+    if (isNaN(age) || age < 6 || age > 120) {
+      errors.push("年齡必須在 6-120 歲之間");
     }
+  }
 
-    // 驗證年齡
-    if (userData.age !== undefined) {
-        const age = parseInt(userData.age);
-        if (isNaN(age) || age < 1 || age > 120) {
-            errors.push('年齡必須在 1-120 歲之間');
-        }
+  // 驗證身高
+  if (userData.height !== undefined) {
+    const height = parseFloat(userData.height);
+    if (isNaN(height) || height < 50 || height > 300) {
+      errors.push("身高必須在 50-300 公分之間");
     }
+  }
 
-    // 驗證身高
-    if (userData.height !== undefined) {
-        const height = parseFloat(userData.height);
-        if (isNaN(height) || height < 50 || height > 300) {
-            errors.push('身高必須在 50-300 公分之間');
-        }
+  // 驗證體重
+  if (userData.weight !== undefined) {
+    const weight = parseFloat(userData.weight);
+    if (isNaN(weight) || weight < 10 || weight > 500) {
+      errors.push("體重必須在 10-500 公斤之間");
     }
+  }
 
-    // 驗證體重
-    if (userData.weight !== undefined) {
-        const weight = parseFloat(userData.weight);
-        if (isNaN(weight) || weight < 10 || weight > 500) {
-            errors.push('體重必須在 10-500 公斤之間');
-        }
+  // 驗證性別
+  const validGenders = ["male", "female", "other"];
+  if (userData.gender && !validGenders.includes(userData.gender)) {
+    errors.push("性別選項無效");
+  }
+
+  // 驗證運動目標
+  const validGoals = [
+    "health",
+    "weight_loss",
+    "muscle_building",
+    "endurance",
+    "rehabilitation",
+    "performance",
+  ];
+  if (userData.exercise_goal && !validGoals.includes(userData.exercise_goal)) {
+    errors.push("運動目標選項無效");
+  }
+
+  // 驗證 diseases / limitations 若存在必須為陣列（buildUserSummary 會 .map）
+  if (userData.diseases !== undefined && !Array.isArray(userData.diseases)) {
+    errors.push("疾病資料格式錯誤");
+  }
+  if (
+    userData.limitations !== undefined &&
+    !Array.isArray(userData.limitations)
+  ) {
+    errors.push("運動限制資料格式錯誤");
+  }
+
+  // 驗證 parq_answers 若存在必須為物件
+  if (
+    userData.parq_answers !== undefined &&
+    (typeof userData.parq_answers !== "object" ||
+      Array.isArray(userData.parq_answers))
+  ) {
+    errors.push("PAR-Q 答案格式錯誤");
+  }
+
+  // 驗證 prescription：buildUserSummary 會直接存取 prescription.type.join 等，必須完整
+  if (!userData.prescription || typeof userData.prescription !== "object") {
+    errors.push("缺少運動處方資料");
+  } else {
+    const p = userData.prescription;
+    if (!Array.isArray(p.type)) {
+      errors.push("運動處方類型格式錯誤");
     }
-
-    // 驗證性別
-    const validGenders = ['male', 'female', 'other'];
-    if (userData.gender && !validGenders.includes(userData.gender)) {
-        errors.push('性別選項無效');
+    if (
+      p.frequency === undefined ||
+      p.time === undefined ||
+      p.intensity === undefined
+    ) {
+      errors.push("運動處方資料不完整");
     }
+  }
 
-    // 驗證運動目標
-    const validGoals = ['health', 'weight_loss', 'muscle_building', 'endurance', 'rehabilitation', 'performance'];
-    if (userData.exercise_goal && !validGoals.includes(userData.exercise_goal)) {
-        errors.push('運動目標選項無效');
-    }
-
-    return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors };
 }
 
 // 清理 API 金鑰（移除危險字元）
 function sanitizeApiKey(key) {
-    if (!key || typeof key !== 'string') return null;
-    // API 金鑰只允許字母數字和連字號/底線
-    return key.replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 200);
+  if (!key || typeof key !== "string") return null;
+  // API 金鑰只允許字母數字和連字號/底線
+  return key.replace(/[^a-zA-Z0-9\-_]/g, "").substring(0, 200);
 }
 
 // API 配置
-const GROQ_API_KEY = process.env.GROQ_API_KEY;           // 基本款（免費）
+const GROQ_API_KEY = process.env.GROQ_API_KEY; // 基本款（免費）
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY; // 進階版
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;       // 進階版
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;       // 進階版
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // 進階版
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // 進階版
 
 // 運動處方 AI 系統提示詞
 const SYSTEM_PROMPT = `# Role (角色設定)
@@ -303,96 +396,109 @@ const SYSTEM_PROMPT = `# Role (角色設定)
 
 // 建構用戶資料摘要
 function buildUserSummary(data) {
-    const {
-        age, gender, height, weight, bmi,
-        health_status, diseases, fitness_level,
-        exercise_habit, exercise_goal, limitations,
-        parq_answers, prescription
-    } = data;
+  const {
+    age,
+    gender,
+    height,
+    weight,
+    bmi,
+    health_status,
+    diseases,
+    fitness_level,
+    exercise_habit,
+    exercise_goal,
+    limitations,
+    parq_answers,
+    prescription,
+  } = data;
 
-    // 性別轉換
-    const genderText = gender === 'male' ? '男性' : gender === 'female' ? '女性' : '其他';
+  // 性別轉換
+  const genderText =
+    gender === "male" ? "男性" : gender === "female" ? "女性" : "其他";
 
-    // 體能水平轉換
-    const fitnessMap = {
-        'excellent': '良好',
-        'good': '尚可',
-        'fair': '容易疲勞',
-        'poor': '日常活動困難'
-    };
+  // 體能水平轉換
+  const fitnessMap = {
+    excellent: "良好",
+    good: "尚可",
+    fair: "容易疲勞",
+    poor: "日常活動困難",
+  };
 
-    // 運動習慣轉換
-    const habitMap = {
-        'none': '沒有運動習慣',
-        'light': '偶爾運動（每週1-2次）',
-        'moderate': '規律運動（每週3-4次）',
-        'active': '經常運動（每週5次以上）',
-        'student_athlete': '學生運動員或專業訓練'
-    };
+  // 運動習慣轉換
+  const habitMap = {
+    none: "沒有運動習慣",
+    light: "偶爾運動（每週1-2次）",
+    moderate: "規律運動（每週3-4次）",
+    active: "經常運動（每週5次以上）",
+    student_athlete: "學生運動員或專業訓練",
+  };
 
-    // 運動目標轉換
-    const goalMap = {
-        'health': '健康維護',
-        'weight_loss': '減重瘦身',
-        'muscle_building': '增肌塑形',
-        'endurance': '增強體能',
-        'rehabilitation': '復健治療',
-        'performance': '運動表現提升'
-    };
+  // 運動目標轉換
+  const goalMap = {
+    health: "健康維護",
+    weight_loss: "減重瘦身",
+    muscle_building: "增肌塑形",
+    endurance: "增強體能",
+    rehabilitation: "復健治療",
+    performance: "運動表現提升",
+  };
 
-    // 疾病轉換
-    const diseaseMap = {
-        'overweight': '體重過重',
-        'asthma': '氣喘',
-        'hypertension': '高血壓',
-        'diabetes': '糖尿病',
-        'arthritis': '關節問題',
-        'heart_recovery': '心臟疾病',
-        'sarcopenia': '肌少症',
-        'pregnant': '孕婦',
-        'hyperlipidemia': '高血脂'
-    };
+  // 疾病轉換
+  const diseaseMap = {
+    overweight: "體重過重",
+    asthma: "氣喘",
+    hypertension: "高血壓",
+    diabetes: "糖尿病",
+    arthritis: "關節問題",
+    heart_recovery: "心臟疾病",
+    sarcopenia: "肌少症",
+    pregnant: "孕婦",
+    hyperlipidemia: "高血脂",
+  };
 
-    // 限制轉換
-    const limitationMap = {
-        'none': '無特別限制',
-        'time': '時間限制',
-        'motivation': '缺乏動機',
-        'pain': '疼痛問題',
-        'injury_history': '運動傷害史',
-        'balance': '平衡感不佳',
-        'palpitation': '呼吸困難',
-        'equipment': '缺乏運動設備'
-    };
+  // 限制轉換
+  const limitationMap = {
+    none: "無特別限制",
+    time: "時間限制",
+    motivation: "缺乏動機",
+    pain: "疼痛問題",
+    injury_history: "運動傷害史",
+    balance: "平衡感不佳",
+    palpitation: "呼吸困難",
+    equipment: "缺乏運動設備",
+  };
 
-    // PAR-Q 評估
-    const parqYesCount = Object.values(parq_answers || {}).filter(v => v === 'yes').length;
-    const parqRiskLevel = parqYesCount === 0 ? '低風險' : parqYesCount === 1 ? '中度風險' : '高風險';
+  // PAR-Q 評估
+  const parqYesCount = Object.values(parq_answers || {}).filter(
+    (v) => v === "yes",
+  ).length;
+  const parqRiskLevel =
+    parqYesCount === 0 ? "低風險" : parqYesCount === 1 ? "中度風險" : "高風險";
 
-    // 年齡分組
-    let ageGroup = '';
-    if (age >= 6 && age <= 11) ageGroup = '兒童（6-11歲）';
-    else if (age >= 12 && age <= 17) ageGroup = '青少年（12-17歲）';
-    else if (age >= 18 && age <= 64) ageGroup = '成人（18-64歲）';
-    else if (age >= 65) ageGroup = '銀髮族（65歲以上）';
+  // 年齡分組
+  let ageGroup = "";
+  if (age >= 6 && age <= 11) ageGroup = "兒童（6-11歲）";
+  else if (age >= 12 && age <= 17) ageGroup = "青少年（12-17歲）";
+  else if (age >= 18 && age <= 64) ageGroup = "成人（18-64歲）";
+  else if (age >= 65) ageGroup = "銀髮族（65歲以上）";
 
-    return `
+  return `
 【用戶基本資料】
 - 年齡：${age} 歲（${ageGroup}）
 - 性別：${genderText}
 - 身高：${height} 公分
 - 體重：${weight} 公斤
-${bmi ? `- BMI：${bmi}` : '- BMI：未計算（未成年）'}
+${bmi ? `- BMI：${bmi}` : "- BMI：未計算（未成年）"}
 
 【健康狀況】
-- 整體健康：${health_status === 'healthy' ? '健康狀況良好' : '有健康狀況需注意'}
-- 相關疾病：${diseases && diseases.length > 0 ? diseases.map(d => diseaseMap[d] || d).join('、') : '無'}
+- 整體健康：${health_status === "healthy" ? "健康狀況良好" : "有健康狀況需注意"}
+- 相關疾病：${diseases && diseases.length > 0 ? diseases.map((d) => diseaseMap[d] || d).join("、") : "無"}
 - 體能自評：${fitnessMap[fitness_level] || fitness_level}
 
 【運動習慣與目標】
 - 目前運動習慣：${habitMap[exercise_habit] || exercise_habit}
 - 運動目標：${goalMap[exercise_goal] || exercise_goal}
-- 運動限制：${limitations && limitations.length > 0 ? limitations.map(l => limitationMap[l] || l).join('、') : '無'}
+- 運動限制：${limitations && limitations.length > 0 ? limitations.map((l) => limitationMap[l] || l).join("、") : "無"}
 
 【PAR-Q 運動準備評估】
 - 風險等級：${parqRiskLevel}
@@ -402,342 +508,431 @@ ${bmi ? `- BMI：${bmi}` : '- BMI：未計算（未成年）'}
 - 建議頻率：每週 ${prescription.frequency} 次
 - 建議時間：每次 ${prescription.time} 分鐘
 - 建議強度：${prescription.intensity}
-- 運動類型：${prescription.type.join('、')}
+- 運動類型：${prescription.type.join("、")}
 `;
 }
 
+// ============== 請求逾時設定 ==============
+// 避免上游 AI 供應商緩慢/掛住時，後端 fetch 無限期掛起佔用連線
+const AI_REQUEST_TIMEOUT_MS = 30000;
+
 // ============== 預設模型配置 ==============
 const DEFAULT_MODELS = {
-    groq: 'llama-3.3-70b-versatile',
-    openai: 'gpt-4o-mini',
-    claude: 'claude-sonnet-4-20250514',
-    gemini: 'gemini-2.0-flash-exp'
+  groq: "llama-3.3-70b-versatile",
+  openai: "gpt-4o-mini",
+  claude: "claude-sonnet-4-20250514",
+  gemini: "gemini-2.0-flash-exp",
 };
 
 // ============== AI 提供商呼叫函數 ==============
 
 // 呼叫 Groq API（免費基本款）
-async function callGroqAPI(userSummary, apiKey = GROQ_API_KEY, model = DEFAULT_MODELS.groq) {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}` }
-            ],
-            max_tokens: 2048,
-            temperature: 0.7
-        })
-    });
+async function callGroqAPI(
+  userSummary,
+  apiKey = GROQ_API_KEY,
+  model = DEFAULT_MODELS.groq,
+) {
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
+          },
+        ],
+        max_tokens: 2048,
+        temperature: 0.7,
+      }),
+    },
+  );
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Groq API 錯誤: ${error.error?.message || response.statusText}`);
-    }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      `Groq API 錯誤: ${error.error?.message || response.statusText}`,
+    );
+  }
 
-    const data = await response.json();
-    return { content: data.choices[0].message.content, model: model };
+  const data = await response.json();
+  return { content: data.choices[0].message.content, model: model };
 }
 
 // 呼叫 Claude API
-async function callClaudeAPI(userSummary, apiKey = ANTHROPIC_API_KEY, model = DEFAULT_MODELS.claude) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01'
+async function callClaudeAPI(
+  userSummary,
+  apiKey = ANTHROPIC_API_KEY,
+  model = DEFAULT_MODELS.claude,
+) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: model,
+      max_tokens: 2048,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
         },
-        body: JSON.stringify({
-            model: model,
-            max_tokens: 2048,
-            system: SYSTEM_PROMPT,
-            messages: [
-                {
-                    role: 'user',
-                    content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`
-                }
-            ]
-        })
-    });
+      ],
+    }),
+  });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Claude API 錯誤: ${error.error?.message || response.statusText}`);
-    }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      `Claude API 錯誤: ${error.error?.message || response.statusText}`,
+    );
+  }
 
-    const data = await response.json();
-    return { content: data.content[0].text, model: model };
+  const data = await response.json();
+  return { content: data.content[0].text, model: model };
 }
 
 // 呼叫 Gemini API
-async function callGeminiAPI(userSummary, apiKey = GEMINI_API_KEY, model = DEFAULT_MODELS.gemini) {
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            {
-                                text: `${SYSTEM_PROMPT}\n\n請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`
-                            }
-                        ]
-                    }
-                ],
-                generationConfig: {
-                    maxOutputTokens: 2048,
-                    temperature: 0.7
-                }
-            })
-        }
+async function callGeminiAPI(
+  userSummary,
+  apiKey = GEMINI_API_KEY,
+  model = DEFAULT_MODELS.gemini,
+) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${SYSTEM_PROMPT}\n\n請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      `Gemini API 錯誤: ${error.error?.message || response.statusText}`,
     );
+  }
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Gemini API 錯誤: ${error.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    return { content: data.candidates[0].content.parts[0].text, model: model };
+  const data = await response.json();
+  return { content: data.candidates[0].content.parts[0].text, model: model };
 }
 
 // 呼叫 OpenAI API
-async function callOpenAIAPI(userSummary, apiKey = OPENAI_API_KEY, model = DEFAULT_MODELS.openai) {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+async function callOpenAIAPI(
+  userSummary,
+  apiKey = OPENAI_API_KEY,
+  model = DEFAULT_MODELS.openai,
+) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
         },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}` }
-            ],
-            max_tokens: 2048,
-            temperature: 0.7
-        })
-    });
+      ],
+      max_tokens: 2048,
+      temperature: 0.7,
+    }),
+  });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`OpenAI API 錯誤: ${error.error?.message || response.statusText}`);
-    }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      `OpenAI API 錯誤: ${error.error?.message || response.statusText}`,
+    );
+  }
 
-    const data = await response.json();
-    return { content: data.choices[0].message.content, model: model };
+  const data = await response.json();
+  return { content: data.choices[0].message.content, model: model };
 }
 
 // ============== API 端點 ==============
 
 // AI 建議 API 端點
-app.post('/api/ai-recommendation', async (req, res) => {
-    try {
-        const { userData, provider = 'auto', model = null, customApiKey = null } = req.body;
+app.post("/api/ai-recommendation", async (req, res) => {
+  try {
+    const {
+      userData,
+      provider = "auto",
+      model = null,
+      customApiKey = null,
+    } = req.body;
 
-        if (!userData) {
-            return res.status(400).json({
-                success: false,
-                error: '缺少用戶資料'
-            });
-        }
-
-        // 輸入驗證
-        const validation = validateUserData(userData);
-        if (!validation.valid) {
-            return res.status(400).json({
-                success: false,
-                error: `資料驗證失敗: ${validation.errors.join(', ')}`
-            });
-        }
-
-        // 驗證 provider
-        const validProviders = ['auto', 'groq', 'claude', 'gemini', 'openai'];
-        if (!validProviders.includes(provider)) {
-            return res.status(400).json({
-                success: false,
-                error: 'AI 提供商選項無效'
-            });
-        }
-
-        // 清理自訂 API 金鑰
-        const sanitizedApiKey = customApiKey ? sanitizeApiKey(customApiKey) : null;
-
-        // 建構用戶摘要
-        const userSummary = buildUserSummary(userData);
-
-        let result;
-        let usedProvider;
-
-        // 選擇 AI 提供商
-        switch (provider) {
-            case 'groq':
-                // Groq（使用後端金鑰或用戶提供的金鑰）
-                const groqKey = sanitizedApiKey || GROQ_API_KEY;
-                if (!groqKey) {
-                    return res.status(500).json({
-                        success: false,
-                        error: '未設定 Groq API 金鑰'
-                    });
-                }
-                result = await callGroqAPI(userSummary, groqKey, model || DEFAULT_MODELS.groq);
-                usedProvider = `Groq (${result.model})`;
-                break;
-
-            case 'claude':
-                // Claude（用戶提供金鑰或後端金鑰）
-                const claudeKey = sanitizedApiKey || ANTHROPIC_API_KEY;
-                if (!claudeKey) {
-                    return res.status(400).json({
-                        success: false,
-                        error: '請提供 Claude API 金鑰'
-                    });
-                }
-                result = await callClaudeAPI(userSummary, claudeKey, model || DEFAULT_MODELS.claude);
-                usedProvider = `Claude (${result.model})`;
-                break;
-
-            case 'gemini':
-                // Gemini（用戶提供金鑰或後端金鑰）
-                const geminiKey = sanitizedApiKey || GEMINI_API_KEY;
-                if (!geminiKey) {
-                    return res.status(400).json({
-                        success: false,
-                        error: '請提供 Gemini API 金鑰'
-                    });
-                }
-                result = await callGeminiAPI(userSummary, geminiKey, model || DEFAULT_MODELS.gemini);
-                usedProvider = `Gemini (${result.model})`;
-                break;
-
-            case 'openai':
-                // OpenAI（用戶提供金鑰或後端金鑰）
-                const openaiKey = sanitizedApiKey || OPENAI_API_KEY;
-                if (!openaiKey) {
-                    return res.status(400).json({
-                        success: false,
-                        error: '請提供 OpenAI API 金鑰'
-                    });
-                }
-                result = await callOpenAIAPI(userSummary, openaiKey, model || DEFAULT_MODELS.openai);
-                usedProvider = `OpenAI (${result.model})`;
-                break;
-
-            case 'auto':
-            default:
-                // 自動選擇：優先使用 Groq（免費），然後依序嘗試其他
-                if (GROQ_API_KEY) {
-                    result = await callGroqAPI(userSummary, GROQ_API_KEY, DEFAULT_MODELS.groq);
-                    usedProvider = `Groq (${result.model})`;
-                } else if (ANTHROPIC_API_KEY) {
-                    result = await callClaudeAPI(userSummary, ANTHROPIC_API_KEY, DEFAULT_MODELS.claude);
-                    usedProvider = `Claude (${result.model})`;
-                } else if (GEMINI_API_KEY) {
-                    result = await callGeminiAPI(userSummary, GEMINI_API_KEY, DEFAULT_MODELS.gemini);
-                    usedProvider = `Gemini (${result.model})`;
-                } else if (OPENAI_API_KEY) {
-                    result = await callOpenAIAPI(userSummary, OPENAI_API_KEY, DEFAULT_MODELS.openai);
-                    usedProvider = `OpenAI (${result.model})`;
-                } else {
-                    return res.status(500).json({
-                        success: false,
-                        error: '未設定任何 AI API 金鑰'
-                    });
-                }
-                break;
-        }
-
-        res.json({
-            success: true,
-            recommendation: result.content,
-            provider: usedProvider,
-            model: result.model
-        });
-
-    } catch (error) {
-        console.error('AI 建議生成錯誤:', error);
-        // 避免洩漏敏感錯誤資訊
-        const safeErrorMessage = error.message?.includes('API')
-            ? 'AI 服務暫時無法使用，請檢查 API 金鑰是否正確'
-            : 'AI 服務暫時無法使用，請稍後再試';
-        res.status(500).json({
-            success: false,
-            error: safeErrorMessage
-        });
+    if (!userData) {
+      return res.status(400).json({
+        success: false,
+        error: "缺少用戶資料",
+      });
     }
+
+    // 輸入驗證
+    const validation = validateUserData(userData);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: `資料驗證失敗: ${validation.errors.join(", ")}`,
+      });
+    }
+
+    // 驗證 provider
+    const validProviders = ["auto", "groq", "claude", "gemini", "openai"];
+    if (!validProviders.includes(provider)) {
+      return res.status(400).json({
+        success: false,
+        error: "AI 提供商選項無效",
+      });
+    }
+
+    // 清理自訂 API 金鑰
+    const sanitizedApiKey = customApiKey ? sanitizeApiKey(customApiKey) : null;
+
+    // 建構用戶摘要
+    const userSummary = buildUserSummary(userData);
+
+    let result;
+    let usedProvider;
+
+    // 選擇 AI 提供商
+    switch (provider) {
+      case "groq":
+        // Groq（使用後端金鑰或用戶提供的金鑰）
+        const groqKey = sanitizedApiKey || GROQ_API_KEY;
+        if (!groqKey) {
+          return res.status(500).json({
+            success: false,
+            error: "未設定 Groq API 金鑰",
+          });
+        }
+        result = await callGroqAPI(
+          userSummary,
+          groqKey,
+          model || DEFAULT_MODELS.groq,
+        );
+        usedProvider = `Groq (${result.model})`;
+        break;
+
+      case "claude":
+        // Claude（用戶提供金鑰或後端金鑰）
+        const claudeKey = sanitizedApiKey || ANTHROPIC_API_KEY;
+        if (!claudeKey) {
+          return res.status(400).json({
+            success: false,
+            error: "請提供 Claude API 金鑰",
+          });
+        }
+        result = await callClaudeAPI(
+          userSummary,
+          claudeKey,
+          model || DEFAULT_MODELS.claude,
+        );
+        usedProvider = `Claude (${result.model})`;
+        break;
+
+      case "gemini":
+        // Gemini（用戶提供金鑰或後端金鑰）
+        const geminiKey = sanitizedApiKey || GEMINI_API_KEY;
+        if (!geminiKey) {
+          return res.status(400).json({
+            success: false,
+            error: "請提供 Gemini API 金鑰",
+          });
+        }
+        result = await callGeminiAPI(
+          userSummary,
+          geminiKey,
+          model || DEFAULT_MODELS.gemini,
+        );
+        usedProvider = `Gemini (${result.model})`;
+        break;
+
+      case "openai":
+        // OpenAI（用戶提供金鑰或後端金鑰）
+        const openaiKey = sanitizedApiKey || OPENAI_API_KEY;
+        if (!openaiKey) {
+          return res.status(400).json({
+            success: false,
+            error: "請提供 OpenAI API 金鑰",
+          });
+        }
+        result = await callOpenAIAPI(
+          userSummary,
+          openaiKey,
+          model || DEFAULT_MODELS.openai,
+        );
+        usedProvider = `OpenAI (${result.model})`;
+        break;
+
+      case "auto":
+      default:
+        // 自動選擇：優先使用 Groq（免費），然後依序嘗試其他
+        if (GROQ_API_KEY) {
+          result = await callGroqAPI(
+            userSummary,
+            GROQ_API_KEY,
+            DEFAULT_MODELS.groq,
+          );
+          usedProvider = `Groq (${result.model})`;
+        } else if (ANTHROPIC_API_KEY) {
+          result = await callClaudeAPI(
+            userSummary,
+            ANTHROPIC_API_KEY,
+            DEFAULT_MODELS.claude,
+          );
+          usedProvider = `Claude (${result.model})`;
+        } else if (GEMINI_API_KEY) {
+          result = await callGeminiAPI(
+            userSummary,
+            GEMINI_API_KEY,
+            DEFAULT_MODELS.gemini,
+          );
+          usedProvider = `Gemini (${result.model})`;
+        } else if (OPENAI_API_KEY) {
+          result = await callOpenAIAPI(
+            userSummary,
+            OPENAI_API_KEY,
+            DEFAULT_MODELS.openai,
+          );
+          usedProvider = `OpenAI (${result.model})`;
+        } else {
+          return res.status(500).json({
+            success: false,
+            error: "未設定任何 AI API 金鑰",
+          });
+        }
+        break;
+    }
+
+    res.json({
+      success: true,
+      recommendation: result.content,
+      provider: usedProvider,
+      model: result.model,
+    });
+  } catch (error) {
+    console.error("AI 建議生成錯誤:", error);
+    // 避免洩漏敏感錯誤資訊
+    let safeErrorMessage;
+    let statusCode = 500;
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      safeErrorMessage = "AI 回應逾時，請稍後再試一次";
+      statusCode = 504;
+    } else if (error.message?.includes("API")) {
+      safeErrorMessage = "AI 服務暫時無法使用，請檢查 API 金鑰是否正確";
+    } else {
+      safeErrorMessage = "AI 服務暫時無法使用，請稍後再試";
+    }
+    res.status(statusCode).json({
+      success: false,
+      error: safeErrorMessage,
+    });
+  }
 });
 
 // 健康檢查端點
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        aiProviders: {
-            groq: !!GROQ_API_KEY,
-            claude: !!ANTHROPIC_API_KEY,
-            gemini: !!GEMINI_API_KEY,
-            openai: !!OPENAI_API_KEY
-        }
-    });
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    aiProviders: {
+      groq: !!GROQ_API_KEY,
+      claude: !!ANTHROPIC_API_KEY,
+      gemini: !!GEMINI_API_KEY,
+      openai: !!OPENAI_API_KEY,
+    },
+  });
 });
 
 // 可用提供商查詢端點
-app.get('/api/providers', (req, res) => {
-    res.json({
-        available: {
-            groq: !!GROQ_API_KEY,
-            claude: !!ANTHROPIC_API_KEY,
-            gemini: !!GEMINI_API_KEY,
-            openai: !!OPENAI_API_KEY
-        },
-        defaultProvider: GROQ_API_KEY ? 'groq' :
-                        ANTHROPIC_API_KEY ? 'claude' :
-                        GEMINI_API_KEY ? 'gemini' :
-                        OPENAI_API_KEY ? 'openai' : null
-    });
+app.get("/api/providers", (req, res) => {
+  res.json({
+    available: {
+      groq: !!GROQ_API_KEY,
+      claude: !!ANTHROPIC_API_KEY,
+      gemini: !!GEMINI_API_KEY,
+      openai: !!OPENAI_API_KEY,
+    },
+    defaultProvider: GROQ_API_KEY
+      ? "groq"
+      : ANTHROPIC_API_KEY
+        ? "claude"
+        : GEMINI_API_KEY
+          ? "gemini"
+          : OPENAI_API_KEY
+            ? "openai"
+            : null,
+  });
 });
 
 // 首頁路由
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // 404 處理 - API 路由
-app.use('/api/*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'API 端點不存在'
-    });
+app.use("/api/*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: "API 端點不存在",
+  });
 });
 
 // 全域錯誤處理 - 確保返回 JSON
 app.use((err, req, res, next) => {
-    console.error('Server Error:', err);
-    res.status(500).json({
-        success: false,
-        error: '伺服器發生錯誤，請稍後再試'
-    });
+  console.error("Server Error:", err);
+  res.status(500).json({
+    success: false,
+    error: "伺服器發生錯誤，請稍後再試",
+  });
 });
 
 // 啟動伺服器
 app.listen(PORT, () => {
-    console.log(`運動處方 AI 建議系統運行於 http://localhost:${PORT}`);
-    console.log(`AI 提供商狀態:
-  - Groq (免費): ${GROQ_API_KEY ? '已設定 ✓' : '未設定'}
-  - Claude: ${ANTHROPIC_API_KEY ? '已設定 ✓' : '未設定'}
-  - Gemini: ${GEMINI_API_KEY ? '已設定 ✓' : '未設定'}
-  - OpenAI: ${OPENAI_API_KEY ? '已設定 ✓' : '未設定'}`);
+  console.log(`運動處方 AI 建議系統運行於 http://localhost:${PORT}`);
+  console.log(`AI 提供商狀態:
+  - Groq (免費): ${GROQ_API_KEY ? "已設定 ✓" : "未設定"}
+  - Claude: ${ANTHROPIC_API_KEY ? "已設定 ✓" : "未設定"}
+  - Gemini: ${GEMINI_API_KEY ? "已設定 ✓" : "未設定"}
+  - OpenAI: ${OPENAI_API_KEY ? "已設定 ✓" : "未設定"}`);
 });
 
 module.exports = app;
