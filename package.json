@@ -8,7 +8,7 @@
     "dev": "node server.js",
     "serve-static": "serve -s . -p $PORT",
     "build:css": "tailwindcss -i ./src/input.css -o ./tailwind.css --minify",
-    "build": "npm run build:css"
+    "build": "echo 'Tailwind 已預編譯並 commit（tailwind.css），Zeabur 部署不需重編譯；本地改 class 後請手動跑 npm run build:css 並 commit'"
   },
   "keywords": [
     "exercise",
