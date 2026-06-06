@@ -810,6 +810,10 @@ function collectFormData() {
       document.querySelectorAll('input[name="limitations"]:checked'),
     ).map((cb) => cb.value);
 
+    // 活動係數：與螢幕端 calculateTDEE() 同源，讓 PDF 的 TDEE 與畫面一致
+    const activityLevel =
+      parseFloat(document.getElementById("activityLevel")?.value) || 1.375;
+
     const formData = {
       age: age,
       gender: genderElement.value,
@@ -822,6 +826,7 @@ function collectFormData() {
       exercise_habit: exerciseHabit,
       exercise_goal: exerciseGoal,
       limitations: limitations,
+      activityLevel: activityLevel,
       parq_answers: parqAnswers,
     };
 
@@ -2084,21 +2089,15 @@ function calculateBMRForPDF(data) {
     return "待計算";
   }
 
+  // 與畫面端 calculateBMR() 一致，統一採 Mifflin-St Jeor，避免螢幕與 PDF 數值不同
   let bmr;
   if (data.gender === "male") {
-    // Harris-Benedict 公式 (男性)
-    bmr =
-      88.362 + 13.397 * data.weight + 4.799 * data.height - 5.677 * data.age;
+    bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age + 5;
   } else if (data.gender === "female") {
-    // Harris-Benedict 公式 (女性)
-    bmr = 447.593 + 9.247 * data.weight + 3.098 * data.height - 4.33 * data.age;
+    bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 161;
   } else {
-    // 使用平均值
-    const maleBmr =
-      88.362 + 13.397 * data.weight + 4.799 * data.height - 5.677 * data.age;
-    const femaleBmr =
-      447.593 + 9.247 * data.weight + 3.098 * data.height - 4.33 * data.age;
-    bmr = (maleBmr + femaleBmr) / 2;
+    // 其他：男女係數平均（常數 -78）
+    bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 78;
   }
 
   return Math.round(bmr);
@@ -2108,25 +2107,28 @@ function calculateTDEEForPDF(data) {
   const bmr = calculateBMRForPDF(data);
   if (bmr === "待計算") return "待計算";
 
-  // 根據運動習慣決定活動係數
-  let activityFactor = 1.375; // 預設為輕度活動
-
-  switch (data.exercise_habit) {
-    case "none":
-      activityFactor = 1.2; // 久坐
-      break;
-    case "light":
-      activityFactor = 1.375; // 輕度活動
-      break;
-    case "moderate":
-      activityFactor = 1.55; // 中度活動
-      break;
-    case "active":
-      activityFactor = 1.725; // 高度活動
-      break;
-    case "student_athlete":
-      activityFactor = 1.9; // 非常高度活動
-      break;
+  // 活動係數：優先採用畫面端使用者選的 activityLevel（與螢幕 TDEE 一致），
+  // 沒有時才退回依運動習慣推估
+  let activityFactor = data.activityLevel;
+  if (!activityFactor) {
+    activityFactor = 1.375; // 預設為輕度活動
+    switch (data.exercise_habit) {
+      case "none":
+        activityFactor = 1.2; // 久坐
+        break;
+      case "light":
+        activityFactor = 1.375; // 輕度活動
+        break;
+      case "moderate":
+        activityFactor = 1.55; // 中度活動
+        break;
+      case "active":
+        activityFactor = 1.725; // 高度活動
+        break;
+      case "student_athlete":
+        activityFactor = 1.9; // 非常高度活動
+        break;
+    }
   }
 
   return Math.round(bmr * activityFactor);
