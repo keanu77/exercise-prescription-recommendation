@@ -13,4 +13,5 @@ test.html
 debug_test.html
 test_40_year_old.html
 *.pyc
-__pycache__/.claude/
+__pycache__/
+.claude/
