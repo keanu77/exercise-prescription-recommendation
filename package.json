@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "serve-static": "serve -s . -p $PORT",
     "build:css": "tailwindcss -i ./src/input.css -o ./tailwind.css --minify",
     "build": "echo 'Tailwind 已預編譯並 commit（tailwind.css），Zeabur 部署不需重編譯；本地改 class 後請手動跑 npm run build:css 並 commit'"
   },
@@ -29,7 +28,6 @@
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
-    "serve": "^14.2.1",
     "validator": "^13.15.23"
   },
   "engines": {
