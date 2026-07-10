@@ -626,12 +626,14 @@ async function callGeminiAPI(
   model = DEFAULT_MODELS.gemini,
 ) {
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
       signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
       headers: {
         "Content-Type": "application/json",
+        // 金鑰改走 header，避免出現在 URL（URL 易被 log / proxy 記錄）
+        "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
         contents: [
