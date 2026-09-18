@@ -1,0 +1,26 @@
+# Cloudflare Pages 靜態標頭（由 scripts/build-pages.sh 複製進 dist/）。
+# 對齊 server.js 的 helmet CSP 與快取策略：HTML 不快取，其餘靜態檔快取 1 小時。
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.groq.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.openai.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; object-src 'none'; upgrade-insecure-requests
+  Cache-Control: public, max-age=3600
+
+/*.html
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/parq-form
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/api/*
+  ! Cache-Control
+  Cache-Control: no-store

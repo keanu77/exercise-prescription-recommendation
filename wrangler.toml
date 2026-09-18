@@ -1,0 +1,17 @@
+# Cloudflare Pages 專案設定（由 Zeabur Express 版遷移，2026-09-18）。
+# 部署：bash scripts/build-pages.sh && wrangler pages deploy dist --project-name exercise-prescription
+# Secrets（GROQ_API_KEY 等）用 `wrangler pages secret put <KEY> --project-name exercise-prescription` 設定，不放這裡。
+name = "exercise-prescription"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# 非機密設定。ALLOWED_ORIGINS 留空＝只允許同站呼叫 /api（與 server.js 行為一致）。
+[vars]
+ALLOWED_ORIGINS = ""
+
+# /api/ai-recommendation 每 IP 每分鐘 10 次的速率限制（functions/_lib/http.js）。
+# 未綁定時優雅降級為不限制。
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "fe9be7e0b6a2442d9e66cfe961dd1aaa"

@@ -15,3 +15,7 @@ test_40_year_old.html
 *.pyc
 __pycache__/
 .claude/
+
+# Cloudflare Pages 輸出目錄（scripts/build-pages.sh 產生）
+dist/
+.wrangler/
