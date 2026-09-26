@@ -222,14 +222,6 @@ function getDiseaseName(code) {
   return diseaseMap[code] || code;
 }
 
-// 將疾病代碼數組轉換為中文名稱字符串
-function formatDiseases(diseases) {
-  if (!diseases || diseases.length === 0) {
-    return "健康狀況良好";
-  }
-  return diseases.map(getDiseaseName).join("、");
-}
-
 // BMI 計算功能
 function calculateBMI() {
   const age = parseInt(document.getElementById("age").value);
@@ -268,6 +260,8 @@ function calculateBMI() {
     document.getElementById("bmiCategory").textContent = "";
     document.getElementById("bmiCategory").className =
       "text-sm px-2 py-1 rounded";
+    // 身高或體重清空時，BMR / TDEE / 熱量建議一併重置（不留上一次的數值）
+    calculateBMR();
   }
 }
 
@@ -470,18 +464,6 @@ function showPage(pageId) {
 
 // 舊的 setupRealTimeValidation 已移除，統一使用 validateField() 系統
 
-// 顯示欄位錯誤
-function showFieldError(field, message) {
-  clearFieldError(field);
-  field.classList.add("field-invalid");
-
-  const errorMsg = document.createElement("div");
-  errorMsg.className = "field-error";
-  errorMsg.style.cssText = "color:#ef4444;font-size:14px;margin-top:4px;";
-  errorMsg.textContent = message;
-  field.parentElement.appendChild(errorMsg);
-}
-
 // 清除欄位錯誤
 function clearFieldError(field) {
   field.classList.remove("field-invalid", "field-valid");
@@ -489,14 +471,6 @@ function clearFieldError(field) {
   if (existingError) {
     existingError.remove();
   }
-}
-
-// 標記欄位完成
-function markFieldComplete(field) {
-  field.classList.add("field-valid");
-  setTimeout(() => {
-    field.classList.remove("field-valid");
-  }, 2000);
 }
 
 // 移除了 LocalStorage 自動儲存功能以避免多人使用時的困擾
@@ -601,6 +575,7 @@ function restoreFormDraft() {
   } catch (e) {
     return;
   }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return;
   const form = document.getElementById("healthForm");
   if (!form) return;
   form.querySelectorAll("input, select").forEach((el) => {
@@ -632,6 +607,14 @@ function clearFormDraft() {
   }
 }
 
+function debounce(fn, wait) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
   // 驗證統一使用 HTML oninput 的 validateField() 系統
@@ -647,14 +630,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // 設置進度監聽 + 自動暫存
   const formElement = DOMCache.get("healthForm");
   if (formElement) {
-    formElement.addEventListener("input", () => {
+    // input 與 change 常連續觸發；合併並 debounce，避免每個按鍵都掃全表單、寫 sessionStorage
+    const onFormActivity = debounce(() => {
       updateFormProgress();
       saveFormDraft();
-    });
-    formElement.addEventListener("change", () => {
-      updateFormProgress();
-      saveFormDraft();
-    });
+    }, 150);
+    formElement.addEventListener("input", onFormActivity);
+    formElement.addEventListener("change", onFormActivity);
   }
 
   const ageInput = document.getElementById("age");
@@ -2272,8 +2254,8 @@ function calculateBMRForPDF(data) {
   } else if (data.gender === "female") {
     bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 161;
   } else {
-    // 其他：男女係數平均（常數 -78）
-    bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 78;
+    // 與畫面端一致：Mifflin-St Jeor 只有男女係數，性別「其他」不估算
+    return "不適用";
   }
 
   return Math.round(bmr);
@@ -2281,7 +2263,7 @@ function calculateBMRForPDF(data) {
 
 function calculateTDEEForPDF(data) {
   const bmr = calculateBMRForPDF(data);
-  if (bmr === "待計算") return "待計算";
+  if (typeof bmr !== "number") return bmr;
 
   // 活動係數：優先採用畫面端使用者選的 activityLevel（與螢幕 TDEE 一致），
   // 沒有時才退回依運動習慣推估
@@ -2313,7 +2295,8 @@ function calculateTDEEForPDF(data) {
 // 創建PDF內容的HTML結構
 function createPDFContent() {
   const data = window.lastFormData || {};
-  const prescription = calculateFITTVP(data);
+  // 沿用畫面上顯示的那份處方，避免 PDF 與畫面因重算而不一致
+  const prescription = window.lastPrescription || calculateFITTVP(data);
 
   // 獲取網頁上的實際內容
   const prescriptionSummary = document.getElementById("prescriptionSummary");
@@ -2576,28 +2559,6 @@ function createPDFContent() {
   return container;
 }
 
-// 輔助函數
-function getFitnessLevelText(level) {
-  const levels = {
-    poor: "日常活動困難",
-    fair: "容易疲勞",
-    good: "尚可",
-    excellent: "良好",
-  };
-  return levels[level] || level;
-}
-
-function getExerciseHabitText(habit) {
-  const habits = {
-    none: "沒有運動習慣",
-    light: "偶爾運動（每週1-2次）",
-    moderate: "規律運動（每週3-4次）",
-    active: "經常運動（每週5次以上）",
-    student_athlete: "學生運動員或專業訓練",
-  };
-  return habits[habit] || habit;
-}
-
 function getIntensityText(intensity) {
   const intensities = {
     light: "輕度強度 (RPE 3-4)",
@@ -2608,11 +2569,6 @@ function getIntensityText(intensity) {
   return intensities[intensity] || intensity;
 }
 
-// 響應式設計支援
-window.addEventListener("resize", function () {
-  // 處理視窗大小變化時的佈局調整
-  // 目前使用 Tailwind CSS 的響應式類別已經足夠
-});
 
 // 初始化
 document.addEventListener("DOMContentLoaded", function () {

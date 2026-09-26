@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAR-Q+ 運動準備問卷系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
     <link rel="stylesheet" href="/tailwind.css">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
         body {
             font-family: 'Noto Sans TC', sans-serif;
@@ -575,17 +578,23 @@
             if (pdfLibrariesLoaded) return Promise.resolve();
 
             return Promise.all([
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                           'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+                           'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H')
             ]).then(() => {
                 pdfLibrariesLoaded = true;
             });
         }
 
-        function loadScript(src) {
+        function loadScript(src, integrity) {
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
+                if (integrity) {
+                    script.integrity = integrity;
+                    script.crossOrigin = 'anonymous';
+                }
                 script.onload = resolve;
                 script.onerror = reject;
                 document.head.appendChild(script);

@@ -185,6 +185,15 @@ function proceedToPARQ() {
         alert('請完成所有基本資料後再繼續');
         return;
     }
+    // HTML 的 min/max 不會在 type="button" 前進時自動阻擋，這裡明確檢查範圍
+    for (const id of ['age', 'height', 'weight']) {
+        const el = document.getElementById(id);
+        if (el && typeof el.checkValidity === 'function' && !el.checkValidity()) {
+            alert(el.validationMessage || '請確認輸入數值在允許範圍內');
+            el.focus();
+            return;
+        }
+    }
 
     // 保存基本資料
     basicInfo = {

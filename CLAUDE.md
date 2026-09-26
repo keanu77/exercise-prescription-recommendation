@@ -18,7 +18,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 
 - **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在來源比 `tailwind.css` 新時拒絕打包。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
 - **前端沒有自動化測試框架**：用 Playwright（Python，`PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3`）以 `page.evaluate` 直接驅動 `calculateFITTVP(data)` 等函式驗證；靜態檔用 `python3 -m http.server` 起。後端邏輯用 `npm test`。
-- `blogger_version.html` / `blogger-embed-code.html` 是舊的 Blogger 嵌入副本，用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不在 `build-pages.sh` 白名單內，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址。
+- `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
 
