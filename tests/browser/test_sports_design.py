@@ -4,7 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('BASE_URL', 'http://127.0.0.1:8765')
-OUT = Path.cwd() / '.claude/audit/sports-design-20260927/final'
+OUT = Path(os.environ.get('SCREENSHOT_DIR', str(Path.cwd() / '.claude/audit/sports-design-20260927/final')))
 OUT.mkdir(parents=True, exist_ok=True)
 FOLLOW = [
     'https://blog.sportsmedicine.tw/', 'https://www.facebook.com/EthanWuMD/',

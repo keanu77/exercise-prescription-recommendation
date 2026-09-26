@@ -17,7 +17,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ```
 
 - **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
-- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十支腳本包含規則引擎、AI、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。
+- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十一支腳本包含規則引擎、AI、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。
 - `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
@@ -28,7 +28,8 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
    → 改處方邏輯要改 `script.js` 的 `calculateFITTVP`；改 AI 輸出要改 `functions/_lib/ai.js` 的 `SYSTEM_PROMPT`。兩者是獨立的兩套邏輯。
 
 ### 運動風格與圖片
-- 兩入口使用 `.site-app` 共用運動風格：黑／米白／萊姆綠；主表單 desktop 左側步驟欄、mobile 橫向步驟。品牌文字 Noto Sans TC，英文及數字 Barlow Condensed。
+- 兩入口使用 `.site-app` 共用運動風格：黑／米白／萊姆綠；主表單 desktop 左側步驟欄、mobile 橫向步驟。品牌文字 Noto Sans TC，英文及數字 Barlow Condensed；899px 以下評估頁回到單欄。
+- 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
 - 首頁圖片在 `assets/running-track-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；只用在首頁。原始生成說明與來源見 `docs/sports-design-2026-09-27.md`。圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
 - 本輪 14 個打包資產，`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。

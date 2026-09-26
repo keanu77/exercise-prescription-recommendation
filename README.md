@@ -30,7 +30,7 @@ npm install                # 只有 tailwindcss 一個 devDependency
 cp .env.example .env       # 填入至少一組 AI API 金鑰（建議 Groq，有免費額度）
 npm run dev                # http://127.0.0.1:3000，直接載入 functions/ 的 handler，可離線
 npm test                   # Pages Functions + 打包回歸測試（node --test）
-bash tests/browser/run_all.sh  # 十組 Python Playwright 測試，套用部署 CSP、自動起停伺服器
+bash tests/browser/run_all.sh  # 十一組 Python Playwright 測試，套用部署 CSP、自動起停伺服器
 npm run build:css          # 改動 Tailwind class 後必跑，並把 tailwind.css 一起 commit
 ```
 
@@ -85,3 +85,5 @@ MIT License，全文見 [LICENSE](LICENSE)。
 [2026-09-27 全面優化與驗證](docs/ux-security-optimization-2026-09-27.md)：首頁與手機版面、結果閱讀順序、資料清除、CSP、共用 PDF 載入及實際匯出。
 
 [2026-09-27 運動風格設計](docs/sports-design-2026-09-27.md)：完整頁面設計、主視覺、製作者／追蹤連結與響應式驗證。
+
+[2026-09-27 電腦首頁重新設計](docs/layout-rework-2026-09-27.md)：初次顯示問題、圖文比例重整與 Chromium／WebKit 驗證。
