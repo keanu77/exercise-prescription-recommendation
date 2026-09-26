@@ -272,6 +272,31 @@ const SYSTEM_PROMPT = `# Role (角色設定)
 - 柔軟度：股四頭肌伸展、腿後肌伸展、胸肌伸展、上背伸展、髖屈肌伸展`;
 
 // 建構用戶資料摘要
+// PAR-Q+ 題目標籤（供 AI 摘要用；順序對應 parq_q1..parq_q7）
+const PARQ_QUESTION_LABELS = {
+  parq_q1: "醫師曾告知有心臟病，且只能在醫療監督下運動",
+  parq_q2: "運動時感到胸痛",
+  parq_q3: "過去一個月內曾在非運動狀態下感到胸痛",
+  parq_q4: "曾因頭暈而失去平衡，或曾失去意識",
+  parq_q5: "有可能因運動而惡化的骨關節問題",
+  parq_q6: "目前正在服用血壓或心臟疾病的處方藥物",
+  parq_q7: "知道其他不應參與運動的理由",
+};
+
+// PAR-Q+ 分級規則（與 script.js assessPARQRisk、parq-script.js assessParqLevel 一致）：
+// q1/q2/q3 任一「是」→ high；其他任一「是」→ moderate；全「否」→ low
+const PARQ_CARDIAC_QUESTIONS = ["parq_q1", "parq_q2", "parq_q3"];
+
+function assessParqLevel(answers) {
+  const safe = answers && typeof answers === "object" ? answers : {};
+  const yesQuestions = Object.keys(PARQ_QUESTION_LABELS).filter(
+    (q) => safe[q] === "yes",
+  );
+  const cardiacFlag = PARQ_CARDIAC_QUESTIONS.some((q) => safe[q] === "yes");
+  const level = cardiacFlag ? "high" : yesQuestions.length > 0 ? "moderate" : "low";
+  return { level, yesCount: yesQuestions.length, yesQuestions, cardiacFlag };
+}
+
 function buildUserSummary(data) {
   const {
     age,
@@ -341,16 +366,18 @@ function buildUserSummary(data) {
     pain: "疼痛問題",
     injury_history: "運動傷害史",
     balance: "平衡感不佳",
-    palpitation: "呼吸困難",
+    palpitation: "心悸",
     equipment: "缺乏運動設備",
   };
 
-  // PAR-Q 評估
-  const parqYesCount = Object.values(parq_answers || {}).filter(
-    (v) => v === "yes",
-  ).length;
-  const parqRiskLevel =
-    parqYesCount === 0 ? "低風險" : parqYesCount === 1 ? "中度風險" : "高風險";
+  // PAR-Q 評估（分級規則與前端 script.js assessPARQRisk 一致）
+  const parq = assessParqLevel(parq_answers);
+  const parqRiskLevel = { low: "低風險", moderate: "中度風險", high: "高風險（心臟病史或胸痛）" }[parq.level];
+  const parqYesCount = parq.yesCount;
+  const parqYesDetail =
+    parq.yesQuestions.length > 0
+      ? parq.yesQuestions.map((q) => `  - ${PARQ_QUESTION_LABELS[q]}`).join("\n")
+      : "  - 無";
 
   // 年齡分組
   let ageGroup = "";
@@ -380,6 +407,8 @@ ${bmi ? `- BMI：${bmi}` : "- BMI：未計算（未成年）"}
 【PAR-Q 運動準備評估】
 - 風險等級：${parqRiskLevel}
 - 回答「是」的問題數：${parqYesCount}/7
+- 回答「是」的項目：
+${parqYesDetail}
 
 【系統計算的處方建議】
 - 建議頻率：每週 ${prescription.frequency} 次

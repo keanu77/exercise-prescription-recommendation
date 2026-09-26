@@ -653,7 +653,8 @@
                                     <p class="font-semibold text-yellow-800 mb-1">熱量攝取建議：</p>
                                     <ul class="text-yellow-700 space-y-1">
                                         <li>• 維持體重：<span id="maintainCalories" class="font-semibold"></span> 大卡/天</li>
-                                        <li>• 減重（-500卡）：<span id="loseCalories" class="font-semibold"></span> 大卡/天</li>
+                                        <li id="loseCaloriesRow">• 減重（-500卡）：<span id="loseCalories" class="font-semibold"></span> 大卡/天</li>
+                                        <li id="loseCaloriesNote" class="hidden"></li>
                                         <li>• 增重（+300卡）：<span id="gainCalories" class="font-semibold"></span> 大卡/天</li>
                                     </ul>
                                 </div>
@@ -840,7 +841,7 @@
                                     </label>
                                     <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                         <input type="checkbox" name="limitations" value="palpitation" class="w-5 h-5">
-                                        <span class="text-lg">呼吸困難</span>
+                                        <span class="text-lg">心悸</span>
                                     </label>
                                     <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                         <input type="checkbox" name="limitations" value="equipment" class="w-5 h-5">

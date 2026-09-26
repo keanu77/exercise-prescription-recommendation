@@ -478,7 +478,7 @@ function buildUserSummary(data) {
     pain: "疼痛問題",
     injury_history: "運動傷害史",
     balance: "平衡感不佳",
-    palpitation: "呼吸困難",
+    palpitation: "心悸",
     equipment: "缺乏運動設備",
   };
 

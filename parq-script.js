@@ -118,20 +118,59 @@ function calculateTDEE() {
     showCalorieAdvice(tdee);
 }
 
+// PAR-Q+ 分級規則（與 script.js 的 assessPARQRisk、functions/_lib/ai.js 的 assessParqLevel 一致）：
+// q1 心臟病史 / q2 運動時胸痛 / q3 近一個月非運動時胸痛 任一「是」→ high；
+// 其他任一「是」→ moderate；全「否」→ low。任何「是」都不直接放行。
+const PARQ_CARDIAC_QUESTIONS = ['q1', 'q2', 'q3'];
+
+function assessParqLevel(answers) {
+    const yesCount = Object.values(answers).filter(a => a === 'yes').length;
+    const cardiacFlag = PARQ_CARDIAC_QUESTIONS.some(q => answers[q] === 'yes');
+    const level = cardiacFlag ? 'high' : yesCount > 0 ? 'moderate' : 'low';
+    return { level, yesCount, cardiacFlag };
+}
+
+// 減重熱量赤字不適用：未成年、體重過輕（本頁無懷孕欄位）
+function getCalorieDeficitBlockReason() {
+    const age = parseInt(document.getElementById('age')?.value);
+    const height = parseFloat(document.getElementById('height')?.value);
+    const weight = parseFloat(document.getElementById('weight')?.value);
+    if (age && age < 18) return '未滿18歲仍在生長發育，不建議以熱量赤字減重';
+    if (height && weight && weight / Math.pow(height / 100, 2) < 18.5) {
+        return '目前體重過輕，不建議減重，請優先確保足夠營養';
+    }
+    return null;
+}
+
 // 顯示熱量攝取建議
 function showCalorieAdvice(tdee) {
     const calorieAdviceDiv = document.getElementById('calorieAdvice');
     const maintainElement = document.getElementById('maintainCalories');
     const loseElement = document.getElementById('loseCalories');
     const gainElement = document.getElementById('gainCalories');
+    const loseRow = document.getElementById('loseCaloriesRow');
+    const loseNote = document.getElementById('loseCaloriesNote');
 
-    if (calorieAdviceDiv && maintainElement && loseElement && gainElement) {
-        maintainElement.textContent = tdee;
+    if (!calorieAdviceDiv || !maintainElement || !loseElement || !gainElement) return;
+
+    maintainElement.textContent = tdee;
+    gainElement.textContent = tdee + 300;
+
+    const blockReason = getCalorieDeficitBlockReason();
+    if (blockReason) {
+        loseElement.textContent = '';
+        loseRow?.classList.add('hidden');
+        if (loseNote) {
+            loseNote.textContent = `• ${blockReason}`;
+            loseNote.classList.remove('hidden');
+        }
+    } else {
         loseElement.textContent = Math.max(1200, tdee - 500); // 最低不低於1200卡
-        gainElement.textContent = tdee + 300;
-
-        calorieAdviceDiv.classList.remove('hidden');
+        loseRow?.classList.remove('hidden');
+        loseNote?.classList.add('hidden');
     }
+
+    calorieAdviceDiv.classList.remove('hidden');
 }
 
 // 進入 PAR-Q+ 問卷
@@ -197,41 +236,41 @@ function generateAssessment() {
         }
     }
 
-    // 計算風險分數
-    const yesCount = Object.values(parqAnswers).filter(answer => answer === 'yes').length;
+    const risk = assessParqLevel(parqAnswers);
 
     // 顯示結果頁
     showPage('resultPage');
 
     // 生成風險評估
-    displayRiskAssessment(yesCount);
+    displayRiskAssessment(risk);
 
     // 生成運動建議
-    displayExerciseRecommendations(yesCount);
+    displayExerciseRecommendations(risk);
 }
 
 // 顯示風險評估結果
-function displayRiskAssessment(yesCount) {
+function displayRiskAssessment(risk) {
     const container = document.getElementById('riskAssessment');
+    const { level, yesCount } = risk;
 
     let riskLevel, riskDescription, riskClass, recommendations;
 
-    if (yesCount === 0) {
+    if (level === 'low') {
         // 低風險 - 綠燈
         riskLevel = '低風險';
         riskClass = 'risk-low';
-        riskDescription = '恭喜！您可以安全地開始運動計畫';
+        riskDescription = '問卷未發現運動風險因子，一般可從低至中等強度開始逐步增加活動';
         recommendations = [
             '✅ 可以開始輕到中等強度的運動',
             '✅ 建議從低強度開始，逐步增加',
-            '✅ 定期監控身體反應',
+            '✅ 運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫',
             '✅ 建議每年重新評估一次'
         ];
-    } else if (yesCount <= 2) {
+    } else if (level === 'moderate') {
         // 中等風險 - 黃燈
         riskLevel = '中等風險';
         riskClass = 'risk-medium';
-        riskDescription = '建議在開始運動前諮詢醫療專業人員';
+        riskDescription = '問卷有一項以上回答「是」，建議在開始運動前先與醫師討論';
         recommendations = [
             '⚠️ 建議諮詢醫師後再開始運動',
             '⚠️ 選擇低強度運動開始',
@@ -239,15 +278,15 @@ function displayRiskAssessment(yesCount) {
             '⚠️ 定期追蹤健康狀況'
         ];
     } else {
-        // 高風險 - 紅燈
+        // 高風險 - 紅燈（心臟病史或胸痛）
         riskLevel = '高風險';
         riskClass = 'risk-high';
-        riskDescription = '請務必先接受完整醫療評估';
+        riskDescription = '問卷顯示心血管相關風險因子，請先接受醫師評估後再開始運動計畫';
         recommendations = [
             '🛑 必須先接受醫師詳細評估',
-            '🛑 可能需要運動心電圖檢查',
+            '🛑 醫師可能安排進一步心血管檢查',
             '🛑 運動計畫需要醫療監督',
-            '🛑 暫停高強度運動活動'
+            '🛑 在醫師同意前，僅進行日常活動與輕度活動'
         ];
     }
 
@@ -266,12 +305,13 @@ function displayRiskAssessment(yesCount) {
 }
 
 // 顯示運動建議
-function displayExerciseRecommendations(yesCount) {
+function displayExerciseRecommendations(risk) {
     const container = document.getElementById('exerciseRecommendations');
+    const { level } = risk;
 
     let exerciseAdvice, precautions;
 
-    if (yesCount === 0) {
+    if (level === 'low') {
         // 低風險運動建議
         exerciseAdvice = {
             title: '🟢 推薦運動計畫',
@@ -307,7 +347,7 @@ function displayExerciseRecommendations(yesCount) {
             bgColor: 'bg-blue-50 border-blue-200'
         };
 
-    } else if (yesCount <= 2) {
+    } else if (level === 'moderate') {
         // 中等風險運動建議
         exerciseAdvice = {
             title: '🟡 謹慎運動計畫',
@@ -498,7 +538,8 @@ async function downloadPDF() {
 
 // 創建PDF內容的HTML結構
 function createPDFContent() {
-    const yesCount = Object.values(parqAnswers).filter(answer => answer === 'yes').length;
+    const risk = assessParqLevel(parqAnswers);
+    const yesCount = risk.yesCount;
 
     const container = document.createElement('div');
     container.style.cssText = `
@@ -559,7 +600,7 @@ function createPDFContent() {
                 風險評估與建議
             </h2>
             <div style="font-size: 12px;">
-                ${generateRiskSummaryForPDF(yesCount)}
+                ${generateRiskSummaryForPDF(risk)}
             </div>
         </div>
 
@@ -601,18 +642,18 @@ function generateAnswerSummary() {
 }
 
 // 生成PDF用的風險摘要
-function generateRiskSummaryForPDF(yesCount) {
-    if (yesCount === 0) {
+function generateRiskSummaryForPDF(risk) {
+    if (risk.level === 'low') {
         return `
             <div style="color: #059669; font-weight: bold;">風險等級：低風險 ✅</div>
             <div style="margin-top: 10px;">
-                <div>• 可以安全開始運動計畫</div>
+                <div>• 一般可從低至中等強度開始逐步增加活動；運動中如有不適請立即停止並就醫</div>
                 <div>• 建議從低強度開始逐步增加</div>
                 <div>• 每週150-300分鐘中等強度有氧運動</div>
                 <div>• 每週至少2次肌力訓練</div>
             </div>
         `;
-    } else if (yesCount <= 2) {
+    } else if (risk.level === 'moderate') {
         return `
             <div style="color: #d97706; font-weight: bold;">風險等級：中等風險 ⚠️</div>
             <div style="margin-top: 10px;">
@@ -628,8 +669,8 @@ function generateRiskSummaryForPDF(yesCount) {
             <div style="margin-top: 10px;">
                 <div>• 必須先接受完整醫療評估</div>
                 <div>• 運動計畫需要醫療監督</div>
-                <div>• 可能需要運動心電圖檢查</div>
-                <div>• 暫停高強度運動活動</div>
+                <div>• 醫師可能安排進一步心血管檢查</div>
+                <div>• 在醫師同意前，僅進行日常活動與輕度活動</div>
             </div>
         `;
     }

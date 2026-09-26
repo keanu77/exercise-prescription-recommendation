@@ -116,22 +116,18 @@ function calculateCalories(metValue, weightKg, durationMinutes) {
 }
 
 // 生成 MET 活動 HTML
+// 處方強度 → MET 活動表的強度分級；活動推薦必須跟著最終處方走，不另外看年齡/體能自評
+const PRESCRIPTION_TO_MET_LEVEL = {
+  light: "light",
+  "light-moderate": "light",
+  moderate: "moderate",
+  "moderate-vigorous": "vigorous",
+};
+
 function getMETActivitiesHtml(prescription) {
   const weight = parseFloat(document.getElementById("weight")?.value) || 70;
-  let intensity = "moderate"; // 預設中度
-
-  // 根據年齡和體能狀況調整強度
-  const age = parseInt(document.getElementById("age")?.value) || 30;
-  const fitnessLevelElement = document.querySelector(
-    'input[name="fitness_level"]:checked',
-  );
-  const fitnessLevel = fitnessLevelElement ? fitnessLevelElement.value : "good";
-
-  if (age >= 65 || fitnessLevel === "poor") {
-    intensity = "light";
-  } else if (fitnessLevel === "excellent" && age < 50) {
-    intensity = "vigorous";
-  }
+  const intensity =
+    PRESCRIPTION_TO_MET_LEVEL[prescription?.intensity] || "moderate";
 
   const activities = MET_ACTIVITIES[intensity].slice(0, 3); // 取前3個活動
 
@@ -198,7 +194,6 @@ const diseaseMap = {
   sarcopenia: "肌少症",
   pregnant: "孕婦",
   hyperlipidemia: "高血脂",
-  cancer_recovery: "癌症康復",
 };
 
 // 將疾病代碼轉換為中文名稱
@@ -239,29 +234,7 @@ function calculateBMI() {
     // 更新BMI值
     document.getElementById("bmiValue").textContent = bmiRounded;
 
-    // 判斷BMI分類
-    let category = "";
-    let categoryClass = "";
-
-    if (bmi < 18.5) {
-      category = "體重過輕";
-      categoryClass = "bg-blue-100 text-blue-800";
-    } else if (bmi < 24) {
-      category = "正常範圍";
-      categoryClass = "bg-green-100 text-green-800";
-    } else if (bmi < 27) {
-      category = "體重過重";
-      categoryClass = "bg-yellow-100 text-yellow-800";
-    } else if (bmi < 30) {
-      category = "輕度肥胖";
-      categoryClass = "bg-orange-100 text-orange-800";
-    } else if (bmi < 35) {
-      category = "中度肥胖";
-      categoryClass = "bg-red-100 text-red-800";
-    } else {
-      category = "重度肥胖";
-      categoryClass = "bg-red-200 text-red-900";
-    }
+    const { label: category, badgeClass: categoryClass } = getBMICategory(bmi);
 
     const categoryElement = document.getElementById("bmiCategory");
     categoryElement.textContent = category;
@@ -277,15 +250,61 @@ function calculateBMI() {
   }
 }
 
+// BMI 分級（衛福部國健署成人標準）；輸入頁、結果頁、PDF 共用同一套
+const BMI_CATEGORIES = [
+  {
+    max: 18.5,
+    label: "體重過輕",
+    badgeClass: "bg-blue-100 text-blue-800",
+    textClass: "text-blue-700",
+  },
+  {
+    max: 24,
+    label: "正常範圍",
+    badgeClass: "bg-green-100 text-green-800",
+    textClass: "text-green-700",
+  },
+  {
+    max: 27,
+    label: "體重過重",
+    badgeClass: "bg-yellow-100 text-yellow-800",
+    textClass: "text-yellow-800",
+  },
+  {
+    max: 30,
+    label: "輕度肥胖",
+    badgeClass: "bg-orange-100 text-orange-800",
+    textClass: "text-orange-700",
+  },
+  {
+    max: 35,
+    label: "中度肥胖",
+    badgeClass: "bg-red-100 text-red-800",
+    textClass: "text-red-700",
+  },
+  {
+    max: Infinity,
+    label: "重度肥胖",
+    badgeClass: "bg-red-200 text-red-900",
+    textClass: "text-red-800",
+  },
+];
+
+function getBMICategory(bmi) {
+  return BMI_CATEGORIES.find((c) => bmi < c.max) || BMI_CATEGORIES.at(-1);
+}
+
 // BMR 基礎代謝率計算（使用 Mifflin-St Jeor 公式）
 function calculateBMR() {
   const age = parseInt(document.getElementById("age").value);
   const gender = document.getElementById("gender").value;
   const height = parseFloat(document.getElementById("height").value);
   const weight = parseFloat(document.getElementById("weight").value);
+  const bmrElement = document.getElementById("bmrValue");
 
   if (!age || !gender || !height || !weight) {
-    document.getElementById("bmrValue").textContent = "待計算";
+    bmrElement.textContent = "待計算";
+    calculateTDEE();
     return;
   }
 
@@ -297,11 +316,13 @@ function calculateBMR() {
     // 女性：BMR = (10 × 體重kg) + (6.25 × 身高cm) - (5 × 年齡) - 161
     bmr = 10 * weight + 6.25 * height - 5 * age - 161;
   } else {
+    // Mifflin-St Jeor 只有男女兩套係數；性別「其他」不估算，並清掉前一次的數值
+    bmrElement.textContent = "不適用";
+    calculateTDEE();
     return;
   }
 
-  bmr = Math.round(bmr);
-  document.getElementById("bmrValue").textContent = bmr;
+  bmrElement.textContent = Math.round(bmr);
 
   // 自動計算 TDEE
   calculateTDEE();
@@ -310,21 +331,44 @@ function calculateBMR() {
 // TDEE 每日總消耗熱量計算
 function calculateTDEE() {
   const bmrElement = document.getElementById("bmrValue");
+  const tdeeElement = document.getElementById("tdeeValue");
   const activityLevel =
     parseFloat(document.getElementById("activityLevel")?.value) || 1.375;
+  const bmr = parseInt(bmrElement?.textContent);
 
-  if (!bmrElement || bmrElement.textContent === "待計算") {
-    document.getElementById("tdeeValue").textContent = "待計算";
+  if (!bmrElement || Number.isNaN(bmr)) {
+    tdeeElement.textContent =
+      bmrElement?.textContent === "不適用" ? "不適用" : "待計算";
+    document.getElementById("calorieAdvice")?.classList.add("hidden");
     return;
   }
 
-  const bmr = parseInt(bmrElement.textContent);
   const tdee = Math.round(bmr * activityLevel);
-
-  document.getElementById("tdeeValue").textContent = tdee;
+  tdeeElement.textContent = tdee;
 
   // 顯示熱量建議
   showCalorieAdvice(tdee);
+}
+
+/**
+ * 減重熱量赤字不適用的情況：未成年（仍在生長）、懷孕、體重過輕。
+ * 回傳原因文字；適用時回傳 null。
+ */
+function getCalorieDeficitBlockReason() {
+  const age = parseInt(document.getElementById("age")?.value);
+  const height = parseFloat(document.getElementById("height")?.value);
+  const weight = parseFloat(document.getElementById("weight")?.value);
+  const pregnant = document.querySelector(
+    'input[name="diseases"][value="pregnant"]:checked',
+  );
+
+  if (pregnant) return "懷孕期間不建議刻意減重，熱量需求請由醫師或營養師評估";
+  if (age && age < 18) return "未滿18歲仍在生長發育，不建議以熱量赤字減重";
+  if (height && weight) {
+    const bmi = weight / Math.pow(height / 100, 2);
+    if (bmi < 18.5) return "目前體重過輕，不建議減重，請優先確保足夠營養";
+  }
+  return null;
 }
 
 // 顯示熱量攝取建議
@@ -333,14 +377,31 @@ function showCalorieAdvice(tdee) {
   const maintainElement = document.getElementById("maintainCalories");
   const loseElement = document.getElementById("loseCalories");
   const gainElement = document.getElementById("gainCalories");
+  const loseRow = document.getElementById("loseCaloriesRow");
+  const loseNote = document.getElementById("loseCaloriesNote");
 
-  if (calorieAdviceDiv && maintainElement && loseElement && gainElement) {
-    maintainElement.textContent = tdee;
-    loseElement.textContent = Math.max(1200, tdee - 500); // 最低不低於1200卡
-    gainElement.textContent = tdee + 300;
-
-    calorieAdviceDiv.classList.remove("hidden");
+  if (!calorieAdviceDiv || !maintainElement || !loseElement || !gainElement) {
+    return;
   }
+
+  maintainElement.textContent = tdee;
+  gainElement.textContent = tdee + 300;
+
+  const blockReason = getCalorieDeficitBlockReason();
+  if (blockReason) {
+    loseElement.textContent = "";
+    loseRow?.classList.add("hidden");
+    if (loseNote) {
+      loseNote.textContent = `• ${blockReason}`;
+      loseNote.classList.remove("hidden");
+    }
+  } else {
+    loseElement.textContent = Math.max(1200, tdee - 500); // 最低不低於1200卡
+    loseRow?.classList.remove("hidden");
+    loseNote?.classList.add("hidden");
+  }
+
+  calorieAdviceDiv.classList.remove("hidden");
 }
 
 // 頁面路由管理
@@ -542,6 +603,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 還原上次未完成的填寫（同分頁 session 內有效）
   restoreFormDraft();
+
+  // 勾選「孕婦」會影響減重熱量建議是否顯示
+  document
+    .querySelector('input[name="diseases"][value="pregnant"]')
+    ?.addEventListener("change", calculateTDEE);
 
   // 設置進度監聽 + 自動暫存
   const formElement = DOMCache.get("healthForm");
@@ -857,32 +923,50 @@ function generatePrescription() {
 }
 
 // PAR-Q 風險評估函數
+// PAR-Q+ 分級規則（與 functions/_lib/ai.js 的 assessParqLevel、parq-script.js 的 assessParqLevel 一致）：
+// - 任一題「是」→ 建議先諮詢醫師（moderate）
+// - q1 心臟病史 / q2 運動時胸痛 / q3 近一個月非運動時胸痛 任一「是」→ 心血管紅旗（high）
+// - 全「否」→ low
+// PAR-Q+ 第一頁本身是二元篩檢，任何「是」都不應直接放行；分級只用來決定處方保守程度。
+const PARQ_CARDIAC_QUESTIONS = ["parq_q1", "parq_q2", "parq_q3"];
+
 function assessPARQRisk(parqAnswers) {
+  const answers = parqAnswers || {};
   const result = {
     level: "low",
     yesCount: 0,
+    cardiacFlag: false,
+    medicationFlag: answers.parq_q6 === "yes",
     recommendations: [],
   };
 
-  // 計算回答「是」的問題數量
-  Object.values(parqAnswers).forEach((answer) => {
+  Object.values(answers).forEach((answer) => {
     if (answer === "yes") {
       result.yesCount++;
     }
   });
+  result.cardiacFlag = PARQ_CARDIAC_QUESTIONS.some((q) => answers[q] === "yes");
 
-  // 根據 PAR-Q 標準評估風險
-  if (result.yesCount === 0) {
-    result.level = "low";
-    result.recommendations.push("您可以安全地開始運動計畫");
-  } else if (result.yesCount === 1) {
+  if (result.cardiacFlag) {
+    result.level = "high";
+    result.recommendations.push(
+      "問卷顯示心血管相關風險因子（心臟病史或胸痛），請先接受醫師評估後再開始運動計畫",
+    );
+    result.recommendations.push("在醫師同意前，僅進行日常活動與輕度活動");
+  } else if (result.yesCount > 0) {
     result.level = "moderate";
-    result.recommendations.push("建議在開始運動前與運動醫學科醫師討論");
+    result.recommendations.push(
+      "問卷有一項以上回答「是」，建議開始運動前先與醫師討論",
+    );
     result.recommendations.push("從低強度活動開始，逐步增加");
   } else {
-    result.level = "high";
-    result.recommendations.push("強烈建議在開始運動前諮詢運動醫學科醫師");
-    result.recommendations.push("需要專業監督下進行運動");
+    result.level = "low";
+    result.recommendations.push(
+      "問卷未發現運動風險因子，一般可從低至中等強度開始逐步增加活動",
+    );
+    result.recommendations.push(
+      "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+    );
   }
 
   // 針對特定問題給予建議
@@ -923,6 +1007,29 @@ function calculateFITTVP(data) {
     weeklyMinutes: 150,
     // 新增：阻力訓練建議
     resistanceTraining: null,
+  };
+
+  // 安全上限：疾病 / 限制 / PAR-Q 只「設上限」，不直接改處方；
+  // 所有規則跑完後由 applySafetyCaps 統一套用，後面的體能分支不可能再把它加回去。
+  const caps = {
+    intensity: null, // INTENSITY_RANK 的 key
+    frequency: Infinity,
+    time: Infinity,
+    hrZoneUnsafe: false, // 心率不可靠（服藥、心臟病史、心悸）時改用 RPE
+  };
+  const capIntensity = (key) => {
+    if (
+      !caps.intensity ||
+      INTENSITY_RANK[key] < INTENSITY_RANK[caps.intensity]
+    ) {
+      caps.intensity = key;
+    }
+  };
+  const capFrequency = (n) => {
+    caps.frequency = Math.min(caps.frequency, n);
+  };
+  const capTime = (n) => {
+    caps.time = Math.min(caps.time, n);
   };
 
   // 根據年齡層調整基本參數
@@ -1177,9 +1284,9 @@ function calculateFITTVP(data) {
         break;
       case "rehabilitation":
         // 復健：保守、安全優先
-        prescription.intensity = "light";
-        prescription.frequency = Math.min(prescription.frequency, 4);
-        prescription.time = Math.min(prescription.time, 25);
+        capIntensity("light");
+        capFrequency(4);
+        capTime(25);
         prescription.warnings.push("復健階段：請在醫療人員指導下循序漸進");
         prescription.recommendations.push(
           "復健目標：以恢復基本功能和活動度為優先",
@@ -1231,13 +1338,25 @@ function calculateFITTVP(data) {
   if (data.diseases.includes("arthritis")) {
     prescription.type.push("水中運動", "柔軟度訓練");
     prescription.warnings.push("避免高衝擊運動，關節疼痛時應停止");
-    prescription.time = Math.min(prescription.time, 30);
+    capTime(30);
   }
 
   if (data.diseases.includes("heart_recovery")) {
-    prescription.intensity = "light-moderate";
-    prescription.warnings.push("嚴格監控心率，出現胸痛立即停止");
+    capIntensity("light-moderate");
+    caps.hrZoneUnsafe = true;
+    prescription.warnings.push("出現胸痛、心悸或異常喘立即停止");
     prescription.recommendations.push("建議在運動醫學科醫師監督下開始運動計畫");
+  }
+
+  if (data.diseases.includes("asthma")) {
+    prescription.warnings.push(
+      "運動前備妥醫師處方的急救型吸入劑，出現喘鳴、胸悶或咳嗽不止時立即停止",
+    );
+    prescription.warnings.push("避免在寒冷乾燥或空氣品質不佳的環境運動");
+    prescription.recommendations.push(
+      "延長暖身至10-15分鐘，有助於降低運動誘發型氣喘",
+    );
+    prescription.recommendations.push("游泳等溫暖潮濕環境的運動通常較易耐受");
   }
 
   if (data.diseases.includes("sarcopenia")) {
@@ -1252,10 +1371,10 @@ function calculateFITTVP(data) {
   }
 
   if (data.diseases.includes("pregnant")) {
-    prescription.intensity = "light";
+    capIntensity("light");
+    capFrequency(4);
+    capTime(30);
     prescription.type = ["有氧運動", "柔軟度訓練", "骨盆底肌訓練"];
-    prescription.frequency = Math.min(prescription.frequency, 4);
-    prescription.time = Math.min(prescription.time, 30);
     prescription.warnings.push("避免仰躺運動、高衝擊運動和有跌倒風險的活動");
     prescription.warnings.push("懷孕期間運動強度不宜過高，以能說話為準");
     prescription.warnings.push(
@@ -1282,34 +1401,24 @@ function calculateFITTVP(data) {
     prescription.recommendations.push("搭配健康飲食，控制飽和脂肪攝取");
   }
 
-  if (data.diseases.includes("cancer_recovery")) {
-    if (data.age >= 18) {
-      prescription.frequency = Math.min(prescription.frequency, 3); // 不超過3次，避免過度
-    }
-    prescription.type.push("有氧運動", "阻力訓練");
-    prescription.warnings.push("依據治療階段調整運動強度");
-  }
-
   // 根據運動限制調整
   if (data.limitations.includes("pain")) {
-    prescription.intensity = "light";
+    capIntensity("light");
     prescription.warnings.push("疼痛時立即停止運動");
-  }
-
-  if (data.limitations.includes("fall_risk")) {
-    prescription.type.push("平衡訓練");
-    prescription.warnings.push("避免需要快速方向改變的運動");
-    prescription.recommendations.push("建議在安全環境下運動，有人陪伴");
   }
 
   if (data.limitations.includes("balance")) {
     prescription.type.push("平衡訓練", "太極");
     prescription.warnings.push("運動時應有支撐物在旁");
+    prescription.warnings.push("避免需要快速方向改變的運動，建議有人陪伴");
   }
 
   if (data.limitations.includes("palpitation")) {
-    prescription.intensity = "light-moderate";
-    prescription.warnings.push("心跳過快時立即停止並休息");
+    capIntensity("light-moderate");
+    caps.hrZoneUnsafe = true;
+    prescription.warnings.push(
+      "心悸或心跳不規則時立即停止並休息，反覆發生請就醫",
+    );
   }
 
   // 確保基本運動類型（僅對成人和銀髮族）
@@ -1327,59 +1436,65 @@ function calculateFITTVP(data) {
   // 根據 PAR-Q 評估調整運動處方
   const parqRisk = assessPARQRisk(data.parq_answers);
 
+  if (parqRisk.medicationFlag) {
+    // 服用血壓 / 心臟藥物（可能含 β 阻斷劑）：心率不可靠
+    caps.hrZoneUnsafe = true;
+  }
+
   switch (parqRisk.level) {
     case "high":
-      // 高風險：強烈建議醫師諮詢
-      prescription.warnings.unshift("⚠️ 根據 PAR-Q 評估，您可能有運動風險因子");
+      // 心血管紅旗：以醫師評估為前提，處方僅為最保守起點
+      prescription.warnings.unshift(
+        "⚠️ PAR-Q 顯示心血管相關風險因子，請先接受醫師評估",
+      );
       prescription.recommendations.unshift("請在開始運動前諮詢運動醫學科醫師");
       prescription.warnings.push(
         "建議在運動醫學科醫師或運動專業人員監督下開始運動",
       );
-
-      // 保守的運動處方
+      caps.hrZoneUnsafe = true;
+      capIntensity("light");
       if (data.age >= 18) {
-        prescription.frequency = Math.max(
-          2,
-          Math.floor(prescription.frequency * 0.5),
-        );
-        prescription.time = 15; // 非常保守的起始時間
-        prescription.intensity = "輕度 (50-60% HRmax)";
+        capFrequency(Math.max(2, Math.floor(prescription.frequency * 0.5)));
+        capTime(15); // 非常保守的起始時間
         prescription.progression = "在運動醫學科醫師同意下，每週增加5%運動量";
+      } else {
+        prescription.progression = "請先由醫師評估，再依醫師建議恢復每日活動";
       }
       break;
 
     case "moderate":
-      // 中度風險：謹慎開始
-      prescription.warnings.push("根據 PAR-Q 評估，建議謹慎開始運動計畫");
+      // 有非心血管的「是」：謹慎開始
+      prescription.warnings.push(
+        "根據 PAR-Q 評估，建議先與醫師討論再開始運動計畫",
+      );
       prescription.recommendations.push("如有不適請立即停止並諮詢專業人員");
-
-      // 較保守的運動處方
+      capIntensity("light-moderate");
       if (data.age >= 18) {
-        prescription.frequency = Math.max(
-          3,
-          Math.floor(prescription.frequency * 0.7),
-        );
-        prescription.time = 20; // 保守的起始時間
+        capFrequency(Math.max(3, Math.floor(prescription.frequency * 0.7)));
+        capTime(20); // 保守的起始時間
         prescription.progression = "每週增加5-10%運動量，密切監控身體反應";
       }
       break;
 
     case "low":
       // 低風險：可以按標準處方進行
-      prescription.recommendations.push("PAR-Q 評估顯示您適合開始運動計畫");
+      prescription.recommendations.push("PAR-Q 評估未發現運動風險因子");
 
-      // 根據體能水平調整
-      if (data.fitness_level === "excellent") {
-        prescription.frequency = Math.min(prescription.frequency + 1, 6);
-        prescription.time = Math.min(prescription.time + 10, 45);
-        prescription.progression = "可按標準進度增加運動量";
-      } else if (data.fitness_level === "poor") {
-        prescription.frequency = Math.max(
-          3,
-          Math.floor(prescription.frequency * 0.8),
-        );
-        prescription.time = 20;
-        prescription.progression = "每週增加10%運動量，逐步達到建議標準";
+      // 體能微調只適用於成人且已有規律運動習慣者；
+      // 兒童青少年維持每日活動原則，無/偶爾運動者維持前面的適應期起點
+      if (data.age >= 18 && !["none", "light"].includes(data.exercise_habit)) {
+        if (data.fitness_level === "excellent") {
+          prescription.frequency = Math.min(prescription.frequency + 1, 6);
+          prescription.time = Math.min(prescription.time + 10, 45);
+          prescription.progression = "可按標準進度增加運動量";
+        } else if (data.fitness_level === "poor") {
+          prescription.frequency = Math.max(
+            3,
+            Math.floor(prescription.frequency * 0.8),
+          );
+          prescription.time = 20;
+          prescription.progression = "每週增加10%運動量，逐步達到建議標準";
+        }
       }
       break;
   }
@@ -1389,24 +1504,75 @@ function calculateFITTVP(data) {
     prescription.recommendations.push(...parqRisk.recommendations);
   }
 
+  applySafetyCaps(prescription, caps, data);
+
   // 清理重複的運動類型並整理優先順序
   prescription.type = cleanupExerciseTypes(prescription.type);
-
-  // 確保運動時間為整數（5分鐘的倍數）
-  prescription.time = Math.round(prescription.time / 5) * 5;
-
-  // 重新計算 MET-minutes (如果適用)
-  if (prescription.volume > 0) {
-    const metValue = getIntensityMET(prescription.intensity);
-    prescription.volume = Math.round(
-      metValue * prescription.time * prescription.frequency,
-    );
-  }
 
   // 統一生成針對不同運動類型的建議事項
   generateExerciseSpecificRecommendations(prescription, data);
 
   return prescription;
+}
+
+// 強度排序（由低到高），供 safety caps 比較
+const INTENSITY_RANK = {
+  light: 1,
+  "light-moderate": 2,
+  moderate: 3,
+  "moderate-vigorous": 4,
+};
+
+// 依最終強度給心率區間（ACSM：輕度 57-63%、中度 64-76%、劇烈 77-95% HRmax）
+const HEART_RATE_ZONES = {
+  light: "最大心率 57-63%（輕度）",
+  "light-moderate": "最大心率 57-70%（輕度至中度）",
+  moderate: "最大心率 64-76%（中等強度）",
+  "moderate-vigorous": "最大心率 64-90%（中等至劇烈）",
+};
+
+/**
+ * 套用安全上限並重算衍生欄位。所有規則跑完後呼叫一次，
+ * 之後不得再修改 frequency / time / intensity。
+ */
+function applySafetyCaps(prescription, caps, data) {
+  if (
+    caps.intensity &&
+    INTENSITY_RANK[prescription.intensity] > INTENSITY_RANK[caps.intensity]
+  ) {
+    prescription.intensity = caps.intensity;
+  }
+  prescription.frequency = Math.min(prescription.frequency, caps.frequency);
+  prescription.time = Math.min(prescription.time, caps.time);
+
+  // 運動時間取 5 分鐘倍數，最少 10 分鐘
+  prescription.time = Math.max(10, Math.round(prescription.time / 5) * 5);
+
+  // 週總分鐘與 MET-minutes 一律以最終處方重算
+  prescription.weeklyMinutes = prescription.frequency * prescription.time;
+  if (prescription.volume > 0) {
+    prescription.volume = Math.round(
+      getIntensityMET(prescription.intensity) *
+        prescription.time *
+        prescription.frequency,
+    );
+  }
+
+  // 心率區間：只給成人，且心率可靠時才給；否則改用 RPE / 說話測試
+  if (data.age >= 18) {
+    if (caps.hrZoneUnsafe) {
+      prescription.heartRateZone = null;
+      prescription.recommendations.push(
+        "因服藥或心血管狀況，心率可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度",
+      );
+    } else if (data.age >= 65) {
+      prescription.heartRateZone = `${HEART_RATE_ZONES[prescription.intensity]}，銀髮族請取區間下緣`;
+    } else {
+      prescription.heartRateZone = HEART_RATE_ZONES[prescription.intensity];
+    }
+  } else {
+    prescription.heartRateZone = null;
+  }
 }
 
 // 清理和整理運動類型
@@ -1557,8 +1723,6 @@ function getIntensityMET(intensity) {
     moderate: 3.5,
     "moderate-vigorous": 6.0,
   };
-  // 處理被 PAR-Q 覆寫為中文的 intensity
-  if (typeof intensity === "string" && intensity.includes("輕度")) return 2.5;
   return metMap[intensity] || 3.5;
 }
 
@@ -1622,22 +1786,9 @@ function displayPrescriptionSummary(prescription) {
   const data = window.lastFormData || {};
   let bmiSection = "";
   if (data.age >= 18 && data.bmi) {
-    let bmiCategory = "";
-    let bmiColor = "";
-
-    if (data.bmi < 18.5) {
-      bmiCategory = "體重過輕";
-      bmiColor = "text-blue-600";
-    } else if (data.bmi < 24) {
-      bmiCategory = "正常範圍";
-      bmiColor = "text-green-600";
-    } else if (data.bmi < 27) {
-      bmiCategory = "體重過重";
-      bmiColor = "text-yellow-600";
-    } else {
-      bmiCategory = "肥胖";
-      bmiColor = "text-red-600";
-    }
+    const { label: bmiCategory, textClass: bmiColor } = getBMICategory(
+      data.bmi,
+    );
 
     bmiSection = `
             <div class="bg-gray-50 rounded-lg p-4 mb-4">
@@ -1751,7 +1902,7 @@ function displayPrescriptionSummary(prescription) {
                         pain: "疼痛問題",
                         injury_history: "運動傷害史",
                         balance: "平衡感不佳",
-                        palpitation: "呼吸困難",
+                        palpitation: "心悸",
                         equipment: "缺乏運動設備",
                       }[limitation] || limitation;
                     return `<li>${limitText}</li>`;
@@ -2081,7 +2232,10 @@ function getPARQScore(data) {
 
 function getPARQRecommendation(data) {
   const parqRisk = assessPARQRisk(data.parq_answers || {});
-  return parqRisk.recommendations[0] || "您可以安全地開始運動計畫";
+  return (
+    parqRisk.recommendations[0] ||
+    "依問卷結果，一般可從低至中等強度開始逐步增加活動；運動中如有不適請立即停止並就醫"
+  );
 }
 
 function calculateBMRForPDF(data) {
@@ -2189,7 +2343,7 @@ function createPDFContent() {
                             ${
                               data.age >= 18 && data.bmi
                                 ? `
-                            <div style="margin-bottom: 5px;"><strong>BMI 指數：</strong>${data.bmi} ${data.bmi < 18.5 ? "體重過輕" : data.bmi < 24 ? "正常範圍" : data.bmi < 27 ? "體重過重" : "肥胖"}</div>
+                            <div style="margin-bottom: 5px;"><strong>BMI 指數：</strong>${data.bmi} ${getBMICategory(data.bmi).label}</div>
                             `
                                 : ""
                             }

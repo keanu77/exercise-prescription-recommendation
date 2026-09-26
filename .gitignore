@@ -19,3 +19,4 @@ __pycache__/
 # Cloudflare Pages 輸出目錄（scripts/build-pages.sh 產生）
 dist/
 .wrangler/
+.claude/audit/
