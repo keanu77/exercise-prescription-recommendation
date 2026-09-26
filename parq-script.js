@@ -294,7 +294,7 @@ function displayRiskAssessment(risk) {
         <div class="${riskClass} p-6 rounded-lg text-center">
             <h3 class="text-3xl font-bold mb-4">風險評估：${riskLevel}</h3>
             <p class="text-xl mb-4">${riskDescription}</p>
-            <div class="bg-white bg-opacity-20 rounded-lg p-4">
+            <div class="bg-black bg-opacity-20 rounded-lg p-4">
                 <p class="text-lg font-semibold mb-2">PAR-Q+ 評分：${yesCount}/7 個「是」</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-left">
                     ${recommendations.map(rec => `<div>${rec}</div>`).join('')}

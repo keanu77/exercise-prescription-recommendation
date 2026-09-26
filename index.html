@@ -519,22 +519,23 @@
 
                 <!-- 步驟指示器 -->
                 <div class="mt-6 mb-4">
-                    <div class="flex justify-center items-center mb-4 px-4 sm:px-0 max-w-md mx-auto">
-                        <div class="step-indicator active" data-step="1">
+                    <div class="flex justify-center items-center mb-4 px-4 sm:px-0 max-w-md mx-auto" role="list" aria-label="表單進度">
+                        <div class="step-indicator active" data-step="1" role="listitem" aria-current="step">
                             <div class="step-circle">1</div>
                             <div class="step-label">基本資料</div>
                         </div>
                         <div class="step-line"></div>
-                        <div class="step-indicator" data-step="2">
+                        <div class="step-indicator" data-step="2" role="listitem">
                             <div class="step-circle">2</div>
                             <div class="step-label">健康狀況</div>
                         </div>
                         <div class="step-line"></div>
-                        <div class="step-indicator" data-step="3">
+                        <div class="step-indicator" data-step="3" role="listitem">
                             <div class="step-circle">3</div>
                             <div class="step-label">運動準備</div>
                         </div>
                     </div>
+                    <p id="stepAnnouncer" class="sr-only" aria-live="polite"></p>
                 </div>
 
                 <!-- 進度條 -->
@@ -543,7 +544,7 @@
                         <span class="text-sm text-gray-600">完成進度</span>
                         <span id="progressText" class="text-sm font-semibold text-blue-600">0%</span>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div id="progressTrack" class="w-full bg-gray-200 rounded-full h-3 overflow-hidden" role="progressbar" aria-label="完成進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                         <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
                     </div>
                 </div>
@@ -553,24 +554,25 @@
                 <form id="healthForm">
                     <!-- 步驟 1: 基本資料 -->
                     <div class="form-step active" data-step="1">
-                        <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">步驟 1: 基本資料</h3>
+                        <h3 tabindex="-1" class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">步驟 1: 基本資料</h3>
                         <div class="space-y-4 sm:space-y-6">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
-                            <label class="form-label">年齡 *</label>
+                            <label class="form-label" for="age">年齡 *</label>
                             <div class="input-wrapper">
-                                <input type="number" id="age" name="age" min="6" max="120" required
+                                <input type="number" id="age" name="age" aria-describedby="ageMsg" min="6" max="120" required
                                        class="form-input" placeholder="例如：35（6-120 歲）"
                                        oninput="validateField(this, 6, 120); calculateBMI(); calculateBMR()">
                                 <span id="ageIcon" class="validation-icon"></span>
                             </div>
+                            <p id="ageMsg" class="hidden mt-1 text-sm text-red-700"></p>
                             <div id="ageInfo" class="hidden mt-2 p-3 rounded-lg">
                                 <!-- 動態顯示年齡層資訊 -->
                             </div>
                         </div>
                         
                         <div>
-                            <label class="form-label">性別 *</label>
+                            <label class="form-label" for="gender">性別 *</label>
                             <select id="gender" name="gender" required class="form-input" onchange="calculateBMR()">
                                 <option value="">請選擇</option>
                                 <option value="male">男</option>
@@ -583,27 +585,29 @@
                     <!-- 身體資料 -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         <div>
-                            <label class="form-label">身高 * (公分)</label>
+                            <label class="form-label" for="height">身高 *（公分）</label>
                             <div class="input-wrapper">
-                                <input type="number" id="height" name="height" min="100" max="250" required
+                                <input type="number" id="height" name="height" aria-describedby="heightMsg" min="100" max="250" required
                                        class="form-input" placeholder="例如：165（100-250 cm）"
                                        oninput="validateField(this, 100, 250); calculateBMI(); calculateBMR()">
                                 <span id="heightIcon" class="validation-icon"></span>
                             </div>
+                            <p id="heightMsg" class="hidden mt-1 text-sm text-red-700"></p>
                         </div>
 
                         <div>
-                            <label class="form-label">體重 * (公斤)</label>
+                            <label class="form-label" for="weight">體重 *（公斤）</label>
                             <div class="input-wrapper">
-                                <input type="number" id="weight" name="weight" min="20" max="300" required
+                                <input type="number" id="weight" name="weight" aria-describedby="weightMsg" min="20" max="300" required
                                        class="form-input" placeholder="例如：60（20-300 kg）"
                                        oninput="validateField(this, 20, 300); calculateBMI(); calculateBMR()">
                                 <span id="weightIcon" class="validation-icon"></span>
                             </div>
+                            <p id="weightMsg" class="hidden mt-1 text-sm text-red-700"></p>
                         </div>
                         
                         <div>
-                            <label class="form-label">BMI 指數</label>
+                            <span class="form-label block">BMI 指數</span>
                             <div id="bmiDisplay" class="form-input bg-gray-50 flex items-center justify-between">
                                 <span id="bmiValue" class="text-gray-500">待計算</span>
                                 <span id="bmiCategory" class="text-sm px-2 py-1 rounded"></span>
@@ -613,7 +617,7 @@
 
                             <!-- 活動水平選擇 -->
                             <div class="mt-6">
-                                <label class="form-label">選擇您的活動水平（用於計算 TDEE）</label>
+                                <label class="form-label" for="activityLevel">選擇您的活動水平（用於計算 TDEE）</label>
                                 <select id="activityLevel" name="activityLevel" class="form-input" onchange="calculateTDEE()">
                                     <option value="1.2">久坐（幾乎不運動）</option>
                                     <option value="1.375" selected>輕度活動（每週運動1-3天）</option>
@@ -629,21 +633,21 @@
 
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                                     <div class="bg-white p-3 rounded-lg">
-                                        <label class="text-sm text-gray-600">BMR 基礎代謝率</label>
+                                        <span class="text-sm text-gray-600 block">BMR 基礎代謝率</span>
                                         <div id="bmrDisplay" class="text-2xl font-bold text-blue-600">
                                             <span id="bmrValue">待計算</span>
                                             <span class="text-sm font-normal text-gray-600">大卡/天</span>
                                         </div>
-                                        <p class="text-xs text-gray-500 mt-1">完全靜態時的熱量消耗</p>
+                                        <p class="text-sm text-gray-600 mt-1">完全靜態時的熱量消耗</p>
                                     </div>
 
                                     <div class="bg-white p-3 rounded-lg">
-                                        <label class="text-sm text-gray-600">TDEE 每日總消耗</label>
+                                        <span class="text-sm text-gray-600 block">TDEE 每日總消耗</span>
                                         <div id="tdeeDisplay" class="text-2xl font-bold text-green-600">
                                             <span id="tdeeValue">待計算</span>
                                             <span class="text-sm font-normal text-gray-600">大卡/天</span>
                                         </div>
-                                        <p class="text-xs text-gray-500 mt-1">包含活動的總熱量消耗</p>
+                                        <p class="text-sm text-gray-600 mt-1">包含活動的總熱量消耗</p>
                                     </div>
                                 </div>
 
@@ -675,12 +679,12 @@
 
                     <!-- 步驟 2: 健康狀況 -->
                     <div class="form-step" data-step="2">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 2: 健康狀況</h3>
+                        <h3 tabindex="-1" class="text-xl font-semibold text-gray-800 mb-6">步驟 2: 健康狀況</h3>
                         <div class="space-y-6">
                     <!-- 健康狀況 -->
                     <div>
-                        <label class="form-label">健康狀況</label>
-                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                        <p id="grp-1" class="form-label">健康狀況</p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-1">
                             <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="radio" name="health_status" value="healthy" class="w-5 h-5">
                                 <span class="text-lg">健康狀況良好</span>
@@ -694,60 +698,51 @@
 
                     <!-- 相關健康狀況 -->
                     <div>
-                        <label class="form-label text-gray-600">請選擇相關健康狀況（可複選，滑鼠移至選項可查看說明）</label>
-                        <div class="grid md:grid-cols-2 gap-4 mt-3">
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                        <p id="grp-2" class="form-label text-gray-600">請選擇相關健康狀況（可複選，每項下方有運動注意事項）</p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3" role="group" aria-labelledby="grp-2">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="overweight" class="w-5 h-5">
-                                <span class="text-lg">體重過重</span>
-                                <span class="tooltip-text">BMI ≥ 24，建議增加有氧運動頻率，搭配飲食控制</span>
+                                <span class="flex-1"><span class="text-lg block">體重過重</span><span class="block text-sm text-gray-600 mt-1">BMI ≥ 24，建議增加有氧運動頻率，搭配飲食控制</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="asthma" class="w-5 h-5">
-                                <span class="text-lg">氣喘</span>
-                                <span class="tooltip-text">運動時需注意呼吸調控，避免過度激烈，建議充分暖身</span>
+                                <span class="flex-1"><span class="text-lg block">氣喘</span><span class="block text-sm text-gray-600 mt-1">運動時需注意呼吸調控，避免過度激烈，建議充分暖身</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="hypertension" class="w-5 h-5">
-                                <span class="text-lg">高血壓</span>
-                                <span class="tooltip-text">避免閉氣用力動作（Valsalva），建議運動前後量血壓</span>
+                                <span class="flex-1"><span class="text-lg block">高血壓</span><span class="block text-sm text-gray-600 mt-1">避免閉氣用力動作（Valsalva），建議運動前後量血壓</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="diabetes" class="w-5 h-5">
-                                <span class="text-lg">糖尿病</span>
-                                <span class="tooltip-text">建議餐後 1-2 小時運動，注意血糖監測，隨身攜帶糖果</span>
+                                <span class="flex-1"><span class="text-lg block">糖尿病</span><span class="block text-sm text-gray-600 mt-1">建議餐後 1-2 小時運動，注意血糖監測，隨身攜帶糖果</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="arthritis" class="w-5 h-5">
-                                <span class="text-lg">關節問題</span>
-                                <span class="tooltip-text">建議低衝擊運動如游泳、騎車、水中運動，避免跳躍動作</span>
+                                <span class="flex-1"><span class="text-lg block">關節問題</span><span class="block text-sm text-gray-600 mt-1">建議低衝擊運動如游泳、騎車、水中運動，避免跳躍動作</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="heart_recovery" class="w-5 h-5">
-                                <span class="text-lg">心臟疾病</span>
-                                <span class="tooltip-text">需醫師評估後開始運動，從低強度開始，監控心率</span>
+                                <span class="flex-1"><span class="text-lg block">心臟疾病</span><span class="block text-sm text-gray-600 mt-1">需醫師評估後開始運動，從低強度開始，監控心率</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="sarcopenia" class="w-5 h-5">
-                                <span class="text-lg">肌少症</span>
-                                <span class="tooltip-text">重點加強阻力訓練，每週至少 2-3 次，搭配足夠蛋白質攝取</span>
+                                <span class="flex-1"><span class="text-lg block">肌少症</span><span class="block text-sm text-gray-600 mt-1">重點加強阻力訓練，每週至少 2-3 次，搭配足夠蛋白質攝取</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="pregnant" class="w-5 h-5">
-                                <span class="text-lg">孕婦</span>
-                                <span class="tooltip-text">避免仰躺、高衝擊及有跌倒風險的運動，建議游泳或散步</span>
+                                <span class="flex-1"><span class="text-lg block">孕婦</span><span class="block text-sm text-gray-600 mt-1">避免仰躺、高衝擊及有跌倒風險的運動，建議游泳或散步</span></span>
                             </label>
-                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer tooltip-trigger">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="diseases" value="hyperlipidemia" class="w-5 h-5">
-                                <span class="text-lg">高血脂</span>
-                                <span class="tooltip-text">有氧運動有助改善血脂，建議每週 150 分鐘中等強度運動</span>
+                                <span class="flex-1"><span class="text-lg block">高血脂</span><span class="block text-sm text-gray-600 mt-1">有氧運動有助改善血脂，建議每週 150 分鐘中等強度運動</span></span>
                             </label>
                         </div>
                     </div>
 
                     <!-- 體能自評 -->
                     <div>
-                        <label class="form-label">體能自評 *</label>
-                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                        <p id="grp-3" class="form-label">體能自評 *</p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-3" aria-required="true">
                             <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                 <input type="radio" name="fitness_level" value="excellent" required class="w-5 h-5">
                                 <span class="text-lg">良好</span>
@@ -781,13 +776,13 @@
 
                     <!-- 步驟 3: 運動準備 -->
                     <div class="form-step" data-step="3">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-6">步驟 3: 運動準備</h3>
+                        <h3 tabindex="-1" class="text-xl font-semibold text-gray-800 mb-6">步驟 3: 運動準備</h3>
                         <div class="space-y-6">
 
                             <!-- 目前運動習慣 -->
                             <div>
-                                <label class="form-label">目前運動習慣 *</label>
-                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                <p id="grp-4" class="form-label">目前運動習慣 *</p>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-4" aria-required="true">
                                     <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                         <input type="radio" name="exercise_habit" value="none" required class="w-5 h-5">
                                         <span class="text-lg">沒有運動習慣</span>
@@ -813,8 +808,8 @@
 
                             <!-- 運動限制或擔憂 -->
                             <div>
-                                <label class="form-label text-gray-600">運動限制或擔憂（可複選）</label>
-                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                <p id="grp-5" class="form-label text-gray-600">運動限制或擔憂（可複選）</p>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3" role="group" aria-labelledby="grp-5">
                                     <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                         <input type="checkbox" name="limitations" value="none" class="w-5 h-5">
                                         <span class="text-lg">無特別限制</span>
@@ -852,8 +847,8 @@
 
                             <!-- 運動目標 -->
                             <div>
-                                <label class="form-label">運動目標 *</label>
-                                <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                <p id="grp-6" class="form-label">運動目標 *</p>
+                                <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-6" aria-required="true">
                                     <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                         <input type="radio" name="exercise_goal" value="health" required class="w-5 h-5">
                                         <span class="text-lg">健康維護</span>
@@ -899,8 +894,8 @@
 
                                 <!-- PAR-Q 問題 1 -->
                                 <div class="mb-6">
-                                    <label class="form-label">1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-7" class="form-label">1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-7" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q1" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -914,8 +909,8 @@
 
                                 <!-- PAR-Q 問題 2 -->
                                 <div class="mb-6">
-                                    <label class="form-label">2. 當您進行體能活動時是否會感到胸痛？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-8" class="form-label">2. 當您進行體能活動時是否會感到胸痛？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-8" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q2" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -929,8 +924,8 @@
 
                                 <!-- PAR-Q 問題 3 -->
                                 <div class="mb-6">
-                                    <label class="form-label">3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-9" class="form-label">3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-9" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q3" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -944,8 +939,8 @@
 
                                 <!-- PAR-Q 問題 4 -->
                                 <div class="mb-6">
-                                    <label class="form-label">4. 您是否會因為感到頭暈而失去平衡或意識？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-10" class="form-label">4. 您是否會因為感到頭暈而失去平衡或意識？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-10" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q4" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -959,8 +954,8 @@
 
                                 <!-- PAR-Q 問題 5 -->
                                 <div class="mb-6">
-                                    <label class="form-label">5. 您是否有骨骼或關節問題，可能因改變體能活動而惡化？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-11" class="form-label">5. 您是否有骨骼或關節問題，可能因改變體能活動而惡化？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-11" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q5" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -974,8 +969,8 @@
 
                                 <!-- PAR-Q 問題 6 -->
                                 <div class="mb-6">
-                                    <label class="form-label">6. 您的醫師目前是否為您的血壓或心臟狀況開立藥物？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-12" class="form-label">6. 您的醫師目前是否為您的血壓或心臟狀況開立藥物？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-12" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q6" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -989,8 +984,8 @@
 
                                 <!-- PAR-Q 問題 7 -->
                                 <div class="mb-6">
-                                    <label class="form-label">7. 您是否知道有任何其他原因不應該參與體能活動？</label>
-                                    <div class="grid md:grid-cols-2 gap-4 mt-3">
+                                    <p id="grp-13" class="form-label">7. 您是否知道有任何其他原因不應該參與體能活動？</p>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-13" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q7" value="yes" required class="w-5 h-5">
                                             <span class="text-lg">是</span>
@@ -1017,7 +1012,7 @@
                     </div>
 
                     <!-- 錯誤提示 -->
-                    <div id="formError" class="hidden mt-4 p-4 bg-red-100 border border-red-300 rounded-lg text-center">
+                    <div id="formError" class="hidden mt-4 p-4 bg-red-100 border border-red-300 rounded-lg text-center" role="alert">
                         <p class="text-red-700">請完成當前步驟的必填欄位</p>
                     </div>
                 </form>
@@ -1038,13 +1033,13 @@
                 <div class="card bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-2xl font-bold text-purple-800 flex items-center">
-                            <svg class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg aria-hidden="true" class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                             </svg>
                             AI 智慧建議
                         </h3>
                         <button id="refreshAiBtn" onclick="fetchAIRecommendation()" class="hidden text-purple-600 hover:text-purple-800 flex items-center text-sm">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg aria-hidden="true" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                             </svg>
                             重新生成
@@ -1094,7 +1089,7 @@
                     <div id="aiError" class="hidden" role="alert">
                         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <div class="flex items-start">
-                                <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg aria-hidden="true" class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                                 </svg>
                                 <div>
@@ -1107,13 +1102,13 @@
 
                     <!-- AI 提供商標示 -->
                     <div id="aiProviderBadge" class="hidden mt-4 text-right">
-                        <span class="text-xs text-gray-500">由 <span id="aiProviderName">AI</span> 提供建議</span>
+                        <span class="text-sm text-gray-600">由 <span id="aiProviderName">AI</span> 提供建議</span>
                     </div>
 
                     <!-- 進階版 AI 設定 -->
                     <div class="mt-4 pt-4 border-t border-purple-200">
                         <button id="toggleAdvancedAI" onclick="toggleAdvancedAISettings()" class="text-sm text-purple-600 hover:text-purple-800 flex items-center">
-                            <svg id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg aria-hidden="true" id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                             進階設定：使用自己的 API 金鑰
@@ -1140,22 +1135,22 @@
                             <div id="customApiKeySection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     <span id="apiKeyLabel">API 金鑰</span>
-                                    <span class="text-gray-400 font-normal">（選填，留空使用系統預設）</span>
+                                    <span class="text-gray-600 font-normal">（選填，留空使用系統預設）</span>
                                 </label>
                                 <input type="password" id="customApiKey" placeholder="輸入您的 API 金鑰" autocomplete="off"
                                        class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
-                                <p id="apiKeyHint" class="text-xs text-gray-500 mt-1"></p>
+                                <p id="apiKeyHint" class="text-sm text-gray-600 mt-1"></p>
                             </div>
 
-                            <div class="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
-                                <p class="font-medium text-blue-800 mb-1">💡 AI 提供商說明</p>
+                            <div class="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
+                                <p class="font-medium text-blue-800 mb-1"><span aria-hidden="true">💡</span> AI 提供商說明</p>
                                 <ul class="text-blue-700 space-y-1">
                                     <li>• <strong>Groq</strong>：免費、快速，推薦一般使用</li>
                                     <li>• <strong>OpenAI</strong>：GPT-4o 強大準確，需付費</li>
                                     <li>• <strong>Claude</strong>：擅長中文、細緻分析</li>
                                     <li>• <strong>Gemini</strong>：Google AI，多模態能力強</li>
                                 </ul>
-                                <p class="mt-2">🔒 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
+                                <p class="mt-2"><span aria-hidden="true">🔒</span> 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
                             </div>
                         </div>
                     </div>
@@ -1247,7 +1242,7 @@
                 <div class="flex justify-center items-center space-x-6">
                     <div class="text-center">
                         <button onclick="downloadPDF()" class="btn-icon-square" title="下載建議 PDF">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
                             </svg>
                         </button>
@@ -1255,7 +1250,7 @@
                     </div>
                     <div class="text-center">
                         <button onclick="showPage('formPage')" class="btn-icon-square" title="重新填寫">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                             </svg>
                         </button>
@@ -1263,7 +1258,7 @@
                     </div>
                     <div class="text-center">
                         <button onclick="showPage('homePage')" class="btn-icon-square" title="返回首頁">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                             </svg>
                         </button>
@@ -1312,7 +1307,7 @@
                             運動醫學科 吳易澄醫師
                         </a>
                     </p>
-                    <p class="text-xs text-gray-500 mt-1">
+                    <p class="text-sm text-gray-400 mt-1">
                         基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引
                     </p>
                 </div>

@@ -23,30 +23,51 @@ const DOMCache = {
 };
 
 // 即時欄位驗證函數（統一驗證系統，透過 HTML oninput 觸發）
+const FIELD_LABELS = {
+  age: { label: "年齡", unit: "歲" },
+  height: { label: "身高", unit: "公分" },
+  weight: { label: "體重", unit: "公斤" },
+};
+
 function validateField(input, min, max) {
   const value = parseFloat(input.value);
-  const iconId = input.id + "Icon";
-  const icon = DOMCache.get(iconId);
+  const icon = DOMCache.get(input.id + "Icon");
+  const message = document.getElementById(input.id + "Msg");
+  const meta = FIELD_LABELS[input.id] || { label: "數值", unit: "" };
 
   if (!icon) return;
 
+  const setMessage = (text) => {
+    if (!message) return;
+    message.textContent = text;
+    message.classList.toggle("hidden", !text);
+  };
+
   if (input.value === "") {
     input.classList.remove("field-valid", "field-invalid");
+    input.removeAttribute("aria-invalid");
     icon.textContent = "";
     icon.className = "validation-icon";
+    setMessage("");
     return;
   }
 
   if (!isNaN(value) && value >= min && value <= max) {
     input.classList.remove("field-invalid");
     input.classList.add("field-valid");
+    input.removeAttribute("aria-invalid");
     icon.textContent = "✓";
     icon.className = "validation-icon icon-valid";
+    icon.setAttribute("aria-hidden", "true");
+    setMessage("");
   } else {
     input.classList.remove("field-valid");
     input.classList.add("field-invalid");
+    input.setAttribute("aria-invalid", "true");
     icon.textContent = "✗";
     icon.className = "validation-icon icon-invalid";
+    icon.setAttribute("aria-hidden", "true");
+    setMessage(`${meta.label}需介於 ${min}–${max} ${meta.unit}`);
   }
 }
 
@@ -138,13 +159,13 @@ function getMETActivitiesHtml(prescription) {
             <div class="bg-white p-3 rounded border">
                 <div class="flex justify-between items-start">
                     <div>
-                        <h6 class="font-semibold text-gray-800">${activity.name}</h6>
+                        <h5 class="font-semibold text-gray-800">${activity.name}</h5>
                         <p class="text-sm text-gray-600">${activity.met} METs</p>
-                        <p class="text-xs text-gray-500">例子: ${activity.examples.join("、")}</p>
+                        <p class="text-sm text-gray-600">例子: ${activity.examples.join("、")}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm font-semibold text-blue-600">${calories30min} 卡路里</p>
-                        <p class="text-xs text-gray-500">30分鐘</p>
+                        <p class="text-sm text-gray-600">30分鐘</p>
                     </div>
                 </div>
             </div>
@@ -167,7 +188,7 @@ function getMETActivitiesHtml(prescription) {
 
   return `
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-            <h5 class="font-semibold text-yellow-800 mb-3">推薦 ${intensityName} 活動 (${metRange} METs)</h5>
+            <h4 class="font-semibold text-yellow-800 mb-3">推薦 ${intensityName} 活動 (${metRange} METs)</h4>
             <div class="space-y-2">
                 ${activitiesHtml}
             </div>
@@ -405,6 +426,12 @@ function showCalorieAdvice(tdee) {
 }
 
 // 頁面路由管理
+const PAGE_TITLES = {
+  homePage: "運動處方推薦系統",
+  formPage: "健康評估問卷｜運動處方推薦系統",
+  resultPage: "您的個人化運動處方｜運動處方推薦系統",
+};
+
 function showPage(pageId) {
   // 隱藏所有頁面
   const pages = document.querySelectorAll(".page");
@@ -420,6 +447,14 @@ function showPage(pageId) {
 
   // 滾動到頂部
   window.scrollTo(0, 0);
+
+  // 更新分頁標題並把焦點移到新頁面的主標題（初次載入不搶焦點）
+  document.title = PAGE_TITLES[pageId] || PAGE_TITLES.homePage;
+  const heading = targetPage?.querySelector("h2");
+  if (heading && document.readyState === "complete") {
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+  }
 
   // 移除了清除儲存資料的功能
 
@@ -780,7 +815,12 @@ function showFormError(errors) {
   }
 
   errorDiv.classList.remove("hidden");
-  errorDiv.scrollIntoView({ behavior: "smooth", block: "center" });
+  errorDiv.scrollIntoView({
+    behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+      ? "auto"
+      : "smooth",
+    block: "center",
+  });
 }
 
 // 隱藏表單錯誤
@@ -1777,7 +1817,7 @@ function displayPrescriptionSummary(prescription) {
                 <div class="text-center">
                     <span class="text-sm text-gray-600">BMI 指數：</span>
                     <span class="text-lg font-bold ${bmiColor}">${data.bmi}</span>
-                    <span class="ml-2 px-2 py-1 rounded text-xs bg-gray-200 text-gray-700">${bmiCategory}</span>
+                    <span class="ml-2 px-2 py-1 rounded text-sm bg-gray-200 text-gray-700">${bmiCategory}</span>
                 </div>
             </div>
         `;
@@ -1991,7 +2031,7 @@ function displayExerciseGuidelines(prescription) {
   if (prescription.warnings.length > 0) {
     warningsHtml = `
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <h5 class="font-semibold text-red-800 mb-2">重要注意事項</h5>
+                <h4 class="font-semibold text-red-800 mb-2">重要注意事項</h4>
                 <ul class="list-disc list-inside space-y-1 text-red-700">
                     ${prescription.warnings.map((warning) => `<li>${warning}</li>`).join("")}
                 </ul>
@@ -2006,7 +2046,7 @@ function displayExerciseGuidelines(prescription) {
   if (prescription.recommendations.length > 0) {
     recommendationsHtml = `
             <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <h5 class="font-semibold text-green-800 mb-2">建議事項</h5>
+                <h4 class="font-semibold text-green-800 mb-2">建議事項</h4>
                 <ul class="list-disc list-inside space-y-1 text-green-700">
                     ${prescription.recommendations.map((rec) => `<li>${rec}</li>`).join("")}
                 </ul>
@@ -2022,14 +2062,14 @@ function displayExerciseGuidelines(prescription) {
         ${recommendationsHtml}
         
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h5 class="font-semibold text-blue-800 mb-2">推薦運動範例</h5>
+            <h4 class="font-semibold text-blue-800 mb-2">推薦運動範例</h4>
             <div class="text-blue-700 space-y-2">
                 ${exerciseExamples}
             </div>
         </div>
         
         <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h5 class="font-semibold text-gray-800 mb-2">運動前準備</h5>
+            <h4 class="font-semibold text-gray-800 mb-2">運動前準備</h4>
             <ul class="list-disc list-inside space-y-1 text-gray-600">
                 <li>運動前進行5-10分鐘暖身</li>
                 <li>穿著舒適的運動服裝和鞋子</li>

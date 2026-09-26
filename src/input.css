@@ -97,27 +97,19 @@ body {
             height: 24px;
         }
         
-        .btn-icon-square:focus {
-            @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+        .btn-icon-square:focus-visible {
+            outline: 3px solid #1d4ed8;
+            outline-offset: 2px;
         }
 
         /* 步驟指示器樣式 */
+        /* 未到達的步驟用實色而非透明度，確保文字對比（#4b5563 on white ≈ 7:1） */
         .step-indicator {
             display: flex;
             flex-direction: column;
             align-items: center;
-            opacity: 0.5;
-            transition: opacity 0.3s;
             flex: 1;
             min-width: 0;
-        }
-
-        .step-indicator.active {
-            opacity: 1;
-        }
-
-        .step-indicator.completed {
-            opacity: 1;
         }
 
         .step-circle {
@@ -148,11 +140,9 @@ body {
         .step-label {
             margin-top: 8px;
             font-size: 14px;
-            color: #6b7280;
-            white-space: nowrap;
+            color: #4b5563;
             text-align: center;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.25;
             max-width: 100%;
         }
 
@@ -183,9 +173,9 @@ body {
             }
 
             .step-label {
-                font-size: 12px;
+                font-size: 13px;
                 margin-top: 4px;
-                max-width: 60px;
+                max-width: 72px;
             }
 
             .step-line {
@@ -207,8 +197,8 @@ body {
             }
 
             .step-label {
-                font-size: 10px;
-                max-width: 50px;
+                font-size: 12px;
+                max-width: 64px;
             }
 
             .step-line {
@@ -278,4 +268,16 @@ body {
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 使用者要求減少動態效果：關閉動畫與過場（JS 的 smooth scroll 另以 matchMedia 判斷） */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
         }
