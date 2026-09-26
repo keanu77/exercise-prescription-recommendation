@@ -31,11 +31,15 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。
 - 所有規則跑完後由 `applySafetyCaps()` 統一套用上限，並重算 `weeklyMinutes`、`volume`、`heartRateZone`。**任何新規則都不得在 `applySafetyCaps` 之後再改 frequency / time / intensity。**
 - `intensity` 一律是 enum key（`light` / `light-moderate` / `moderate` / `moderate-vigorous`），顯示文字由對照表產生；後端驗證只接受這四個值。
-- 心率區間依最終強度給（`HEART_RATE_ZONES`）；服藥（PAR-Q q6）、心臟病史、心悸、PAR-Q 高風險時 `heartRateZone = null` 改用 RPE。
-- 兒童青少年維持每日活動原則，PAR-Q 低風險的體能微調只套用於成人且有規律運動習慣者。
+- 心率區間依最終強度給（`HEART_RATE_ZONES`，ACSM %HRmax：輕 57-63、中 64-76、劇 77-95）；PAR-Q+ q1 心臟病／高血壓、q5 服藥、疾病選項心臟病史、心悸、PAR-Q+ 高風險時 `heartRateZone = null` 改用 RPE（Borg 6-20：輕 9-11、中 12-13、劇 14-17）。
+- 兒童青少年維持每日活動原則，PAR-Q+ 低風險的體能微調只套用於成人且有規律運動習慣者。
 
 ### PAR-Q+ 分級（三處必須一致）
-`script.js assessPARQRisk`、`parq-script.js assessParqLevel`、`functions/_lib/ai.js assessParqLevel`：q1/q2/q3 任一「是」→ high；其他任一「是」→ moderate；全「否」→ low。任何「是」都不直接放行。改規則要三處一起改。
+題目為 **PAR-Q+ 2025 第 1 頁 7 題**（eparmedx.com，官方中文版 2026-01 轉繁體），不是舊版 PAR-Q 2002。`script.js assessPARQRisk`、`parq-script.js assessParqLevel`、`functions/_lib/ai.js assessParqLevel` 三處規則相同：
+- 官方規則是二元：全「否」→ 可開始（>45 歲且不習慣劇烈運動者，劇烈強度前先諮詢合格運動專業人員）；任一「是」→ 完成第 2、3 頁追蹤問題／ePARmed-X+ 並諮詢；取得許可前僅低強度（ePARmed-X+ 醫師許可表 2026）。
+- 分級只決定處方保守程度，對應 ACSM 2015 運動前篩檢演算法（GETP 11th）：q2 胸痛、q3 頭暈／失去意識（徵候症狀）、q7 醫囑須醫療監督 → `high`（任何強度前先評估，cap light）；其他任一「是」→ `moderate`（已知疾病／服藥且已規律運動者 cap moderate，否則 cap light-moderate）；全「否」→ `low`。
+- q1 心臟病／高血壓、q5 服用處方藥 → `hrZoneUnsafe`，不給心率區間改用 RPE（ACSM）。
+- 改規則要三處一起改，並更新 README 的說明。
 
 ### functions/：四家 AI provider 的統一 proxy
 - `functions/api/ai-recommendation.js`：CORS → 讀 body（100KB）→ `validateUserData` 正規化 → 限流 → 依 `provider` 呼叫 → 統一 JSON。`auto` 依 `AUTO_ORDER`（Groq → Claude → Gemini → OpenAI）挑第一家有金鑰的，**沒有失敗 fallback**（避免默默燒付費額度）。

@@ -71,7 +71,7 @@ test("validateUserData: 拒絕數字前綴、非法 enum、非法 prescription",
 
 test("buildUserSummary: 逐題列出 PAR-Q 為「是」的項目且無 undefined", () => {
   const summary = buildUserSummary(validateUserData(GOOD).data);
-  assert.ok(summary.includes("運動時感到胸痛"));
+  assert.ok(summary.includes("身體活動時會胸痛"));
   assert.ok(summary.includes("高風險"));
   assert.ok(!summary.includes("undefined"));
 });

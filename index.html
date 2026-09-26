@@ -470,15 +470,15 @@
 
                             <!-- PAR-Q 評估 -->
                             <div class="mt-8">
-                                <h4 class="text-xl font-semibold text-gray-800 mb-6">運動準備評估 (PAR-Q)</h4>
+                                <h4 class="text-xl font-semibold text-gray-800 mb-6">運動準備評估（PAR-Q+）</h4>
 
                                 <!-- PAR-Q 說明 -->
                                 <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
                                     <div class="flex">
                                         <div class="ml-3">
                                             <p class="text-sm text-blue-700">
-                                                <strong>PAR-Q (Physical Activity Readiness Questionnaire)</strong><br>
-                                                請誠實回答以下問題，以評估您是否適合開始運動計畫。如有任何疑慮，請諮詢醫師。
+                                                <strong>PAR-Q+（Physical Activity Readiness Questionnaire for Everyone，2025 版）</strong><br>
+                                                以下 7 題為 PAR-Q+ 第 1 頁的一般健康問題（依 PAR-Q+ Collaboration 官方中文版轉為繁體）。請誠實回答。任何一題回答「是」，依官方規定需再完成第 2、3 頁的追蹤問題並諮詢合格運動專業人員或醫師；本站會據此給出較保守的處方。原始問卷：eparmedx.com
                                             </p>
                                         </div>
                                     </div>
@@ -486,7 +486,7 @@
 
                                 <!-- PAR-Q 問題 1 -->
                                 <div class="mb-6">
-                                    <p id="grp-7" class="form-label">1. 醫師是否曾告訴您，您有心臟病且只能參與醫師推薦的體能活動？</p>
+                                    <p id="grp-7" class="form-label">1. 您的醫師是否曾告訴您，您患有心臟病或高血壓？</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-7" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q1" value="yes" required class="w-5 h-5">
@@ -501,7 +501,7 @@
 
                                 <!-- PAR-Q 問題 2 -->
                                 <div class="mb-6">
-                                    <p id="grp-8" class="form-label">2. 當您進行體能活動時是否會感到胸痛？</p>
+                                    <p id="grp-8" class="form-label">2. 您在休息時、日常生活中或進行身體活動時，是否會感到胸痛？</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-8" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q2" value="yes" required class="w-5 h-5">
@@ -516,7 +516,7 @@
 
                                 <!-- PAR-Q 問題 3 -->
                                 <div class="mb-6">
-                                    <p id="grp-9" class="form-label">3. 在過去一個月內，您是否在未進行體能活動時感到胸痛？</p>
+                                    <p id="grp-9" class="form-label">3. 在過去 12 個月內，您是否曾因頭暈而失去平衡，或曾失去意識？（若頭暈與過度換氣有關，包括劇烈運動期間，請回答「否」）</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-9" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q3" value="yes" required class="w-5 h-5">
@@ -531,7 +531,7 @@
 
                                 <!-- PAR-Q 問題 4 -->
                                 <div class="mb-6">
-                                    <p id="grp-10" class="form-label">4. 您是否會因為感到頭暈而失去平衡或意識？</p>
+                                    <p id="grp-10" class="form-label">4. 您是否曾被診斷有其他慢性疾病（心臟病與高血壓除外）？</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-10" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q4" value="yes" required class="w-5 h-5">
@@ -546,7 +546,7 @@
 
                                 <!-- PAR-Q 問題 5 -->
                                 <div class="mb-6">
-                                    <p id="grp-11" class="form-label">5. 您是否有骨骼或關節問題，可能因改變體能活動而惡化？</p>
+                                    <p id="grp-11" class="form-label">5. 您目前是否正在服用治療慢性疾病的處方藥？</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-11" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q5" value="yes" required class="w-5 h-5">
@@ -561,7 +561,7 @@
 
                                 <!-- PAR-Q 問題 6 -->
                                 <div class="mb-6">
-                                    <p id="grp-12" class="form-label">6. 您的醫師目前是否為您的血壓或心臟狀況開立藥物？</p>
+                                    <p id="grp-12" class="form-label">6. 您目前是否有（或過去 12 個月內曾有）因增加身體活動而可能加重的骨骼、關節或軟組織（肌肉、韌帶、肌腱）問題？（若過去曾有但不影響您目前活動的能力，請回答「否」）</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-12" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q6" value="yes" required class="w-5 h-5">
@@ -576,7 +576,7 @@
 
                                 <!-- PAR-Q 問題 7 -->
                                 <div class="mb-6">
-                                    <p id="grp-13" class="form-label">7. 您是否知道有任何其他原因不應該參與體能活動？</p>
+                                    <p id="grp-13" class="form-label">7. 您的醫師是否曾告訴您，您只能在醫療監督下進行身體活動？</p>
                                     <div class="grid md:grid-cols-2 gap-4 mt-3" role="radiogroup" aria-labelledby="grp-13" aria-required="true">
                                         <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                                             <input type="radio" name="parq_q7" value="yes" required class="w-5 h-5">

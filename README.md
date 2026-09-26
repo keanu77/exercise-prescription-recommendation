@@ -8,7 +8,7 @@
 
 - 年齡適性建議，涵蓋兒童、青少年、成人與銀髮族
 - FITT-VP 處方：頻率、強度、時間、類型、總量、漸進；疾病、運動限制與 PAR-Q 結果只會把處方往保守方向修正
-- PAR-Q+ 運動前健康篩檢：任一題「是」即建議先諮詢醫師；心臟病史或胸痛列為最高風險
+- PAR-Q+ 2025 運動前健康篩檢（官方 7 題）：任一題「是」導向完成追蹤問題並諮詢；胸痛、頭暈／昏厥或醫囑須醫療監督者列為最高風險（依 ACSM 2015 運動前篩檢演算法）
 - MET 活動資料庫與熱量估算；BMI、BMR、TDEE 計算（未成年、懷孕、體重過輕不顯示減重熱量）
 - AI 個人化說明（選用、使用者主動觸發），支援 Groq、Anthropic Claude、Google Gemini、OpenAI
 
@@ -52,9 +52,11 @@ npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度�
 
 ## 參考依據
 
-- ACSM's Guidelines for Exercise Testing and Prescription（FITT-VP 原則）
+- ACSM's Guidelines for Exercise Testing and Prescription, 11th ed.（FITT-VP 原則、強度分級 %HRmax／RPE、服藥者以 RPE 監測）
 - WHO Guidelines on Physical Activity and Sedentary Behaviour, 2020
-- PAR-Q+（Physical Activity Readiness Questionnaire for Everyone）
+- PAR-Q+ 2025（Physical Activity Readiness Questionnaire for Everyone，PAR-Q+ Collaboration，eparmedx.com；官方中文版 2026）
+- ePARmed-X+ Physician Clearance Follow-Up（2026）
+- Riebe D, et al. Updating ACSM's Recommendations for Exercise Preparticipation Health Screening. Med Sci Sports Exerc. 2015（運動前篩檢演算法）
 - MET 值出處：Compendium of Physical Activities
 
 ## 免責聲明

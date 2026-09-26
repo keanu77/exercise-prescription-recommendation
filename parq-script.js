@@ -118,16 +118,19 @@ function calculateTDEE() {
     showCalorieAdvice(tdee);
 }
 
-// PAR-Q+ 分級規則（與 script.js 的 assessPARQRisk、functions/_lib/ai.js 的 assessParqLevel 一致）：
-// q1 心臟病史 / q2 運動時胸痛 / q3 近一個月非運動時胸痛 任一「是」→ high；
-// 其他任一「是」→ moderate；全「否」→ low。任何「是」都不直接放行。
-const PARQ_CARDIAC_QUESTIONS = ['q1', 'q2', 'q3'];
+// PAR-Q+ 2025 分級規則（與 script.js assessPARQRisk、functions/_lib/ai.js assessParqLevel 一致）：
+// 官方規則是二元：任一「是」→ 完成第 2、3 頁追蹤問題並諮詢；全「否」→ 循序漸進開始。
+// 分級依 ACSM 2015 運動前篩檢演算法：q2 胸痛、q3 頭暈／失去意識為徵候症狀，q7 醫囑須醫療監督 → high；
+// 其他任一「是」（q1 心臟病／高血壓、q4 其他慢性病、q5 服藥、q6 骨關節）→ moderate；全「否」→ low。
+const PARQ_SYMPTOM_QUESTIONS = ['q2', 'q3', 'q7'];
+const PARQ_CARDIAC_DISEASE_QUESTIONS = ['q1', 'q5'];
 
 function assessParqLevel(answers) {
     const yesCount = Object.values(answers).filter(a => a === 'yes').length;
-    const cardiacFlag = PARQ_CARDIAC_QUESTIONS.some(q => answers[q] === 'yes');
-    const level = cardiacFlag ? 'high' : yesCount > 0 ? 'moderate' : 'low';
-    return { level, yesCount, cardiacFlag };
+    const symptomFlag = PARQ_SYMPTOM_QUESTIONS.some(q => answers[q] === 'yes');
+    const cardiacDiseaseFlag = PARQ_CARDIAC_DISEASE_QUESTIONS.some(q => answers[q] === 'yes');
+    const level = symptomFlag ? 'high' : yesCount > 0 ? 'moderate' : 'low';
+    return { level, yesCount, symptomFlag, cardiacDiseaseFlag };
 }
 
 // 減重熱量赤字不適用：未成年、體重過輕（本頁無懷孕欄位）
@@ -268,18 +271,19 @@ function displayRiskAssessment(risk) {
         // 低風險 - 綠燈
         riskLevel = '低風險';
         riskClass = 'risk-low';
-        riskDescription = '問卷未發現運動風險因子，一般可從低至中等強度開始逐步增加活動';
+        riskDescription = '問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進';
         recommendations = [
             '✅ 可以開始輕到中等強度的運動',
             '✅ 建議從低強度開始，逐步增加',
             '✅ 運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫',
-            '✅ 建議每年重新評估一次'
+            (basicInfo.age > 45 ? '⚠️ 超過 45 歲且不習慣規律劇烈運動者，進行劇烈強度前請先諮詢合格運動專業人員' : '✅ 可循 WHO 各年齡層身體活動指引逐步增加'),
+            '✅ 問卷效期 12 個月，健康狀況改變時請重新填寫'
         ];
     } else if (level === 'moderate') {
         // 中等風險 - 黃燈
         riskLevel = '中等風險';
         riskClass = 'risk-medium';
-        riskDescription = '問卷有一項以上回答「是」，建議在開始運動前先與醫師討論';
+        riskDescription = '問卷有一項以上回答「是」：依 PAR-Q+ 規定，請完成第 2、3 頁追蹤問題（eparmedx.com）並諮詢合格運動專業人員或醫師';
         recommendations = [
             '⚠️ 建議諮詢醫師後再開始運動',
             '⚠️ 選擇低強度運動開始',
@@ -290,10 +294,10 @@ function displayRiskAssessment(risk) {
         // 高風險 - 紅燈（心臟病史或胸痛）
         riskLevel = '高風險';
         riskClass = 'risk-high';
-        riskDescription = '問卷顯示心血管相關風險因子，請先接受醫師評估後再開始運動計畫';
+        riskDescription = '問卷顯示胸痛、頭暈／昏厥等症狀，或醫囑須醫療監督：開始任何強度的運動前，請先接受醫師評估';
         recommendations = [
-            '🛑 必須先接受醫師詳細評估',
-            '🛑 醫師可能安排進一步心血管檢查',
+            '🛑 開始任何強度的運動前，先接受醫師評估',
+            '🛑 取得許可前僅進行低強度身體活動（ePARmed-X+）',
             '🛑 運動計畫需要醫療監督',
             '🛑 在醫師同意前，僅進行日常活動與輕度活動'
         ];
@@ -371,8 +375,8 @@ function displayExerciseRecommendations(risk) {
 
                 <h4 class="font-semibold text-amber-800 mb-3 mt-4">醫療建議</h4>
                 <ul class="space-y-2 text-amber-700">
-                    <li>• 運動前諮詢醫師意見</li>
-                    <li>• 可能需要運動心電圖檢查</li>
+                    <li>• 完成 PAR-Q+ 追蹤問題並諮詢合格運動專業人員或醫師</li>
+                    <li>• 心臟病／高血壓或服藥者：以自覺用力程度與說話測試控制強度，不以心率為準</li>
                     <li>• 定期監控健康指標</li>
                 </ul>
             `,
@@ -633,13 +637,13 @@ function createPDFContent() {
 // 生成問答摘要
 function generateAnswerSummary() {
     const questions = [
-        '醫生是否曾告訴過您有心臟病，且只能在醫療監督下運動？',
-        '您是否在運動時感到胸痛？',
-        '在過去一個月內，您是否曾在非運動狀態下感到胸痛？',
-        '您是否會因為頭暈而失去平衡，或曾經失去意識？',
-        '您是否有骨關節問題，可能因運動而惡化？',
-        '您目前是否正在服用血壓或心臟疾病的處方藥物？',
-        '您是否知道任何其他不應該參與運動的理由？'
+        '醫師是否曾告訴您患有心臟病或高血壓？',
+        '休息、日常生活或身體活動時是否會胸痛？',
+        '過去 12 個月內是否曾因頭暈失去平衡或失去意識？',
+        '是否曾被診斷其他慢性疾病（心臟病與高血壓除外）？',
+        '目前是否正在服用治療慢性疾病的處方藥？',
+        '是否有可能因增加活動而加重的骨骼、關節或軟組織問題？',
+        '醫師是否曾告訴您只能在醫療監督下進行身體活動？'
     ];
 
     let summary = '';
@@ -678,7 +682,7 @@ function generateRiskSummaryForPDF(risk) {
             <div style="margin-top: 10px;">
                 <div>• 必須先接受完整醫療評估</div>
                 <div>• 運動計畫需要醫療監督</div>
-                <div>• 醫師可能安排進一步心血管檢查</div>
+                <div>• 取得許可前僅進行低強度身體活動</div>
                 <div>• 在醫師同意前，僅進行日常活動與輕度活動</div>
             </div>
         `;

@@ -926,67 +926,83 @@ function collectFormData() {
 }
 
 // 生成運動處方（根據 ACSM FITT-VP 原則）
-// PAR-Q 風險評估函數
-// PAR-Q+ 分級規則（與 functions/_lib/ai.js 的 assessParqLevel、parq-script.js 的 assessParqLevel 一致）：
-// - 任一題「是」→ 建議先諮詢醫師（moderate）
-// - q1 心臟病史 / q2 運動時胸痛 / q3 近一個月非運動時胸痛 任一「是」→ 心血管紅旗（high）
-// - 全「否」→ low
-// PAR-Q+ 第一頁本身是二元篩檢，任何「是」都不應直接放行；分級只用來決定處方保守程度。
-const PARQ_CARDIAC_QUESTIONS = ["parq_q1", "parq_q2", "parq_q3"];
+// PAR-Q+ 風險評估函數
+// 題目為 PAR-Q+ 2025（PAR-Q+ Collaboration, eparmedx.com；官方中文版 2026-01）第 1 頁的 7 題一般健康問題。
+// 官方規則：
+//   - 全「否」→ 可進行身體活動；慢慢開始、循序漸進；超過 45 歲且不習慣規律劇烈運動者，進行劇烈強度前先諮詢合格運動專業人員
+//   - 任一「是」→ 須完成第 2、3 頁追蹤問題（或 ePARmed-X+）；追蹤問題有「是」則需合格運動專業人員／醫師評估，
+//     取得許可前僅能進行低強度身體活動（ePARmed-X+ 醫師許可表 2026）
+//   - 暫緩：急性感冒發燒；懷孕（先與醫療人員討論）；健康狀況改變
+// 本站無法施作第 2、3 頁，故任何「是」都導向「完成追蹤問題並諮詢」；分級只決定處方保守程度，對應
+// ACSM 2015 運動前健康篩檢演算法（Riebe et al., MSSE 2015；GETP 11th ed.）：
+//   * high     ＝ 徵候症狀（q2 胸痛、q3 頭暈失去平衡／失去意識）或醫囑只能在醫療監督下活動（q7）
+//                → 任何強度前都需醫師評估；評估前僅低強度
+//   * moderate ＝ 已知疾病或用藥（q1 心臟病／高血壓、q4 其他慢性病、q5 服用慢性病處方藥）或骨關節問題（q6）
+//                → 未規律運動者開始前先評估；已規律運動且無症狀者可維持中等強度，進到劇烈強度前先評估
+//   * low      ＝ 全「否」
+// 心臟病／高血壓（q1）或服藥（q5）者心率反應可能不可靠，改用 RPE 與說話測試（ACSM）。
+// 三處（本檔、parq-script.js assessParqLevel、functions/_lib/ai.js assessParqLevel）必須一致。
+const PARQ_SYMPTOM_QUESTIONS = ["parq_q2", "parq_q3", "parq_q7"];
+const PARQ_CARDIAC_DISEASE_QUESTIONS = ["parq_q1"];
+const PARQ_MEDICATION_QUESTIONS = ["parq_q5"];
 
 function assessPARQRisk(parqAnswers) {
   const answers = parqAnswers || {};
+  const yesQuestions = Object.keys(answers).filter((q) => answers[q] === "yes");
   const result = {
     level: "low",
-    yesCount: 0,
-    cardiacFlag: false,
-    medicationFlag: answers.parq_q6 === "yes",
+    yesCount: yesQuestions.length,
+    symptomFlag: PARQ_SYMPTOM_QUESTIONS.some((q) => answers[q] === "yes"),
+    cardiacDiseaseFlag: PARQ_CARDIAC_DISEASE_QUESTIONS.some(
+      (q) => answers[q] === "yes",
+    ),
+    medicationFlag: PARQ_MEDICATION_QUESTIONS.some((q) => answers[q] === "yes"),
     recommendations: [],
   };
 
-  Object.values(answers).forEach((answer) => {
-    if (answer === "yes") {
-      result.yesCount++;
-    }
-  });
-  result.cardiacFlag = PARQ_CARDIAC_QUESTIONS.some((q) => answers[q] === "yes");
-
-  if (result.cardiacFlag) {
+  if (result.symptomFlag) {
     result.level = "high";
     result.recommendations.push(
-      "問卷顯示心血管相關風險因子（心臟病史或胸痛），請先接受醫師評估後再開始運動計畫",
+      "問卷顯示胸痛、頭暈／昏厥等症狀，或醫師曾指示只能在醫療監督下活動：開始任何強度的運動前，請先接受醫師評估（ACSM 運動前篩檢建議）",
     );
-    result.recommendations.push("在醫師同意前，僅進行日常活動與輕度活動");
+    result.recommendations.push(
+      "在取得醫師許可前，僅進行低強度身體活動；症狀再出現時請立即就醫",
+    );
   } else if (result.yesCount > 0) {
     result.level = "moderate";
     result.recommendations.push(
-      "問卷有一項以上回答「是」，建議開始運動前先與醫師討論",
+      "問卷有一項以上回答「是」：依 PAR-Q+ 規定，請至 eparmedx.com 完成第 2、3 頁的追蹤問題（或 ePARmed-X+），並諮詢合格運動專業人員或醫師",
     );
-    result.recommendations.push("從低強度活動開始，逐步增加");
+    if (result.cardiacDiseaseFlag || result.medicationFlag) {
+      result.recommendations.push(
+        "已知心臟病／高血壓或正在服藥：尚未規律運動者請先取得醫師同意再開始；已規律運動且無症狀者可維持中等強度，提高到劇烈強度前請先評估",
+      );
+    } else {
+      result.recommendations.push("從低強度活動開始，逐步增加");
+    }
   } else {
     result.level = "low";
     result.recommendations.push(
-      "問卷未發現運動風險因子，一般可從低至中等強度開始逐步增加活動",
+      "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
     );
     result.recommendations.push(
       "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
     );
   }
 
-  // 針對特定問題給予建議
-  if (parqAnswers.parq_q1 === "yes" || parqAnswers.parq_q6 === "yes") {
-    result.recommendations.push("請攜帶此評估結果與您的運動醫學科醫師討論");
-  }
+  // PAR-Q+ 的暫緩條件
+  result.recommendations.push(
+    "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+  );
 
-  if (parqAnswers.parq_q2 === "yes" || parqAnswers.parq_q3 === "yes") {
-    result.recommendations.push("如有胸痛症狀，請立即就醫檢查");
+  // 針對特定題目
+  if (answers.parq_q1 === "yes" || answers.parq_q5 === "yes") {
+    result.recommendations.push("請攜帶此評估結果與您的醫師討論");
   }
-
-  if (parqAnswers.parq_q4 === "yes") {
+  if (answers.parq_q3 === "yes") {
     result.recommendations.push("運動時請避免快速改變姿勢，注意安全");
   }
-
-  if (parqAnswers.parq_q5 === "yes") {
+  if (answers.parq_q6 === "yes") {
     result.recommendations.push("請選擇關節友善的運動類型，避免高衝擊活動");
   }
 
@@ -1440,49 +1456,74 @@ function calculateFITTVP(data) {
   // 根據 PAR-Q 評估調整運動處方
   const parqRisk = assessPARQRisk(data.parq_answers);
 
-  if (parqRisk.medicationFlag) {
-    // 服用血壓 / 心臟藥物（可能含 β 阻斷劑）：心率不可靠
+  // ACSM 定義的「規律運動」：近 3 個月每週 ≥3 天、每次 ≥30 分鐘中等強度；本站以運動習慣選項近似
+  const regularlyActive = ["moderate", "active", "student_athlete"].includes(
+    data.exercise_habit,
+  );
+  const accustomedToVigorous = ["active", "student_athlete"].includes(
+    data.exercise_habit,
+  );
+
+  if (parqRisk.cardiacDiseaseFlag || parqRisk.medicationFlag) {
+    // 心臟病／高血壓或服用處方藥（可能含 β 阻斷劑）：心率反應不可靠，改用 RPE 與說話測試（ACSM）
     caps.hrZoneUnsafe = true;
   }
 
   switch (parqRisk.level) {
     case "high":
-      // 心血管紅旗：以醫師評估為前提，處方僅為最保守起點
+      // 有徵候症狀或醫囑須醫療監督：任何強度前都需醫師評估；評估前僅低強度（ePARmed-X+）
       prescription.warnings.unshift(
-        "⚠️ PAR-Q 顯示心血管相關風險因子，請先接受醫師評估",
+        "⚠️ PAR-Q+ 顯示需先接受醫師評估再開始運動；取得許可前僅進行低強度活動",
       );
       prescription.recommendations.unshift("請在開始運動前諮詢運動醫學科醫師");
       prescription.warnings.push(
-        "建議在運動醫學科醫師或運動專業人員監督下開始運動",
+        "建議在運動醫學科醫師或合格運動專業人員監督下開始運動",
       );
       caps.hrZoneUnsafe = true;
       capIntensity("light");
       if (data.age >= 18) {
         capFrequency(Math.max(2, Math.floor(prescription.frequency * 0.5)));
         capTime(15); // 非常保守的起始時間
-        prescription.progression = "在運動醫學科醫師同意下，每週增加5%運動量";
+        prescription.progression = "在醫師同意下，每週增加5%運動量";
       } else {
         prescription.progression = "請先由醫師評估，再依醫師建議恢復每日活動";
       }
       break;
 
     case "moderate":
-      // 有非心血管的「是」：謹慎開始
+      // PAR-Q+：任一「是」→ 完成追蹤問題並諮詢
       prescription.warnings.push(
-        "根據 PAR-Q 評估，建議先與醫師討論再開始運動計畫",
+        "根據 PAR-Q+，請先完成追蹤問題並諮詢合格運動專業人員或醫師",
       );
       prescription.recommendations.push("如有不適請立即停止並諮詢專業人員");
-      capIntensity("light-moderate");
-      if (data.age >= 18) {
-        capFrequency(Math.max(3, Math.floor(prescription.frequency * 0.7)));
-        capTime(20); // 保守的起始時間
-        prescription.progression = "每週增加5-10%運動量，密切監控身體反應";
+      if (
+        (parqRisk.cardiacDiseaseFlag || parqRisk.medicationFlag) &&
+        regularlyActive
+      ) {
+        // ACSM：已知疾病但已規律運動且無症狀 → 可維持中等強度，進到劇烈強度前需評估
+        capIntensity("moderate");
+      } else {
+        // 未規律運動（ACSM：開始前先評估）或其他「是」（骨關節、其他慢性病）：保守起點
+        capIntensity("light-moderate");
+        if (data.age >= 18) {
+          capFrequency(Math.max(3, Math.floor(prescription.frequency * 0.7)));
+          capTime(20); // 保守的起始時間
+          prescription.progression = "每週增加5-10%運動量，密切監控身體反應";
+        }
       }
       break;
 
     case "low":
       // 低風險：可以按標準處方進行
-      prescription.recommendations.push("PAR-Q 評估未發現運動風險因子");
+      prescription.recommendations.push("PAR-Q+ 未發現運動風險因子");
+
+      // PAR-Q+ 2025：超過 45 歲且不習慣規律劇烈運動者，進到劇烈強度前先諮詢合格運動專業人員
+      if (data.age > 45 && !accustomedToVigorous) {
+        capIntensity("moderate");
+        prescription.recommendations.push(
+          "45 歲以上且不習慣劇烈運動：維持輕至中等強度即可，若要提高到劇烈強度，請先諮詢合格運動專業人員（PAR-Q+）",
+        );
+      }
 
       // 體能微調只適用於成人且已有規律運動習慣者；
       // 兒童青少年維持每日活動原則，無/偶爾運動者維持前面的適應期起點
@@ -1527,12 +1568,14 @@ const INTENSITY_RANK = {
   "moderate-vigorous": 4,
 };
 
-// 依最終強度給心率區間（ACSM：輕度 57-63%、中度 64-76%、劇烈 77-95% HRmax）
+// 依最終強度給心率區間。來源：ACSM GETP 11th ed.（沿用 Garber et al. 2011 position stand）
+// %HRmax：輕度 57-63、中等 64-76、劇烈 77-95；兩段式強度取跨區間。
+// 最大心率以 220-年齡 估算誤差大；服藥或心臟病者不用心率（見 applySafetyCaps）。
 const HEART_RATE_ZONES = {
   light: "最大心率 57-63%（輕度）",
-  "light-moderate": "最大心率 57-70%（輕度至中度）",
+  "light-moderate": "最大心率 57-69%（輕度至中度下緣）",
   moderate: "最大心率 64-76%（中等強度）",
-  "moderate-vigorous": "最大心率 64-90%（中等至劇烈）",
+  "moderate-vigorous": "最大心率 64-95%（中等至劇烈；劇烈為 77-95%）",
 };
 
 /**
@@ -1567,10 +1610,8 @@ function applySafetyCaps(prescription, caps, data) {
     if (caps.hrZoneUnsafe) {
       prescription.heartRateZone = null;
       prescription.recommendations.push(
-        "因服藥或心血管狀況，心率可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度",
+        "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
       );
-    } else if (data.age >= 65) {
-      prescription.heartRateZone = `${HEART_RATE_ZONES[prescription.intensity]}，銀髮族請取區間下緣`;
     } else {
       prescription.heartRateZone = HEART_RATE_ZONES[prescription.intensity];
     }
@@ -1930,11 +1971,12 @@ function displayFITTPDetails(prescription) {
 
   const intensityDescription =
     {
-      light: "RPE 3-4，能輕鬆說話和唱歌",
-      "light-moderate": "RPE 4-5，能說話但唱歌稍有困難",
-      moderate: "RPE 5-6，能說話但無法唱歌",
-      "moderate-vigorous": "RPE 6-7，說話略感困難",
-    }[prescription.intensity] || "RPE 5-6，能說話但無法唱歌";
+      light: "RPE 9-11（Borg 6-20 量表，輕鬆），能輕鬆說話和唱歌",
+      "light-moderate": "RPE 11-12（Borg 6-20 量表），能說話，唱歌稍有困難",
+      moderate: "RPE 12-13（Borg 6-20 量表，有點吃力），能說話但無法唱歌",
+      "moderate-vigorous":
+        "RPE 13-15（Borg 6-20 量表，吃力），只能說短句",
+    }[prescription.intensity] || "RPE 12-13（Borg 6-20 量表），能說話但無法唱歌";
 
   let frequencyText = "";
   if (prescription.frequency === 7) {
@@ -2561,10 +2603,10 @@ function createPDFContent() {
 
 function getIntensityText(intensity) {
   const intensities = {
-    light: "輕度強度 (RPE 3-4)",
-    "light-moderate": "輕度至中度強度 (RPE 4-5)",
-    moderate: "中度強度 (RPE 5-6)",
-    "moderate-vigorous": "中度至劇烈強度 (RPE 6-7)",
+    light: "輕度強度 (RPE 9-11)",
+    "light-moderate": "輕度至中度強度 (RPE 11-12)",
+    moderate: "中度強度 (RPE 12-13)",
+    "moderate-vigorous": "中度至劇烈強度 (RPE 13-15)",
   };
   return intensities[intensity] || intensity;
 }

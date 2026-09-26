@@ -367,29 +367,34 @@ const SYSTEM_PROMPT = `# Role (角色設定)
 - 柔軟度：股四頭肌伸展、腿後肌伸展、胸肌伸展、上背伸展、髖屈肌伸展`;
 
 // 建構用戶資料摘要
-// PAR-Q+ 題目標籤（供 AI 摘要用；順序對應 parq_q1..parq_q7）
+// PAR-Q+ 2025 題目標籤（供 AI 摘要用；順序對應 parq_q1..parq_q7）
 const PARQ_QUESTION_LABELS = {
-  parq_q1: "醫師曾告知有心臟病，且只能在醫療監督下運動",
-  parq_q2: "運動時感到胸痛",
-  parq_q3: "過去一個月內曾在非運動狀態下感到胸痛",
-  parq_q4: "曾因頭暈而失去平衡，或曾失去意識",
-  parq_q5: "有可能因運動而惡化的骨關節問題",
-  parq_q6: "目前正在服用血壓或心臟疾病的處方藥物",
-  parq_q7: "知道其他不應參與運動的理由",
+  parq_q1: "醫師曾告知患有心臟病或高血壓",
+  parq_q2: "休息、日常生活或身體活動時會胸痛",
+  parq_q3: "過去 12 個月內曾因頭暈失去平衡或失去意識",
+  parq_q4: "曾被診斷其他慢性疾病（心臟病與高血壓除外）",
+  parq_q5: "目前正在服用治療慢性疾病的處方藥",
+  parq_q6: "有可能因增加活動而加重的骨骼、關節或軟組織問題",
+  parq_q7: "醫師曾告知只能在醫療監督下進行身體活動",
 };
 
 // PAR-Q+ 分級規則（與 script.js assessPARQRisk、parq-script.js assessParqLevel 一致）：
-// q1/q2/q3 任一「是」→ high；其他任一「是」→ moderate；全「否」→ low
-const PARQ_CARDIAC_QUESTIONS = ["parq_q1", "parq_q2", "parq_q3"];
+// 依 ACSM 2015 運動前篩檢演算法：q2 胸痛、q3 頭暈／失去意識為徵候症狀，q7 醫囑須醫療監督 → high；
+// 其他任一「是」→ moderate（q1 心臟病／高血壓、q5 服藥者心率不可靠）；全「否」→ low
+const PARQ_SYMPTOM_QUESTIONS = ["parq_q2", "parq_q3", "parq_q7"];
+const PARQ_CARDIAC_DISEASE_QUESTIONS = ["parq_q1", "parq_q5"];
 
 function assessParqLevel(answers) {
   const safe = answers && typeof answers === "object" ? answers : {};
   const yesQuestions = Object.keys(PARQ_QUESTION_LABELS).filter(
     (q) => safe[q] === "yes",
   );
-  const cardiacFlag = PARQ_CARDIAC_QUESTIONS.some((q) => safe[q] === "yes");
-  const level = cardiacFlag ? "high" : yesQuestions.length > 0 ? "moderate" : "low";
-  return { level, yesCount: yesQuestions.length, yesQuestions, cardiacFlag };
+  const symptomFlag = PARQ_SYMPTOM_QUESTIONS.some((q) => safe[q] === "yes");
+  const cardiacDiseaseFlag = PARQ_CARDIAC_DISEASE_QUESTIONS.some(
+    (q) => safe[q] === "yes",
+  );
+  const level = symptomFlag ? "high" : yesQuestions.length > 0 ? "moderate" : "low";
+  return { level, yesCount: yesQuestions.length, yesQuestions, symptomFlag, cardiacDiseaseFlag };
 }
 
 function buildUserSummary(data) {
@@ -425,7 +430,13 @@ function buildUserSummary(data) {
 
   // PAR-Q 評估（分級規則與前端 script.js assessPARQRisk 一致）
   const parq = assessParqLevel(parq_answers);
-  const parqRiskLevel = { low: "低風險", moderate: "中度風險", high: "高風險（心臟病史或胸痛）" }[parq.level];
+  const parqRiskLevel = {
+    low: "低風險（PAR-Q+ 全部回答否，可循序漸進開始）",
+    moderate: parq.cardiacDiseaseFlag
+      ? "中度風險（心臟病／高血壓或服藥；需完成 PAR-Q+ 追蹤問題並諮詢，心率不可靠請用 RPE）"
+      : "中度風險（有回答「是」的項目；需完成 PAR-Q+ 追蹤問題並諮詢）",
+    high: "高風險（胸痛、頭暈／昏厥或醫囑須醫療監督；任何強度前都需醫師評估，評估前僅低強度）",
+  }[parq.level];
   const parqYesCount = parq.yesCount;
   const parqYesDetail =
     parq.yesQuestions.length > 0
@@ -457,7 +468,7 @@ ${bmi ? `- BMI：${bmi}` : "- BMI：未計算（未成年）"}
 - 運動目標：${goalMap[exercise_goal] || exercise_goal}
 - 運動限制：${limitations && limitations.length > 0 ? limitations.map((l) => limitationMap[l] || l).join("、") : "無"}
 
-【PAR-Q 運動準備評估】
+【PAR-Q+ 運動準備評估】
 - 風險等級：${parqRiskLevel}
 - 回答「是」的問題數：${parqYesCount}/7
 - 回答「是」的項目：
