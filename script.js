@@ -904,24 +904,6 @@ function collectFormData() {
 }
 
 // 生成運動處方（根據 ACSM FITT-VP 原則）
-function generatePrescription() {
-  try {
-    const data = collectFormData();
-
-    // 保存表單數據供顯示函數使用
-    window.lastFormData = data;
-
-    const prescription = calculateFITTVP(data);
-
-    displayPrescriptionSummary(prescription);
-    displayFITTPDetails(prescription);
-    displayExerciseGuidelines(prescription);
-  } catch (error) {
-    console.error("Error generating prescription:", error);
-    alert("生成運動處方時發生錯誤，請檢查輸入資料");
-  }
-}
-
 // PAR-Q 風險評估函數
 // PAR-Q+ 分級規則（與 functions/_lib/ai.js 的 assessParqLevel、parq-script.js 的 assessParqLevel 一致）：
 // - 任一題「是」→ 建議先諮詢醫師（moderate）
@@ -2613,6 +2595,7 @@ const AI_API_ENDPOINT = "/api/ai-recommendation";
 window.lastPrescription = null;
 
 // AI 提供商資訊與模型選項
+// 模型清單必須與 functions/_lib/ai.js 的 MODEL_ALLOWLIST 同步，否則後端會回 400
 const AI_PROVIDERS = {
   auto: {
     name: "自動選擇（免費版）",
@@ -2625,26 +2608,9 @@ const AI_PROVIDERS = {
     hint: "免費 API，前往 https://console.groq.com 取得金鑰",
     needsKey: false,
     models: [
-      {
-        id: "llama-3.3-70b-versatile",
-        name: "Llama 3.3 70B（推薦）",
-        description: "最強大、最準確",
-      },
-      {
-        id: "llama-3.1-8b-instant",
-        name: "Llama 3.1 8B",
-        description: "快速回應",
-      },
-      {
-        id: "mixtral-8x7b-32768",
-        name: "Mixtral 8x7B",
-        description: "平衡效能",
-      },
-      {
-        id: "gemma2-9b-it",
-        name: "Gemma 2 9B",
-        description: "Google 輕量模型",
-      },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B（推薦）", description: "推理能力強" },
+      { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", description: "較快" },
+      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", description: "快速回應" },
     ],
   },
   openai: {
@@ -2652,14 +2618,10 @@ const AI_PROVIDERS = {
     hint: "前往 https://platform.openai.com/api-keys 取得金鑰",
     needsKey: true,
     models: [
-      {
-        id: "gpt-4o",
-        name: "GPT-4o（推薦）",
-        description: "最強大的多模態模型",
-      },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", description: "快速且經濟" },
-      { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "高效能版本" },
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "經濟實惠" },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini（推薦）", description: "快速且經濟" },
+      { id: "gpt-4o", name: "GPT-4o", description: "較強" },
+      { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", description: "新版輕量" },
+      { id: "gpt-4.1", name: "GPT-4.1", description: "新版完整" },
     ],
   },
   claude: {
@@ -2667,49 +2629,18 @@ const AI_PROVIDERS = {
     hint: "前往 https://console.anthropic.com 取得金鑰",
     needsKey: true,
     models: [
-      {
-        id: "claude-sonnet-4-20250514",
-        name: "Claude Sonnet 4（推薦）",
-        description: "最新最強",
-      },
-      {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "平衡效能與成本",
-      },
-      {
-        id: "claude-3-5-haiku-20241022",
-        name: "Claude 3.5 Haiku",
-        description: "快速且經濟",
-      },
-      {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "最高品質",
-      },
+      { id: "claude-opus-5", name: "Claude Opus 5（推薦）", description: "最強" },
+      { id: "claude-sonnet-5", name: "Claude Sonnet 5", description: "平衡效能與成本" },
+      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", description: "快速且經濟" },
     ],
   },
   gemini: {
     name: "Gemini (Google)",
-    hint: "前往 https://makersuite.google.com/app/apikey 取得金鑰",
+    hint: "前往 https://aistudio.google.com/app/apikey 取得金鑰",
     needsKey: true,
     models: [
-      {
-        id: "gemini-2.0-flash-exp",
-        name: "Gemini 2.0 Flash（推薦）",
-        description: "最新實驗版本",
-      },
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "進階推理能力",
-      },
-      {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
-        description: "快速回應",
-      },
-      { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", description: "穩定版本" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash（推薦）", description: "快速" },
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "進階推理" },
     ],
   },
 };
@@ -2782,32 +2713,86 @@ function getAISettings() {
   };
 }
 
+// ===== AI 建議：使用者主動觸發，回應以 DOMPurify 清洗後才寫入 =====
+const AI_CLIENT_TIMEOUT_MS = 40000;
+let aiRequestSeq = 0; // 每次產生處方或發出請求 +1；舊請求的回應一律丟棄
+let aiAbortController = null;
+
+function setAIState(state) {
+  const panels = {
+    idle: "aiConsent",
+    loading: "aiLoading",
+    content: "aiContent",
+    error: "aiError",
+  };
+  for (const [key, id] of Object.entries(panels)) {
+    document.getElementById(id)?.classList.toggle("hidden", key !== state);
+  }
+  document
+    .getElementById("aiRecommendationSection")
+    ?.setAttribute("aria-busy", state === "loading" ? "true" : "false");
+  document
+    .getElementById("refreshAiBtn")
+    ?.classList.toggle("hidden", state === "idle");
+}
+
+// 產生新處方時呼叫：取消進行中的請求、清空舊內容、回到「等待使用者按下」狀態
+function resetAISection() {
+  if (aiAbortController) aiAbortController.abort();
+  aiRequestSeq++;
+  const contentEl = document.getElementById("aiContent");
+  if (contentEl) contentEl.innerHTML = "";
+  document.getElementById("aiProviderBadge")?.classList.add("hidden");
+  document.getElementById("aiTruncatedNote")?.classList.add("hidden");
+  setAIState("idle");
+}
+
+function describeClientError(error) {
+  if (error?.name === "AbortError") {
+    return "AI 回應逾時，請稍後再試一次。";
+  }
+  if (
+    error?.message?.includes("Failed to fetch") ||
+    error?.message?.includes("NetworkError")
+  ) {
+    return "AI 服務暫時無法連線，請查看下方的標準運動處方建議。";
+  }
+  return error?.message || "AI 服務暫時無法使用，請查看下方的標準運動處方建議。";
+}
+
 // 獲取 AI 建議
 async function fetchAIRecommendation() {
-  const loadingEl = document.getElementById("aiLoading");
   const contentEl = document.getElementById("aiContent");
-  const errorEl = document.getElementById("aiError");
   const errorMsgEl = document.getElementById("aiErrorMessage");
   const providerBadge = document.getElementById("aiProviderBadge");
   const providerName = document.getElementById("aiProviderName");
   const refreshBtn = document.getElementById("refreshAiBtn");
+  const truncatedNote = document.getElementById("aiTruncatedNote");
 
-  // 顯示載入狀態
-  loadingEl.classList.remove("hidden");
-  contentEl.classList.add("hidden");
-  errorEl.classList.add("hidden");
+  // 沒有清洗器就不顯示任何外部產生的 HTML（fail-closed）
+  if (!window.DOMPurify) {
+    errorMsgEl.textContent =
+      "安全過濾元件未載入，為保護您的資料，AI 建議暫不顯示。請重新整理頁面後再試。";
+    setAIState("error");
+    return;
+  }
+
+  if (aiAbortController) aiAbortController.abort();
+  const controller = new AbortController();
+  aiAbortController = controller;
+  const seq = ++aiRequestSeq;
+
+  setAIState("loading");
   providerBadge.classList.add("hidden");
-
+  truncatedNote?.classList.add("hidden");
   if (refreshBtn) {
     refreshBtn.disabled = true;
     refreshBtn.classList.add("opacity-50");
   }
 
   try {
-    // 準備要發送的資料
     const formData = window.lastFormData;
     const prescription = window.lastPrescription;
-
     if (!formData || !prescription) {
       throw new Error("缺少表單或處方資料");
     }
@@ -2822,71 +2807,60 @@ async function fetchAIRecommendation() {
         volume: prescription.volume,
       },
     };
-
-    // 獲取 AI 設定（提供商、模型、API 金鑰）
     const aiSettings = getAISettings();
 
-    // 呼叫 AI API
-    const response = await fetch(AI_API_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userData,
-        provider: aiSettings.provider,
-        model: aiSettings.model,
-        customApiKey: aiSettings.customApiKey || null,
-      }),
-    });
+    const timeoutId = setTimeout(() => controller.abort(), AI_CLIENT_TIMEOUT_MS);
+    let response;
+    try {
+      response = await fetch(AI_API_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userData,
+          provider: aiSettings.provider,
+          model: aiSettings.model,
+          customApiKey: aiSettings.customApiKey || null,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({
+      success: false,
+      error: `伺服器回應異常（${response.status}）`,
+    }));
+
+    if (seq !== aiRequestSeq) return; // 已有更新的請求或新處方，丟棄這份回應
 
     if (!result.success) {
       throw new Error(result.error || "AI 服務回應錯誤");
     }
 
-    // 顯示 AI 建議：先以 DOMPurify 清洗，移除 <script>/on* 事件等 XSS 向量（保留表格與樣式）
-    loadingEl.classList.add("hidden");
-    contentEl.innerHTML = window.DOMPurify
-      ? window.DOMPurify.sanitize(result.recommendation)
-      : result.recommendation;
-    contentEl.classList.remove("hidden");
+    contentEl.innerHTML = window.DOMPurify.sanitize(result.recommendation);
+    setAIState("content");
+    truncatedNote?.classList.toggle("hidden", !result.truncated);
 
-    // 顯示提供商標示
     if (result.provider) {
       providerName.textContent = result.provider;
       providerBadge.classList.remove("hidden");
     }
   } catch (error) {
+    if (seq !== aiRequestSeq) return;
     console.error("AI 建議獲取失敗:", error);
-
-    // 顯示錯誤狀態
-    loadingEl.classList.add("hidden");
-    errorEl.classList.remove("hidden");
-
-    if (
-      error.message.includes("Failed to fetch") ||
-      error.message.includes("NetworkError")
-    ) {
-      errorMsgEl.textContent =
-        "AI 服務暫時無法連線，請查看下方的標準運動處方建議。";
-    } else {
-      errorMsgEl.textContent =
-        error.message || "AI 服務暫時無法使用，請查看下方的標準運動處方建議。";
-    }
+    errorMsgEl.textContent = describeClientError(error);
+    setAIState("error");
   } finally {
-    if (refreshBtn) {
+    if (seq === aiRequestSeq && refreshBtn) {
       refreshBtn.disabled = false;
       refreshBtn.classList.remove("opacity-50");
     }
   }
 }
 
-// 修改原有的 generatePrescription 函數，整合 AI 功能
-const originalGeneratePrescription = generatePrescription;
-
-generatePrescription = function () {
+// 產生處方：前端確定性計算並顯示；AI 建議改由使用者按鈕觸發（見 fetchAIRecommendation）
+function generatePrescription() {
   try {
     const data = collectFormData();
     // 保存表單數據
@@ -2901,37 +2875,10 @@ generatePrescription = function () {
     displayFITTPDetails(prescription);
     displayExerciseGuidelines(prescription);
 
-    // 自動觸發 AI 建議獲取
-    setTimeout(() => {
-      fetchAIRecommendation();
-    }, 100);
+    // AI 區塊回到「等待使用者同意並按下」狀態；不自動把健康資料送出
+    resetAISection();
   } catch (error) {
     console.error("Error generating prescription:", error);
     alert("生成運動處方時發生錯誤，請檢查輸入資料");
   }
-};
-
-// 檢查 AI 服務健康狀態（可選）
-async function checkAIHealth() {
-  try {
-    const response = await fetch("/api/health");
-    const data = await response.json();
-    return data.status === "ok";
-  } catch (error) {
-    return false;
-  }
 }
-
-// 頁面載入時檢查 AI 服務
-document.addEventListener("DOMContentLoaded", function () {
-  checkAIHealth().then((isAvailable) => {
-    if (!isAvailable) {
-      // 如果 AI 服務不可用，可以隱藏 AI 區塊或顯示提示
-      const aiSection = document.getElementById("aiRecommendationSection");
-      if (aiSection) {
-        // 保持顯示但會自動顯示錯誤訊息
-        // AI 服務不可用，使用標準處方
-      }
-    }
-  });
-});

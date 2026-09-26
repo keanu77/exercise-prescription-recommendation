@@ -1043,7 +1043,7 @@
                             </svg>
                             AI 智慧建議
                         </h3>
-                        <button id="refreshAiBtn" onclick="fetchAIRecommendation()" class="text-purple-600 hover:text-purple-800 flex items-center text-sm">
+                        <button id="refreshAiBtn" onclick="fetchAIRecommendation()" class="hidden text-purple-600 hover:text-purple-800 flex items-center text-sm">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                             </svg>
@@ -1051,10 +1051,27 @@
                         </button>
                     </div>
 
+                    <!-- 使用者主動觸發：說明資料用途後才送出 -->
+                    <div id="aiConsent" class="py-4">
+                        <div class="bg-white rounded-lg p-4 border border-purple-100 mb-4">
+                            <p class="font-medium text-gray-800 mb-2">要取得 AI 補充說明嗎？（選用）</p>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>• 按下按鈕後，您填寫的年齡、性別、身高體重、健康狀況、運動習慣、PAR-Q 回答與上方處方，會經本站伺服器轉送給第三方 AI 服務（預設 Groq）以產生說明。</li>
+                                <li>• 不包含姓名或聯絡方式；本站與 AI 服務均不會儲存這些資料作為個人檔案。</li>
+                                <li>• 不按也沒關係，下方的標準運動處方已完整可用。</li>
+                            </ul>
+                        </div>
+                        <div class="text-center">
+                            <button type="button" onclick="fetchAIRecommendation()" class="btn-primary">
+                                我了解，取得 AI 建議
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- AI 載入中狀態 -->
-                    <div id="aiLoading" class="text-center py-8">
+                    <div id="aiLoading" class="hidden text-center py-8" role="status" aria-live="polite">
                         <div class="inline-flex items-center">
-                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -1066,9 +1083,15 @@
                     <div id="aiContent" class="hidden prose prose-purple max-w-none">
                         <!-- 動態插入 AI 回應 -->
                     </div>
+                    <p id="aiTruncatedNote" class="hidden mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        AI 回應長度達到上限，內容可能不完整。請以下方的標準運動處方為準，或按「重新生成」再試一次。
+                    </p>
+                    <p class="mt-4 text-sm text-gray-700 bg-white border border-purple-100 rounded-lg p-3">
+                        本區內容由 AI 自動產生，僅供衛教參考，無法取代醫師診察與個別化醫療建議。內容若與上方標準處方或您的醫師建議不同，請以醫師建議為準。
+                    </p>
 
                     <!-- AI 錯誤狀態 -->
-                    <div id="aiError" class="hidden">
+                    <div id="aiError" class="hidden" role="alert">
                         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <div class="flex items-start">
                                 <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1119,7 +1142,7 @@
                                     <span id="apiKeyLabel">API 金鑰</span>
                                     <span class="text-gray-400 font-normal">（選填，留空使用系統預設）</span>
                                 </label>
-                                <input type="password" id="customApiKey" placeholder="輸入您的 API 金鑰"
+                                <input type="password" id="customApiKey" placeholder="輸入您的 API 金鑰" autocomplete="off"
                                        class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
                                 <p id="apiKeyHint" class="text-xs text-gray-500 mt-1"></p>
                             </div>
@@ -1137,6 +1160,12 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 免責聲明（結果頁常駐） -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800">
+                <p class="font-semibold mb-1">請先閱讀</p>
+                <p>本結果為自評工具依您填寫的資料自動產生之衛教參考，無法取代醫師診察、運動測試或影像檢查等專業評估。有慢性疾病、心血管風險、懷孕，或運動中曾出現胸痛、頭暈、異常喘等不適者，開始或調整運動計畫前請先諮詢醫師；症狀持續或惡化請就醫。</p>
             </div>
 
             <!-- 運動處方摘要卡片 -->

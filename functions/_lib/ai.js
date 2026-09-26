@@ -1,97 +1,192 @@
 /**
- * 運動處方 AI 建議 — 共用邏輯（由 server.js 抽出，供 Cloudflare Pages Functions 使用）
- * 與 server.js 的差異：金鑰不再從 process.env 讀取，一律由呼叫端傳入。
- * 修改提示詞或驗證規則時請同步更新 server.js（Zeabur 版本）與本檔。
+ * 運動處方 AI 建議 — 共用邏輯（Cloudflare Pages Functions 使用）
+ * 金鑰一律由呼叫端傳入（Pages Secrets 或使用者自帶）。
+ * 這是唯一的後端 AI 邏輯來源；提示詞、驗證規則、模型清單都在這裡改。
  */
+// ============== 對照表（驗證白名單與 AI 摘要共用） ==============
+
+const fitnessMap = {
+  excellent: "良好",
+  good: "尚可",
+  fair: "容易疲勞",
+  poor: "日常活動困難",
+};
+
+const habitMap = {
+  none: "沒有運動習慣",
+  light: "偶爾運動（每週1-2次）",
+  moderate: "規律運動（每週3-4次）",
+  active: "經常運動（每週5次以上）",
+  student_athlete: "學生運動員或專業訓練",
+};
+
+const goalMap = {
+  health: "健康維護",
+  weight_loss: "減重瘦身",
+  muscle_building: "增肌塑形",
+  endurance: "增強體能",
+  rehabilitation: "復健治療",
+  performance: "運動表現提升",
+};
+
+const diseaseMap = {
+  overweight: "體重過重",
+  asthma: "氣喘",
+  hypertension: "高血壓",
+  diabetes: "糖尿病",
+  arthritis: "關節問題",
+  heart_recovery: "心臟疾病",
+  sarcopenia: "肌少症",
+  pregnant: "孕婦",
+  hyperlipidemia: "高血脂",
+};
+
+const limitationMap = {
+  none: "無特別限制",
+  time: "時間限制",
+  motivation: "缺乏動機",
+  pain: "疼痛問題",
+  injury_history: "運動傷害史",
+  balance: "平衡感不佳",
+  palpitation: "心悸",
+  equipment: "缺乏運動設備",
+};
+
+const ENUMS = {
+  gender: ["male", "female", "other"],
+  health_status: ["healthy", "has_conditions"],
+  fitness_level: Object.keys(fitnessMap),
+  exercise_habit: Object.keys(habitMap),
+  exercise_goal: Object.keys(goalMap),
+  diseases: Object.keys(diseaseMap),
+  limitations: Object.keys(limitationMap),
+  intensity: ["light", "light-moderate", "moderate", "moderate-vigorous"],
+  parq_answer: ["yes", "no"],
+};
+const PARQ_KEYS = ["parq_q1", "parq_q2", "parq_q3", "parq_q4", "parq_q5", "parq_q6", "parq_q7"];
+const MAX_TYPE_ITEMS = 10;
+const TYPE_ITEM_PATTERN = /^[\u4e00-\u9fffA-Za-z0-9\s()（）\-\/、]{1,30}$/;
+
 // ============== 輸入驗證函數 ==============
+/**
+ * 驗證並正規化使用者資料。
+ * 回傳 { valid, errors, data }：data 只含通過白名單/範圍檢查後的欄位，
+ * buildUserSummary 只能吃 data，不得再碰原始輸入（避免 "35 INJECT" 這類數字前綴繞過）。
+ */
 function validateUserData(userData) {
   const errors = [];
+  const data = {};
 
-  if (!userData || typeof userData !== "object") {
-    return { valid: false, errors: ["用戶資料格式錯誤"] };
+  if (!userData || typeof userData !== "object" || Array.isArray(userData)) {
+    return { valid: false, errors: ["用戶資料格式錯誤"], data: null };
   }
 
-  // 驗證年齡（與前端一致：6-120 歲；本系統處方邏輯未涵蓋 6 歲以下）
-  if (userData.age !== undefined) {
-    const age = parseInt(userData.age, 10);
-    if (isNaN(age) || age < 6 || age > 120) {
-      errors.push("年齡必須在 6-120 歲之間");
+  const numberIn = (key, min, max, label, integer) => {
+    const raw = userData[key];
+    const n = typeof raw === "number" ? raw : Number(String(raw ?? "").trim());
+    if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) {
+      errors.push(`${label}必須在 ${min}-${max} 之間`);
+      return;
     }
-  }
-
-  // 驗證身高
-  if (userData.height !== undefined) {
-    const height = parseFloat(userData.height);
-    if (isNaN(height) || height < 50 || height > 300) {
-      errors.push("身高必須在 50-300 公分之間");
+    data[key] = n;
+  };
+  const enumIn = (key, list, label, required) => {
+    const v = userData[key];
+    if (v === undefined || v === null || v === "") {
+      if (required) errors.push(`缺少${label}`);
+      return;
     }
-  }
-
-  // 驗證體重
-  if (userData.weight !== undefined) {
-    const weight = parseFloat(userData.weight);
-    if (isNaN(weight) || weight < 10 || weight > 500) {
-      errors.push("體重必須在 10-500 公斤之間");
+    if (typeof v !== "string" || !list.includes(v)) {
+      errors.push(`${label}選項無效`);
+      return;
     }
+    data[key] = v;
+  };
+  const enumArrayIn = (key, list, label) => {
+    const v = userData[key];
+    if (v === undefined) {
+      data[key] = [];
+      return;
+    }
+    if (!Array.isArray(v) || v.length > list.length) {
+      errors.push(`${label}資料格式錯誤`);
+      return;
+    }
+    if (!v.every((x) => typeof x === "string" && list.includes(x))) {
+      errors.push(`${label}含無效選項`);
+      return;
+    }
+    data[key] = [...new Set(v)];
+  };
+
+  numberIn("age", 6, 120, "年齡", true);
+  numberIn("height", 50, 300, "身高", false);
+  numberIn("weight", 10, 500, "體重", false);
+  enumIn("gender", ENUMS.gender, "性別", true);
+  enumIn("health_status", ENUMS.health_status, "健康狀況", false);
+  enumIn("fitness_level", ENUMS.fitness_level, "體能自評", true);
+  enumIn("exercise_habit", ENUMS.exercise_habit, "運動習慣", true);
+  enumIn("exercise_goal", ENUMS.exercise_goal, "運動目標", true);
+  enumArrayIn("diseases", ENUMS.diseases, "疾病");
+  enumArrayIn("limitations", ENUMS.limitations, "運動限制");
+
+  // BMI：只在成人且有身高體重時由伺服器自行計算，不信任前端數值
+  if (data.age >= 18 && data.height && data.weight) {
+    data.bmi = Math.round((data.weight / Math.pow(data.height / 100, 2)) * 10) / 10;
+  } else {
+    data.bmi = null;
   }
 
-  // 驗證性別
-  const validGenders = ["male", "female", "other"];
-  if (userData.gender && !validGenders.includes(userData.gender)) {
-    errors.push("性別選項無效");
-  }
-
-  // 驗證運動目標
-  const validGoals = [
-    "health",
-    "weight_loss",
-    "muscle_building",
-    "endurance",
-    "rehabilitation",
-    "performance",
-  ];
-  if (userData.exercise_goal && !validGoals.includes(userData.exercise_goal)) {
-    errors.push("運動目標選項無效");
-  }
-
-  // 驗證 diseases / limitations 若存在必須為陣列（buildUserSummary 會 .map）
-  if (userData.diseases !== undefined && !Array.isArray(userData.diseases)) {
-    errors.push("疾病資料格式錯誤");
-  }
-  if (
-    userData.limitations !== undefined &&
-    !Array.isArray(userData.limitations)
-  ) {
-    errors.push("運動限制資料格式錯誤");
-  }
-
-  // 驗證 parq_answers 若存在必須為物件
-  if (
-    userData.parq_answers !== undefined &&
-    (typeof userData.parq_answers !== "object" ||
-      Array.isArray(userData.parq_answers))
-  ) {
+  // PAR-Q 答案：只接受 parq_q1..7 = yes|no
+  const pa = userData.parq_answers;
+  if (pa === undefined) {
+    data.parq_answers = {};
+  } else if (!pa || typeof pa !== "object" || Array.isArray(pa)) {
     errors.push("PAR-Q 答案格式錯誤");
+  } else {
+    data.parq_answers = {};
+    for (const key of PARQ_KEYS) {
+      const v = pa[key];
+      if (v === undefined) continue;
+      if (!ENUMS.parq_answer.includes(v)) {
+        errors.push("PAR-Q 答案含無效值");
+        break;
+      }
+      data.parq_answers[key] = v;
+    }
   }
 
-  // 驗證 prescription：buildUserSummary 會直接存取 prescription.type.join 等，必須完整
-  if (!userData.prescription || typeof userData.prescription !== "object") {
+  // prescription：前端規則引擎的結果，仍需範圍與白名單檢查
+  const p = userData.prescription;
+  if (!p || typeof p !== "object" || Array.isArray(p)) {
     errors.push("缺少運動處方資料");
   } else {
-    const p = userData.prescription;
-    if (!Array.isArray(p.type)) {
-      errors.push("運動處方類型格式錯誤");
-    }
+    const rx = {};
+    const freq = Number(p.frequency);
+    const time = Number(p.time);
+    if (!Number.isInteger(freq) || freq < 1 || freq > 7) errors.push("運動處方頻率無效");
+    else rx.frequency = freq;
+    if (!Number.isInteger(time) || time < 5 || time > 180) errors.push("運動處方時間無效");
+    else rx.time = time;
+    if (typeof p.intensity !== "string" || !ENUMS.intensity.includes(p.intensity)) {
+      errors.push("運動處方強度無效");
+    } else rx.intensity = p.intensity;
     if (
-      p.frequency === undefined ||
-      p.time === undefined ||
-      p.intensity === undefined
+      !Array.isArray(p.type) ||
+      p.type.length === 0 ||
+      p.type.length > MAX_TYPE_ITEMS ||
+      !p.type.every((t) => typeof t === "string" && TYPE_ITEM_PATTERN.test(t))
     ) {
-      errors.push("運動處方資料不完整");
+      errors.push("運動處方類型格式錯誤");
+    } else rx.type = [...p.type];
+    if (p.volume !== undefined) {
+      const vol = Number(p.volume);
+      rx.volume = Number.isFinite(vol) && vol >= 0 && vol <= 10000 ? Math.round(vol) : 0;
     }
+    data.prescription = rx;
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, data: errors.length === 0 ? data : null };
 }
 
 // 清理 API 金鑰（移除危險字元）
@@ -319,56 +414,14 @@ function buildUserSummary(data) {
     gender === "male" ? "男性" : gender === "female" ? "女性" : "其他";
 
   // 體能水平轉換
-  const fitnessMap = {
-    excellent: "良好",
-    good: "尚可",
-    fair: "容易疲勞",
-    poor: "日常活動困難",
-  };
 
   // 運動習慣轉換
-  const habitMap = {
-    none: "沒有運動習慣",
-    light: "偶爾運動（每週1-2次）",
-    moderate: "規律運動（每週3-4次）",
-    active: "經常運動（每週5次以上）",
-    student_athlete: "學生運動員或專業訓練",
-  };
 
   // 運動目標轉換
-  const goalMap = {
-    health: "健康維護",
-    weight_loss: "減重瘦身",
-    muscle_building: "增肌塑形",
-    endurance: "增強體能",
-    rehabilitation: "復健治療",
-    performance: "運動表現提升",
-  };
 
   // 疾病轉換
-  const diseaseMap = {
-    overweight: "體重過重",
-    asthma: "氣喘",
-    hypertension: "高血壓",
-    diabetes: "糖尿病",
-    arthritis: "關節問題",
-    heart_recovery: "心臟疾病",
-    sarcopenia: "肌少症",
-    pregnant: "孕婦",
-    hyperlipidemia: "高血脂",
-  };
 
   // 限制轉換
-  const limitationMap = {
-    none: "無特別限制",
-    time: "時間限制",
-    motivation: "缺乏動機",
-    pain: "疼痛問題",
-    injury_history: "運動傷害史",
-    balance: "平衡感不佳",
-    palpitation: "心悸",
-    equipment: "缺乏運動設備",
-  };
 
   // PAR-Q 評估（分級規則與前端 script.js assessPARQRisk 一致）
   const parq = assessParqLevel(parq_answers);
@@ -423,184 +476,169 @@ ${parqYesDetail}
 const AI_REQUEST_TIMEOUT_MS = 30000;
 
 // ============== 預設模型配置 ==============
+// 模型白名單：client 指定的 model 必須在清單內，避免用站方金鑰打任意（高價）模型。
+// 前端 script.js 的 AI_PROVIDERS 清單必須與此同步。
+// 註：Groq / Gemini / OpenAI 的可用模型名稱會隨供應商異動，請定期核對官方清單。
+const MODEL_ALLOWLIST = {
+  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"],
+  openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"],
+  claude: ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"],
+  gemini: ["gemini-2.5-flash", "gemini-2.5-pro"],
+};
 const DEFAULT_MODELS = {
   groq: "openai/gpt-oss-120b", // 2026-09-18：llama-3.3-70b-versatile 已被 Groq 下架，改用 gpt-oss-120b
   openai: "gpt-4o-mini",
-  claude: "claude-sonnet-4-20250514",
-  gemini: "gemini-2.0-flash-exp",
+  claude: "claude-opus-5",
+  gemini: "gemini-2.5-flash",
 };
 
 // ============== AI 提供商呼叫函數 ==============
 
-// 呼叫 Groq API（免費基本款）
-async function callGroqAPI(
-  userSummary,
-  apiKey,
-  model = DEFAULT_MODELS.groq,
-) {
-  const response = await fetch(
+// ============== 上游呼叫共用 ==============
+const USER_PROMPT_PREFIX = "請根據以下用戶資料，提供個人化的運動處方建議：\n\n";
+const MAX_OUTPUT_TOKENS = 8192; // 模板本身含多個表格，2048 會把後段的安全警示截掉
+
+async function readUpstreamError(response, label) {
+  let detail = response.statusText || String(response.status);
+  try {
+    const text = await response.text();
+    try {
+      const parsed = JSON.parse(text);
+      detail = parsed?.error?.message || parsed?.message || detail;
+    } catch {
+      if (text) detail = text.slice(0, 200);
+    }
+  } catch {
+    /* 讀不到錯誤體就用 statusText */
+  }
+  const err = new Error(`${label} API 錯誤 (${response.status}): ${detail}`);
+  err.upstreamStatus = response.status;
+  return err;
+}
+
+function ensureContent(text, label) {
+  if (typeof text !== "string" || text.trim() === "") {
+    throw new Error(`${label} API 回傳空白內容`);
+  }
+  return text;
+}
+
+function postJson(url, headers, body) {
+  return fetch(url, {
+    method: "POST",
+    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+}
+
+// 呼叫 Groq API（OpenAI 相容格式）
+async function callGroqAPI(userSummary, apiKey, model = DEFAULT_MODELS.groq) {
+  const response = await postJson(
     "https://api.groq.com/openai/v1/chat/completions",
+    { Authorization: `Bearer ${apiKey}` },
     {
-      method: "POST",
-      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
-          },
-        ],
-        max_tokens: 6000, // gpt-oss 為 reasoning 模型，推理 token 也計入上限；2048 會把處方截斷
-        reasoning_effort: "low",
-        temperature: 0.7,
-      }),
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: USER_PROMPT_PREFIX + userSummary },
+      ],
+      max_tokens: 6000, // gpt-oss 為 reasoning 模型，推理 token 也計入上限
+      reasoning_effort: "low",
+      temperature: 0.7,
     },
   );
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `Groq API 錯誤: ${error.error?.message || response.statusText}`,
-    );
-  }
-
+  if (!response.ok) throw await readUpstreamError(response, "Groq");
   const data = await response.json();
-  return { content: data.choices[0].message.content, model: model };
+  const choice = data?.choices?.[0];
+  return {
+    content: ensureContent(choice?.message?.content, "Groq"),
+    model,
+    truncated: choice?.finish_reason === "length",
+  };
 }
 
 // 呼叫 Claude API
-async function callClaudeAPI(
-  userSummary,
-  apiKey,
-  model = DEFAULT_MODELS.claude,
-) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: model,
-      max_tokens: 2048,
+async function callClaudeAPI(userSummary, apiKey, model = DEFAULT_MODELS.claude) {
+  const response = await postJson(
+    "https://api.anthropic.com/v1/messages",
+    { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    {
+      model,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `Claude API 錯誤: ${error.error?.message || response.statusText}`,
-    );
-  }
-
+      messages: [{ role: "user", content: USER_PROMPT_PREFIX + userSummary }],
+    },
+  );
+  if (!response.ok) throw await readUpstreamError(response, "Claude");
   const data = await response.json();
-  return { content: data.content[0].text, model: model };
+  const text = (data?.content || [])
+    .filter((b) => b?.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return {
+    content: ensureContent(text, "Claude"),
+    model,
+    truncated: data?.stop_reason === "max_tokens",
+  };
 }
 
 // 呼叫 Gemini API
-async function callGeminiAPI(
-  userSummary,
-  apiKey,
-  model = DEFAULT_MODELS.gemini,
-) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+async function callGeminiAPI(userSummary, apiKey, model = DEFAULT_MODELS.gemini) {
+  const response = await postJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    // 金鑰走 header，避免出現在 URL（URL 易被 log / proxy 記錄）
+    { "x-goog-api-key": apiKey },
     {
-      method: "POST",
-      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-      headers: {
-        "Content-Type": "application/json",
-        // 金鑰改走 header，避免出現在 URL（URL 易被 log / proxy 記錄）
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${SYSTEM_PROMPT}\n\n請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.7,
-        },
-      }),
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: USER_PROMPT_PREFIX + userSummary }] }],
+      generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
     },
   );
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `Gemini API 錯誤: ${error.error?.message || response.statusText}`,
-    );
-  }
-
+  if (!response.ok) throw await readUpstreamError(response, "Gemini");
   const data = await response.json();
-  return { content: data.candidates[0].content.parts[0].text, model: model };
+  const candidate = data?.candidates?.[0];
+  const text = (candidate?.content?.parts || []).map((p) => p?.text || "").join("");
+  return {
+    content: ensureContent(text, "Gemini"),
+    model,
+    truncated: candidate?.finishReason === "MAX_TOKENS",
+  };
 }
 
 // 呼叫 OpenAI API
-async function callOpenAIAPI(
-  userSummary,
-  apiKey,
-  model = DEFAULT_MODELS.openai,
-) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: model,
+async function callOpenAIAPI(userSummary, apiKey, model = DEFAULT_MODELS.openai) {
+  const response = await postJson(
+    "https://api.openai.com/v1/chat/completions",
+    { Authorization: `Bearer ${apiKey}` },
+    {
+      model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `請根據以下用戶資料，提供個人化的運動處方建議：\n\n${userSummary}`,
-        },
+        { role: "user", content: USER_PROMPT_PREFIX + userSummary },
       ],
-      max_tokens: 2048,
+      max_tokens: MAX_OUTPUT_TOKENS,
       temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `OpenAI API 錯誤: ${error.error?.message || response.statusText}`,
-    );
-  }
-
+    },
+  );
+  if (!response.ok) throw await readUpstreamError(response, "OpenAI");
   const data = await response.json();
-  return { content: data.choices[0].message.content, model: model };
+  const choice = data?.choices?.[0];
+  return {
+    content: ensureContent(choice?.message?.content, "OpenAI"),
+    model,
+    truncated: choice?.finish_reason === "length",
+  };
 }
 
 export {
   validateUserData,
   sanitizeApiKey,
   buildUserSummary,
+  assessParqLevel,
   SYSTEM_PROMPT,
   DEFAULT_MODELS,
+  MODEL_ALLOWLIST,
   AI_REQUEST_TIMEOUT_MS,
   callGroqAPI,
   callClaudeAPI,
