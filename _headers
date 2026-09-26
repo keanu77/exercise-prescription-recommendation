@@ -1,13 +1,25 @@
 # Cloudflare Pages 靜態標頭（由 scripts/build-pages.sh 複製進 dist/）。
-# 對齊 server.js 的 helmet CSP 與快取策略：HTML 不快取，其餘靜態檔快取 1 小時。
+# 快取策略：HTML 與 API 不快取；JS/CSS 沒有內容 hash，改成每次 revalidate（靠 ETag），
+# 避免部署後新 HTML 搭到舊 JS；其餘靜態檔（圖片、favicon）快取 1 小時。
+# CSP：瀏覽器只打同站 /api，不直連 AI 供應商；AI 回傳的 HTML 經 DOMPurify 後不含外部圖片。
 
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
   Cross-Origin-Opener-Policy: same-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.groq.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.openai.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; object-src 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=15552000; includeSubDomains
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self'; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests
   Cache-Control: public, max-age=3600
+
+/*.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.css
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
 
 /*.html
   ! Cache-Control

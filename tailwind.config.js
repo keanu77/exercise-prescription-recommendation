@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   // 掃描所有會用到 class 的檔案，避免 purge 掉動態產生的類別
   content: ["./index.html", "./parq-form.html", "./*.js"],
   safelist: [

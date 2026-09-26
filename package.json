@@ -1,13 +1,15 @@
 {
   "name": "exercise-prescription-system",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "運動處方推薦系統 - 基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引，整合 AI 個人化建議",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "node scripts/dev-server.mjs",
+    "start": "node scripts/dev-server.mjs",
     "build:css": "tailwindcss -i ./src/input.css -o ./tailwind.css --minify",
-    "build": "echo 'Tailwind 已預編譯並 commit（tailwind.css），Zeabur 部署不需重編譯；本地改 class 後請手動跑 npm run build:css 並 commit'"
+    "build:pages": "bash scripts/build-pages.sh",
+    "deploy": "npm run build:pages && npx wrangler pages deploy dist --project-name exercise-prescription",
+    "test": "node --test"
   },
   "keywords": [
     "exercise",
@@ -21,17 +23,8 @@
   ],
   "author": "運動醫學科 吳易澄醫師",
   "license": "MIT",
-  "dependencies": {
-    "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^8.2.1",
-    "helmet": "^8.1.0",
-    "validator": "^13.15.23"
-  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.19"
