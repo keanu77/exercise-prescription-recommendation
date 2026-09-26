@@ -41,7 +41,6 @@ with sync_playwright() as p:
         loadingModalActive: style('loading-modal active').display,
         spinnerAnim: style('loading-spinner').animationName,
         inactiveStepOpacity: getComputedStyle(document.querySelector('.step-indicator[data-step="3"]')).opacity,
-        inactiveLabelColor: getComputedStyle(document.querySelector('.step-indicator[data-step="3"] .step-label')).color,
         oninput: document.getElementById('age').getAttribute('oninput'),
         deadFns: ['formatDiseases','showFieldError','markFieldComplete','getFitnessLevelText','getExerciseHabitText'].filter(f => typeof window[f] === 'function'),
         loadScriptArity: loadScript.length,
@@ -52,7 +51,27 @@ with sync_playwright() as p:
     ok(st["fontWeights"] and st["preconnectCdn"], "font weights 400/500/700 + cdnjs preconnect")
     ok(st["iconPos"] == "absolute" and st["wrapperPos"] == "relative", "validation icon/wrapper styles migrated", json.dumps({"icon": st["iconPos"], "wrap": st["wrapperPos"]}))
     ok(st["loadingModal"] == "none" and st["loadingModalActive"] == "flex" and st["spinnerAnim"] == "spin", "loading modal styles migrated", json.dumps({"m": st["loadingModal"], "a": st["loadingModalActive"], "s": st["spinnerAnim"]}))
-    ok(st["inactiveStepOpacity"] == "1" and st["inactiveLabelColor"] == "rgb(75, 85, 99)", "inactive step: opacity 1, gray-600 label (inline override gone)", json.dumps({"o": st["inactiveStepOpacity"], "c": st["inactiveLabelColor"]}))
+    ok(st["inactiveStepOpacity"] == "1", "inactive step remains fully opaque")
+    # The sports design has a dark desktop sidebar and a light mobile stepper.
+    # Check readability on both surfaces instead of locking in the old gray color.
+    for width in [390, 1280]:
+        pg.set_viewport_size({"width": width, "height": 900})
+        contrast = pg.evaluate("""() => {
+          const label = document.querySelector('.step-indicator[data-step="3"] .step-label');
+          const rgb = color => color.match(/[\\d.]+/g).map(Number);
+          const luminance = channels => channels.slice(0, 3).map(v => {
+            const s = v / 255;
+            return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+          }).reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+          let surface = label;
+          while (surface && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') {
+            surface = surface.parentElement;
+          }
+          const foreground = luminance(rgb(getComputedStyle(label).color));
+          const background = luminance(rgb(surface ? getComputedStyle(surface).backgroundColor : 'rgb(255, 255, 255)'));
+          return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+        }""")
+        ok(contrast >= 4.5, f"inactive step label contrast at {width}px", f"{contrast:.2f}:1")
     ok(st["oninput"] is None, "numeric input uses external event listener")
     ok(st["deadFns"] == [], "dead functions removed", st["deadFns"])
     ok(st["loadScriptArity"] == 2, "loadScript accepts integrity")

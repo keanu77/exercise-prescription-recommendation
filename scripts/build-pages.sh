@@ -21,6 +21,8 @@ ASSETS=(
   apple-touch-icon.png
   og-image.png
   _headers
+  assets/running-track-720.webp
+  assets/running-track-1440.webp
 )
 
 # 1. 先驗證資產齊全，再動 dist/（避免缺檔時留下半套輸出）
@@ -61,7 +63,8 @@ done
 mkdir -p "$OUT"
 find "$OUT" -mindepth 1 -delete
 for f in "${ASSETS[@]}"; do
+  mkdir -p "$(dirname "$OUT/$f")"
   cp "$ROOT/$f" "$OUT/$f"
 done
 
-echo "dist/ ready: $(ls "$OUT" | wc -l | tr -d ' ') files"
+echo "dist/ ready: $(find "$OUT" -type f | wc -l | tr -d ' ') files"

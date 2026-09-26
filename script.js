@@ -1857,7 +1857,7 @@ function displayPrescriptionSummary(prescription) {
     );
 
     bmiSection = `
-            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="bmi-summary bg-gray-50 rounded-lg p-4 mb-4">
                 <div class="text-center">
                     <span class="text-sm text-gray-600">BMI 指數：</span>
                     <span class="text-lg font-bold ${bmiColor}">${data.bmi}</span>
@@ -1885,7 +1885,7 @@ function displayPrescriptionSummary(prescription) {
   if (parqRisk.level === "high") parqColor = "red";
 
   parqSection = `
-        <div class="bg-${parqColor}-50 rounded-lg p-4 mb-4 border border-${parqColor}-200">
+        <div class="risk-summary bg-${parqColor}-50 rounded-lg p-4 mb-4 border border-${parqColor}-200">
             <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div>
                     <span class="text-sm text-gray-600">PAR-Q 評估：</span>
@@ -1920,8 +1920,8 @@ function displayPrescriptionSummary(prescription) {
     }[data.exercise_habit] || "無運動習慣";
 
   container.innerHTML = `
-        <div class="text-center mb-6">
-            <h3 class="text-3xl font-bold text-blue-800 mb-2">您的個人化運動處方</h3>
+        <div class="summary-heading text-center mb-6">
+            <h3 class="text-3xl font-bold text-blue-800 mb-2">你的運動起點</h3>
             <div class="text-xl text-gray-700">
                 <strong>${exerciseTypes} ${timeText} × ${frequencyText}</strong>
             </div>
@@ -1929,7 +1929,7 @@ function displayPrescriptionSummary(prescription) {
         </div>
 
         <!-- 個人資訊摘要 -->
-        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <div class="profile-summary bg-gray-50 rounded-lg p-4 mb-4">
             <div class="grid md:grid-cols-3 gap-4 text-sm">
                 <div><span class="font-semibold">年齡：</span>${data.age}歲 | <span class="font-semibold">性別：</span>${data.gender === "male" ? "男" : data.gender === "female" ? "女" : "其他"}</div>
                 <div><span class="font-semibold">運動目標：</span>${goalText}</div>
@@ -2009,33 +2009,33 @@ function displayFITTPDetails(prescription) {
   container.innerHTML = `
         <div class="space-y-4">
             <div class="border-l-4 border-blue-500 pl-4">
-                <h4 class="font-semibold text-lg">Frequency (頻率)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">F</span><span>頻率 <small lang="en">Frequency</small></span></h4>
                 <p class="text-gray-600">${frequencyText}</p>
             </div>
             
             <div class="border-l-4 border-green-500 pl-4">
-                <h4 class="font-semibold text-lg">Intensity (強度)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">I</span><span>強度 <small lang="en">Intensity</small></span></h4>
                 <p class="text-gray-600">${intensityDescription}</p>
             </div>
             
             <div class="border-l-4 border-purple-500 pl-4">
-                <h4 class="font-semibold text-lg">Time (時間)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">T</span><span>時間 <small lang="en">Time</small></span></h4>
                 <p class="text-gray-600">${prescription.frequency === 7 ? "每日" : "每次運動"} ${prescription.time} 分鐘</p>
             </div>
             
             <div class="border-l-4 border-orange-500 pl-4">
-                <h4 class="font-semibold text-lg">Type (類型)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">T</span><span>類型 <small lang="en">Type</small></span></h4>
                 <p class="text-gray-600">${prescription.type.join("、")}</p>
             </div>
             
             <div class="border-l-4 border-red-500 pl-4">
-                <h4 class="font-semibold text-lg">Volume (總量)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">V</span><span>總量 <small lang="en">Volume</small></span></h4>
                 <p class="text-gray-600">${prescription.volume === 0 ? "重點在活動多樣性與趣味性" : `每週約 ${prescription.volume} MET-minutes`}</p>
                 ${prescription.weeklyMinutes ? `<p class="text-gray-500 text-sm mt-1">每週總運動時間目標：${prescription.weeklyMinutes} 分鐘</p>` : ""}
             </div>
 
             <div class="border-l-4 border-gray-500 pl-4">
-                <h4 class="font-semibold text-lg">Progression (進展)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">P</span><span>進展 <small lang="en">Progression</small></span></h4>
                 <p class="text-gray-600">${prescription.progression}</p>
             </div>
 
@@ -2373,6 +2373,7 @@ function createPDFContent() {
   const exerciseGuidelines = document.getElementById("exerciseGuidelines");
 
   const container = document.createElement("div");
+  container.className = "pdf-export";
   container.style.cssText = `
         position: absolute;
         top: -9999px;
