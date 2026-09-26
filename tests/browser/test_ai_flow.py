@@ -3,11 +3,12 @@
   PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3 tests/browser/<檔名>.py
 退出碼 0 = 全部通過。
 """
+import os
 import json
 import sys
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8765"
+BASE = os.environ.get("BASE_URL", "http://127.0.0.1:8765")
 fails = 0
 def ok(cond, name, extra=""):
     global fails

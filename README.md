@@ -11,6 +11,8 @@
 - PAR-Q+ 2025 運動前健康篩檢（官方 7 題）：任一題「是」導向完成追蹤問題並諮詢；胸痛、頭暈／昏厥或醫囑須醫療監督者列為最高風險（依 ACSM 2015 運動前篩檢演算法）
 - MET 活動資料庫與熱量估算；BMI、BMR、TDEE 計算（未成年、懷孕、體重過輕不顯示減重熱量）
 - AI 個人化說明（選用、使用者主動觸發），支援 Groq、Anthropic Claude、Google Gemini、OpenAI
+- 表單自動暫存在此分頁，可確認後清除問卷、處方、AI 回覆與自帶金鑰
+- 手機版處方摘要、快速下載 PDF／修改資料，以及可展開的強度與 MET 參考
 
 ## 架構
 
@@ -27,7 +29,8 @@
 npm install                # 只有 tailwindcss 一個 devDependency
 cp .env.example .env       # 填入至少一組 AI API 金鑰（建議 Groq，有免費額度）
 npm run dev                # http://127.0.0.1:3000，直接載入 functions/ 的 handler，可離線
-npm test                   # Pages Functions 單元測試（node --test）
+npm test                   # Pages Functions + 打包回歸測試（node --test）
+bash tests/browser/run_all.sh  # 九組 Python Playwright 測試，套用部署 CSP、自動起停伺服器
 npm run build:css          # 改動 Tailwind class 後必跑，並把 tailwind.css 一起 commit
 ```
 
@@ -39,14 +42,17 @@ npx wrangler pages secret put GROQ_API_KEY --project-name exercise-prescription
 npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度檢查）→ wrangler pages deploy dist
 ```
 
+`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright 與 Chromium，並能存取 cdnjs（DOMPurify、實際 PDF 匯出）；可用 `PY`、`PYTHONPATH` 指定環境。
+
 `wrangler.toml` 已綁定 `RATE_LIMIT_KV`；`ALLOWED_ORIGINS` 留空代表只允許同站呼叫 `/api`。
 
 ## 安全模型
 
-- AI 端點沒有使用者認證，任何能連到網站的人都能觸發 AI 呼叫。防濫用機制是每個 IP 每分鐘最多 10 次，以 Cloudflare KV 計數（盡力而為，非嚴格）。限流服務不可用時，使用站方金鑰的請求一律拒絕，自帶金鑰者照常放行。
+- AI 端點沒有使用者認證，任何能連到網站的人都能觸發 AI 呼叫。防濫用機制是每個 IP 每分鐘最多 10 次，以 Cloudflare KV 計數（盡力而為，非嚴格）。限流服務不可用時，使用站方金鑰的請求一律拒絕，明確選定供應商且實際使用自帶金鑰者照常放行；`auto` 仍使用站方金鑰。
 - `model` 參數只接受 `functions/_lib/ai.js` 的 `MODEL_ALLOWLIST`，避免用站方金鑰打高價模型。
 - 所有問卷欄位在伺服器端走白名單與範圍檢查後才進入提示詞；AI 回傳的 HTML 在前端一律經 DOMPurify 清洗後才顯示，清洗器未載入時不顯示。
-- 使用者可自帶 API 金鑰，經伺服器中轉直接送往供應商，不儲存、不記錄。
+- 使用者可自帶 API 金鑰，經伺服器中轉直接送往供應商；本站不將金鑰持久儲存或記錄。
+- 兩入口不使用行內 JavaScript；CSP 禁止行內 script／事件屬性，AI HTML 由固定版本與 SRI 驗證的 DOMPurify 處理。第三方 AI 對資料的處理依各供應商規範，本站不宣稱供應商不會留存。
 - 部署者的金鑰會被所有訪客共用，額度風險由部署者承擔。建議只放有免費額度或已設消費上限的金鑰。
 - 健康資料只在使用者按下「取得 AI 建議」後才送出，送出前頁面會說明資料用途。
 
@@ -71,3 +77,9 @@ Blog: https://wycswimming.blogspot.com/
 ## License
 
 MIT License，全文見 [LICENSE](LICENSE)。
+
+## 優化驗證紀錄
+
+[2026-09-26 網站分析與修正](docs/optimization-review-2026-09-26.md)：操作流程、安全與效能審計、重現證據、驗證範圍及待辦。
+
+[2026-09-27 全面優化與驗證](docs/ux-security-optimization-2026-09-27.md)：首頁與手機版面、結果閱讀順序、資料清除、CSP、共用 PDF 載入及實際匯出。

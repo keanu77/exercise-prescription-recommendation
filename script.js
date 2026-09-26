@@ -22,18 +22,27 @@ const DOMCache = {
   },
 };
 
-// 即時欄位驗證函數（統一驗證系統，透過 HTML oninput 觸發）
+// 即時欄位驗證函數（由外部事件監聽器觸發）
 const FIELD_LABELS = {
   age: { label: "年齡", unit: "歲" },
   height: { label: "身高", unit: "公分" },
   weight: { label: "體重", unit: "公斤" },
 };
 
+function getFieldValidationMessage(input) {
+  const meta = FIELD_LABELS[input.id] || { label: "數值", unit: "" };
+  if (input.validity.stepMismatch) {
+    return input.id === "age"
+      ? "年齡請填寫整數"
+      : `${meta.label}最多填寫一位小數`;
+  }
+  return `${meta.label}需介於 ${input.min}–${input.max} ${meta.unit}`;
+}
+
 function validateField(input, min, max) {
   const value = parseFloat(input.value);
   const icon = DOMCache.get(input.id + "Icon");
   const message = document.getElementById(input.id + "Msg");
-  const meta = FIELD_LABELS[input.id] || { label: "數值", unit: "" };
 
   if (!icon) return;
 
@@ -52,7 +61,7 @@ function validateField(input, min, max) {
     return;
   }
 
-  if (!isNaN(value) && value >= min && value <= max) {
+  if (!isNaN(value) && value >= min && value <= max && input.validity.valid) {
     input.classList.remove("field-invalid");
     input.classList.add("field-valid");
     input.removeAttribute("aria-invalid");
@@ -67,7 +76,7 @@ function validateField(input, min, max) {
     icon.textContent = "✗";
     icon.className = "validation-icon icon-invalid";
     icon.setAttribute("aria-hidden", "true");
-    setMessage(`${meta.label}需介於 ${min}–${max} ${meta.unit}`);
+    setMessage(getFieldValidationMessage(input));
   }
 }
 
@@ -454,11 +463,7 @@ function showPage(pageId) {
 
   // 如果是表單頁，初始化多步驟表單
   if (pageId === "formPage") {
-    setTimeout(() => {
-      if (typeof initMultiStepForm === "function") {
-        initMultiStepForm();
-      }
-    }, 100);
+    if (typeof initMultiStepForm === "function") initMultiStepForm();
   }
 }
 
@@ -487,6 +492,8 @@ function updateFormProgress() {
     "weight",
     { name: "fitness_level", type: "radio" },
     { name: "health_status", type: "radio" },
+    { name: "exercise_habit", type: "radio" },
+    { name: "exercise_goal", type: "radio" },
     { name: "parq_q1", type: "radio" },
     { name: "parq_q2", type: "radio" },
     { name: "parq_q3", type: "radio" },
@@ -502,7 +509,7 @@ function updateFormProgress() {
   requiredFields.forEach((field) => {
     if (typeof field === "string") {
       const element = DOMCache.get(field);
-      if (element && element.value) {
+      if (element && element.value && element.validity.valid) {
         completed++;
       }
     } else if (field.type === "radio") {
@@ -525,18 +532,22 @@ function updateFormProgress() {
   if (progressText) {
     progressText.textContent = percentage + "%";
   }
+  DOMCache.get("progressTrack")?.setAttribute("aria-valuenow", String(percentage));
 
   // 當進度達到100%時，顯示完成提示
-  if (percentage === 100) {
-    if (progressBar) {
-      progressBar.style.background =
-        "linear-gradient(to right, #10b981, #22c55e)";
-    }
+  if (progressBar) {
+    progressBar.style.background = percentage === 100 ? "#15803d" : "";
   }
 }
 
 // ===== 表單自動暫存（sessionStorage）：避免重整 / 誤觸返回 / AI 逾時後重整時丟失整份填寫 =====
 const FORM_DRAFT_KEY = "exerciseRxFormDraft";
+let pendingFormActivity = null;
+
+function setDraftStatus(message) {
+  const status = document.getElementById("draftStatus");
+  if (status && status.textContent !== message) status.textContent = message;
+}
 
 function saveFormDraft() {
   const form = document.getElementById("healthForm");
@@ -556,8 +567,9 @@ function saveFormDraft() {
   });
   try {
     sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(data));
+    setDraftStatus("填寫內容已暫存在此分頁。");
   } catch (e) {
-    /* sessionStorage 不可用時略過 */
+    setDraftStatus("此瀏覽器無法暫存，重新整理會失去填寫內容。");
   }
 }
 
@@ -590,6 +602,7 @@ function restoreFormDraft() {
       el.value = val;
     }
   });
+  setDraftStatus("已還原此分頁上次的填寫內容。");
   // 還原後重算 BMI/BMR/TDEE 與進度
   try {
     if (typeof calculateBMI === "function") calculateBMI();
@@ -609,18 +622,87 @@ function clearFormDraft() {
 
 function debounce(fn, wait) {
   let timer = null;
-  return (...args) => {
+  const run = (...args) => {
     clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), wait);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, wait);
   };
+  run.cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+  return run;
+}
+
+// 只有確認對話框的清除按鈕呼叫；同時清掉衍生資料與尚未完成的 AI 回應。
+function clearAssessment() {
+  pendingFormActivity?.cancel();
+  clearFormDraft();
+  const form = document.getElementById("healthForm");
+  form.reset();
+  form.querySelectorAll("[aria-invalid]").forEach((field) => field.removeAttribute("aria-invalid"));
+  for (const id of ["age", "height", "weight"]) {
+    const field = document.getElementById(id);
+    validateField(field, Number(field.min), Number(field.max));
+  }
+  const ageInfo = document.getElementById("ageInfo");
+  ageInfo.textContent = "";
+  ageInfo.classList.add("hidden");
+  calculateBMI();
+  for (const id of ["maintainCalories", "loseCalories", "gainCalories", "loseCaloriesNote"]) {
+    document.getElementById(id).textContent = "";
+  }
+  window.lastFormData = null;
+  window.lastPrescription = null;
+  for (const id of ["prescriptionSummary", "fittpDetails", "exerciseGuidelines"]) {
+    document.getElementById(id).replaceChildren();
+  }
+  resetAISection();
+  document.getElementById("customApiKey").value = "";
+  document.getElementById("aiProviderSelect").value = "auto";
+  onProviderChange();
+  document.getElementById("advancedAISettings").classList.add("hidden");
+  document.getElementById("toggleAdvancedAI").setAttribute("aria-expanded", "false");
+  document.getElementById("advancedAIIcon").style.transform = "rotate(0deg)";
+  document.querySelectorAll("#resultPage details").forEach((panel) => { panel.open = false; });
+  hideStepError();
+  document.getElementById("clearAssessmentDialog").close();
+  showPage("formPage");
+  setDraftStatus("已清除填寫內容，可以重新開始。");
+  document.getElementById("age").focus({ preventScroll: true });
 }
 
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
-  // 驗證統一使用 HTML oninput 的 validateField() 系統
+  // 僅綁定已知操作，不解析或執行 HTML 屬性中的程式碼。
+  const actions = { nextStep, prevStep, downloadPDF, fetchAIRecommendation, toggleAdvancedAISettings };
+  document.querySelectorAll("[data-page]").forEach((button) => {
+    button.addEventListener("click", () => showPage(button.dataset.page));
+  });
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    const action = actions[button.dataset.action];
+    if (action) button.addEventListener("click", () => action());
+  });
+  for (const id of ["age", "height", "weight"]) {
+    const field = document.getElementById(id);
+    field.addEventListener("input", () => {
+      validateField(field, Number(field.min), Number(field.max));
+      calculateBMI();
+    });
+  }
+  document.getElementById("gender").addEventListener("change", calculateBMR);
+  document.getElementById("activityLevel").addEventListener("change", calculateTDEE);
+  document.getElementById("aiProviderSelect").addEventListener("change", onProviderChange);
 
   // 還原上次未完成的填寫（同分頁 session 內有效）
   restoreFormDraft();
+
+  document.querySelectorAll("[data-clear-assessment]").forEach((button) => {
+    button.addEventListener("click", () => document.getElementById("clearAssessmentDialog").showModal());
+  });
+  document.getElementById("confirmClearAssessment").addEventListener("click", clearAssessment);
 
   // 勾選「孕婦」會影響減重熱量建議是否顯示
   document
@@ -631,12 +713,23 @@ document.addEventListener("DOMContentLoaded", function () {
   const formElement = DOMCache.get("healthForm");
   if (formElement) {
     // input 與 change 常連續觸發；合併並 debounce，避免每個按鍵都掃全表單、寫 sessionStorage
-    const onFormActivity = debounce(() => {
+    pendingFormActivity = debounce(() => {
       updateFormProgress();
       saveFormDraft();
     }, 150);
-    formElement.addEventListener("input", onFormActivity);
-    formElement.addEventListener("change", onFormActivity);
+    formElement.addEventListener("input", pendingFormActivity);
+    formElement.addEventListener("change", pendingFormActivity);
+    formElement.addEventListener("change", (event) => {
+      const field = event.target;
+      if (!field.validity?.valid) return;
+      if (field.type === "radio") {
+        formElement.querySelectorAll(`input[name="${field.name}"]`).forEach((radio) => {
+          radio.removeAttribute("aria-invalid");
+        });
+      } else {
+        field.removeAttribute("aria-invalid");
+      }
+    });
   }
 
   const ageInput = document.getElementById("age");
@@ -676,6 +769,8 @@ document.addEventListener("DOMContentLoaded", function () {
     ageInfo.classList.remove("hidden");
   }
 
+  updateAgeInfo(parseInt(ageInput.value));
+
   // 健康狀態互斥邏輯：選「健康狀況良好」時清除疾病勾選
   const healthRadios = document.querySelectorAll('input[name="health_status"]');
   const diseaseCheckboxes = document.querySelectorAll('input[name="diseases"]');
@@ -709,8 +804,15 @@ document.addEventListener("DOMContentLoaded", function () {
     healthForm.addEventListener("submit", function (e) {
       e.preventDefault();
 
+      // Enter 在前兩步與「下一步」一致；最終送出會重新檢查所有步驟。
+      if (currentStep < totalSteps) {
+        nextStep();
+        return;
+      }
+
       if (validateForm()) {
         generatePrescription();
+        pendingFormActivity?.cancel();
         clearFormDraft(); // 成功產生處方後清除暫存
         showPage("resultPage");
       }
@@ -721,96 +823,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // 表單驗證（使用頁面內提示取代 alert）
 function validateForm() {
-  const errors = [];
-
-  const age = document.getElementById("age").value;
-  if (!age || age < 6 || age > 120) {
-    errors.push("請輸入有效的年齡 (6-120歲)");
+  for (let step = 1; step <= totalSteps; step++) {
+    if (!validateCurrentStep(step)) {
+      showStep(step);
+      showStepError();
+      return false;
+    }
   }
-
-  const gender = document.getElementById("gender").value;
-  if (!gender) {
-    errors.push("請選擇性別");
-  }
-
-  const height = document.getElementById("height").value;
-  if (!height || height < 100 || height > 250) {
-    errors.push("請輸入有效的身高 (100-250公分)");
-  }
-
-  const weight = document.getElementById("weight").value;
-  if (!weight || weight < 20 || weight > 300) {
-    errors.push("請輸入有效的體重 (20-300公斤)");
-  }
-
-  const fitnessLevel = document.querySelector(
-    'input[name="fitness_level"]:checked',
-  );
-  if (!fitnessLevel) {
-    errors.push("請選擇您的體能水平");
-  }
-
-  const parqQuestions = [
-    "parq_q1",
-    "parq_q2",
-    "parq_q3",
-    "parq_q4",
-    "parq_q5",
-    "parq_q6",
-    "parq_q7",
-  ];
-  const unansweredParq = parqQuestions.some(
-    (q) => !document.querySelector(`input[name="${q}"]:checked`),
-  );
-  if (unansweredParq) {
-    errors.push("請完成所有 PAR-Q 問題");
-  }
-
-  const healthStatus = document.querySelector(
-    'input[name="health_status"]:checked',
-  );
-  if (!healthStatus) {
-    errors.push("請選擇您的健康狀況");
-  }
-
-  if (errors.length > 0) {
-    showFormError(errors);
-    return false;
-  }
-
-  hideFormError();
+  hideStepError();
   return true;
-}
-
-// 顯示表單錯誤（頁面內提示）
-function showFormError(errors) {
-  const errorDiv = document.getElementById("formError");
-  if (!errorDiv) return;
-
-  if (Array.isArray(errors) && errors.length > 0) {
-    errorDiv.innerHTML = `
-      <div class="font-semibold mb-2">請修正以下問題：</div>
-      <ul class="list-disc list-inside space-y-1">
-        ${errors.map((e) => `<li>${e}</li>`).join("")}
-      </ul>
-    `;
-  }
-
-  errorDiv.classList.remove("hidden");
-  errorDiv.scrollIntoView({
-    behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
-      ? "auto"
-      : "smooth",
-    block: "center",
-  });
-}
-
-// 隱藏表單錯誤
-function hideFormError() {
-  const errorDiv = document.getElementById("formError");
-  if (errorDiv) {
-    errorDiv.classList.add("hidden");
-  }
 }
 
 // 收集表單資料
@@ -1865,7 +1886,7 @@ function displayPrescriptionSummary(prescription) {
 
   parqSection = `
         <div class="bg-${parqColor}-50 rounded-lg p-4 mb-4 border border-${parqColor}-200">
-            <div class="flex justify-between items-center">
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div>
                     <span class="text-sm text-gray-600">PAR-Q 評估：</span>
                     <span class="text-lg font-bold text-${parqColor}-600">${parqRisk.yesCount}/7 項風險因子</span>
@@ -1919,7 +1940,7 @@ function displayPrescriptionSummary(prescription) {
         ${bmiSection}
         ${parqSection}
 
-        <div class="grid md:grid-cols-3 gap-4 text-center mb-4">
+        <div class="summary-metrics grid md:grid-cols-3 gap-4 text-center mb-4">
             <div class="bg-white rounded-lg p-4 shadow">
                 <div class="text-2xl font-bold text-blue-600">${prescription.frequency === 7 ? "每日" : prescription.frequency}</div>
                 <div class="text-sm text-gray-600">${prescription.frequency === 7 ? "身體活動" : "次/週"}</div>
@@ -2152,7 +2173,13 @@ function getExerciseExamples(types) {
 }
 
 // PDF 下載功能
+let pdfDownloadInProgress = false;
+
 async function downloadPDF() {
+  if (pdfDownloadInProgress) return;
+  pdfDownloadInProgress = true;
+  const downloadButton = document.getElementById("downloadPrescription");
+  if (downloadButton) downloadButton.disabled = true;
   try {
     // 顯示載入 Modal
     showLoadingModal();
@@ -2237,13 +2264,13 @@ async function downloadPDF() {
     // 下載 PDF
     pdf.save(`運動處方建議_${dateStr}.pdf`);
 
-    // 隱藏載入 Modal
-    hideLoadingModal();
   } catch (error) {
     console.error("PDF 生成錯誤:", error);
-    // 隱藏載入 Modal
-    hideLoadingModal();
     alert("PDF 生成失敗，請稍後再試。可能是瀏覽器不支援或網路問題。");
+  } finally {
+    hideLoadingModal();
+    pdfDownloadInProgress = false;
+    if (downloadButton) downloadButton.disabled = false;
   }
 }
 
@@ -2636,19 +2663,19 @@ window.lastPrescription = null;
 // 模型清單必須與 functions/_lib/ai.js 的 MODEL_ALLOWLIST 同步，否則後端會回 400
 const AI_PROVIDERS = {
   auto: {
-    name: "自動選擇（免費版）",
-    hint: "使用系統預設的免費 Groq API",
+    name: "自動選擇（使用站方設定）",
+    hint: "使用本站已設定的供應商",
     needsKey: false,
     models: [],
   },
   groq: {
     name: "Groq",
-    hint: "免費 API，前往 https://console.groq.com 取得金鑰",
-    needsKey: false,
+    hint: "可使用站方設定，或前往 https://console.groq.com 取得自己的金鑰；部分模型需要特定帳號權限",
+    needsKey: true,
     models: [
       { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B（推薦）", description: "推理能力強" },
       { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", description: "較快" },
-      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", description: "快速回應" },
+      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", description: "需企業存取權限" },
     ],
   },
   openai: {
@@ -2674,11 +2701,11 @@ const AI_PROVIDERS = {
   },
   gemini: {
     name: "Gemini (Google)",
-    hint: "前往 https://aistudio.google.com/app/apikey 取得金鑰",
+    hint: "前往 https://aistudio.google.com/app/apikey 取得金鑰；Gemini 2.5 系列目前限既有使用者存取",
     needsKey: true,
     models: [
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash（推薦）", description: "快速" },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "進階推理" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", description: "限既有使用者" },
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "限既有使用者" },
     ],
   },
 };
@@ -2687,13 +2714,16 @@ const AI_PROVIDERS = {
 function toggleAdvancedAISettings() {
   const settings = document.getElementById("advancedAISettings");
   const icon = document.getElementById("advancedAIIcon");
+  const toggle = document.getElementById("toggleAdvancedAI");
 
   if (settings.classList.contains("hidden")) {
     settings.classList.remove("hidden");
     icon.style.transform = "rotate(180deg)";
+    toggle.setAttribute("aria-expanded", "true");
   } else {
     settings.classList.add("hidden");
     icon.style.transform = "rotate(0deg)";
+    toggle.setAttribute("aria-expanded", "false");
   }
 }
 
@@ -2777,11 +2807,19 @@ function setAIState(state) {
 // 產生新處方時呼叫：取消進行中的請求、清空舊內容、回到「等待使用者按下」狀態
 function resetAISection() {
   if (aiAbortController) aiAbortController.abort();
+  aiAbortController = null;
   aiRequestSeq++;
   const contentEl = document.getElementById("aiContent");
   if (contentEl) contentEl.innerHTML = "";
   document.getElementById("aiProviderBadge")?.classList.add("hidden");
   document.getElementById("aiTruncatedNote")?.classList.add("hidden");
+  const refreshBtn = document.getElementById("refreshAiBtn");
+  if (refreshBtn) {
+    refreshBtn.disabled = false;
+    refreshBtn.classList.remove("opacity-50");
+  }
+  document.getElementById("aiErrorMessage").textContent = "";
+  document.getElementById("aiProviderName").textContent = "AI";
   setAIState("idle");
 }
 
@@ -2793,9 +2831,9 @@ function describeClientError(error) {
     error?.message?.includes("Failed to fetch") ||
     error?.message?.includes("NetworkError")
   ) {
-    return "AI 服務暫時無法連線，請查看下方的標準運動處方建議。";
+    return "AI 服務暫時無法連線，請查看本頁的標準運動處方建議。";
   }
-  return error?.message || "AI 服務暫時無法使用，請查看下方的標準運動處方建議。";
+  return error?.message || "AI 服務暫時無法使用，請查看本頁的標準運動處方建議。";
 }
 
 // 獲取 AI 建議

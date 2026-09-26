@@ -34,6 +34,12 @@ body {
             @apply w-full p-4 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none;
         }
 
+        input.form-input:focus-visible,
+        select.form-input:focus-visible {
+            outline: 3px solid #1d4ed8;
+            outline-offset: 3px;
+        }
+
         /* 手機端表單優化 */
         @media (max-width: 640px) {
             .form-input {
@@ -86,6 +92,96 @@ body {
         
         .prescription-card {
             @apply bg-gradient-to-br from-blue-50 to-green-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-md;
+        }
+
+        /* 主應用：閱讀層級與留白；獨立 PAR-Q 頁維持自己的版面。 */
+        .rx-app { background: #f7f9fb; color: #253447; }
+        .rx-app .site-nav { box-shadow: none; }
+        .rx-app .card { box-shadow: 0 2px 8px rgb(25 45 65 / 4%); border-color: #dce3ea; }
+        .rx-app .btn-primary { background: #245a86; min-height: 48px; box-shadow: none; }
+        .rx-app .btn-primary:hover { background: #19456a; }
+        .rx-app .btn-secondary { background: white; color: #334b61; border: 1px solid #aebdca; min-height: 44px; }
+        .rx-app .btn-secondary:hover { background: #edf2f6; }
+        .rx-app button:focus-visible, .rx-app a:focus-visible, .rx-app summary:focus-visible {
+            outline: 3px solid #1d4ed8; outline-offset: 4px;
+        }
+        .skip-link { position: absolute; top: 8px; left: 16px; transform: translateY(-180%); z-index: 100; background: white; padding: 12px 20px; border-radius: 6px; }
+        .skip-link:focus { transform: translateY(0); }
+        .landing-shell { max-width: 1120px; margin: auto; padding: 72px 24px 32px; }
+        .landing-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center; }
+        .eyebrow { font-size: 14px; font-weight: 500; letter-spacing: .08em; color: #536b7f; margin-bottom: 16px; }
+        .hero-copy h2 { font-size: clamp(32px, 4.5vw, 50px); font-weight: 700; line-height: 1.35; letter-spacing: -.03em; color: #223c53; }
+        .hero-description { max-width: 27em; font-size: 18px; line-height: 1.9; color: #536374; margin: 24px 0 28px; }
+        .hero-start { display: inline-flex; align-items: center; justify-content: space-between; gap: 48px; min-width: 200px; }
+        .hero-note { font-size: 14px; line-height: 1.7; color: #59697b; margin-top: 14px; }
+        .journey-panel { border: 1px solid #d8e1e9; background: #eef3f6; border-radius: 16px; padding: 32px; }
+        .journey-panel h3 { font-weight: 700; font-size: 22px; line-height: 1.5; }
+        .journey-panel .eyebrow { margin-bottom: 8px; letter-spacing: 0; }
+        .journey-list { margin-top: 24px; }
+        .journey-list li { display: flex; gap: 20px; padding: 18px 0; border-top: 1px solid #cedae4; }
+        .journey-list li > span { color: #667d90; font-size: 14px; font-variant-numeric: tabular-nums; padding-top: 3px; }
+        .journey-list h4 { font-weight: 700; margin-bottom: 4px; }
+        .journey-list p, .journey-note { font-size: 14px; color: #526477; line-height: 1.7; }
+        .journey-note { padding-top: 16px; border-top: 1px solid #cedae4; }
+        .audience-section { display: grid; grid-template-columns: 1fr 1.15fr; gap: 56px; border-top: 1px solid #d8e1e9; margin-top: 64px; padding-top: 32px; }
+        .audience-intro h3 { font-weight: 700; font-size: 20px; margin-bottom: 12px; }
+        .audience-intro p { color: #536374; line-height: 1.8; font-size: 15px; }
+        .audience-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e1e7ed; font-size: 15px; }
+        .audience-list dt { font-weight: 500; }
+        .audience-list dt span { font-size: 13px; color: #59697b; margin-left: 4px; }
+        .audience-list dd { color: #536374; }
+        .form-utility { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 14px; color: #536374; }
+        .text-action { color: #365c7a; text-decoration: underline; text-underline-offset: 4px; padding: 10px 4px; min-height: 44px; }
+        .text-action:hover { color: #193e5b; }
+        .rx-app .prescription-card { background: #f0f5f8; border: 1px solid #ccdbe7; box-shadow: none; }
+        .rx-app .prescription-card > div:first-child h3 { color: #234762; font-size: 24px; }
+        .rx-app .prescription-card .shadow { box-shadow: none; border: 1px solid #dce5ed; }
+        .rx-app .summary-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .rx-app .summary-metrics > div { padding: 16px 8px; }
+        .rx-app .summary-metrics .text-2xl { font-variant-numeric: tabular-nums; color: #254e6e; }
+        .result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: -8px 0 32px; }
+        .result-actions .text-action { margin-left: auto; }
+        .rx-app .ai-card { border: 1px solid #dce3ea; background: white; }
+        .rx-app .ai-card > div:first-child { gap: 16px; flex-wrap: wrap; }
+        .rx-app .ai-card h3 { font-size: 22px; color: #334b61; }
+        .rx-app .ai-card h3 svg { display: none; }
+        .rx-app .ai-card [class*="border-purple"] { border-color: #dce3ea; }
+        .rx-app .ai-card [class*="text-purple"] { color: #365c7a; }
+        .rx-app .ai-section { border: 1px solid #dce3ea; box-shadow: none; }
+        .rx-app .ai-section h4 { color: #334b61; }
+        .reference-panel { border-bottom: 1px solid #d2dce5; padding: 20px 0; }
+        .reference-panel summary { cursor: pointer; font-weight: 600; color: #334b61; font-size: 18px; }
+        .reference-hint { display: block; font-weight: 400; font-size: 14px; color: #59697b; margin: 6px 0 0 22px; }
+        .reference-panel[open] > div { margin-top: 24px; padding: 0 4px 8px; }
+        .clear-dialog { padding: 28px; border: 1px solid #d2dce5; border-radius: 14px; width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; color: #253447; }
+        .clear-dialog::backdrop { background: rgb(20 35 50 / 45%); }
+        .clear-dialog h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+        .clear-dialog p { line-height: 1.8; color: #536374; }
+        .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+        .btn-danger-outline { color: #9a3030; border: 1px solid #b96a6a; border-radius: 8px; padding: 10px 16px; min-height: 44px; font-weight: 600; }
+        .btn-danger-outline:hover { background: #fff1f1; }
+        .rx-app .site-footer { background: #eaf0f4; color: #334b61; border-top: 1px solid #d5dfe7; }
+        .rx-app .site-footer .text-center { text-align: left; }
+        .rx-app .site-footer [class*="text-gray"], .rx-app .site-footer .text-yellow-300 { color: #526477; }
+        .rx-app .site-footer a { color: #245a86; }
+        .rx-app .site-footer .border-gray-600 { border-color: #cdd8e2; }
+        .rx-app .site-footer .max-w-4xl { margin-left: 0; font-size: 14px; line-height: 1.85; }
+        @media (max-width: 767px) {
+            .landing-shell { padding: 40px 20px 16px; }
+            .landing-hero, .audience-section { grid-template-columns: 1fr; gap: 32px; }
+            .hero-description { font-size: 17px; margin: 20px 0 24px; }
+            .hero-start { width: 100%; }
+            .journey-panel { padding: 24px; }
+            .audience-section { margin-top: 40px; padding-top: 24px; gap: 16px; }
+            .audience-list > div { flex-wrap: wrap; gap: 4px 16px; }
+            .form-utility { flex-wrap: wrap; gap: 0; }
+            .rx-app .card { margin-left: 0; margin-right: 0; padding: 20px; }
+            .rx-app .prescription-card { padding: 16px; }
+            .rx-app .prescription-card > div:first-child h3 { font-size: 21px; }
+            .result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .result-actions .btn-primary, .result-actions .btn-secondary { padding: 12px 8px; font-size: 16px; }
+            .result-actions .text-action { grid-column: 1 / -1; margin: 0; justify-self: end; }
+            .dialog-actions > button { width: 100%; }
         }
         
         .btn-icon-square {

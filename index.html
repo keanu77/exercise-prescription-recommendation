@@ -33,13 +33,14 @@
     <link rel="stylesheet" href="/tailwind.css">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <!-- DOMPurify：清洗 AI 回傳 HTML（只在使用者按下 AI 建議後使用，故可 defer；缺少時前端 fail-closed） -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"
-            integrity="sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu" crossorigin="anonymous"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js"
+            integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
     <!-- PDF 函式庫延遲載入，僅在需要時載入 -->
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="rx-app bg-gray-50 min-h-screen">
+    <a class="skip-link" href="#mainContent">跳至主要內容</a>
     <!-- 導航列 -->
-    <nav class="bg-white shadow-sm border-b">
+    <nav class="site-nav bg-white border-b" aria-label="網站資訊">
         <div class="max-w-6xl mx-auto px-4 py-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                 <h1 class="text-2xl font-bold text-gray-800">運動處方推薦系統</h1>
@@ -54,53 +55,42 @@
         </div>
     </nav>
 
-    <main>
+    <main id="mainContent" tabindex="-1">
         <!-- 首頁 -->
         <div id="homePage" class="page active">
-        <div class="max-w-4xl mx-auto px-4 py-12">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
-                    為你量身打造的運動處方
-                </h2>
-                <div class="card max-w-3xl mx-auto">
-                    <div class="text-xl text-gray-600 leading-relaxed space-y-4">
-                        <p>
-                            <strong>適用於兒童、青少年、成人與銀髮族</strong>
-                        </p>
-                        <p>
-                            根據美國運動醫學會（ACSM）的 FITT-VP 原則與世界衛生組織（WHO）身體活動建議指引，
-                            為各年齡層提供個人化的運動建議，包含運動頻率、強度、時間、類型、總量與進展規劃。
-                        </p>
-                        <div class="grid md:grid-cols-3 gap-4 text-lg text-gray-500 mt-6">
-                            <div class="bg-blue-50 p-4 rounded-lg">
-                                <p><strong>兒童 (6-11歲)</strong></p>
-                                <p class="text-sm">趣味性體能活動</p>
-                            </div>
-                            <div class="bg-green-50 p-4 rounded-lg">
-                                <p><strong>青少年 (12-17歲)</strong></p>
-                                <p class="text-sm">多元運動發展</p>
-                            </div>
-                            <div class="bg-orange-50 p-4 rounded-lg">
-                                <p><strong>成人&銀髮族</strong></p>
-                                <p class="text-sm">健康維護與慢性病管理</p>
-                            </div>
-                        </div>
-                        <p class="text-lg text-gray-500 mt-4">
-                            • 年齡適性的運動指導<br>
-                            • 考量個人健康狀況<br>
-                            • 循序漸進的運動計畫
-                        </p>
+            <div class="landing-shell">
+                <div class="landing-hero">
+                    <div class="hero-copy">
+                        <p class="eyebrow">從了解自己開始</p>
+                        <h2>為你量身打造的<br>運動處方</h2>
+                        <p class="hero-description">把健康狀況與運動習慣放在一起考量，找到適合自己的運動頻率、強度與時間。</p>
+                        <button type="button" data-page="formPage" class="btn-primary hero-start">開始使用 <span aria-hidden="true">→</span></button>
+                        <p class="hero-note">先取得完整運動建議，再自行選擇 AI 補充說明。</p>
                     </div>
+                    <section class="journey-panel" aria-labelledby="journeyTitle">
+                        <p class="eyebrow">三個步驟，整理你的運動起點</p>
+                        <h3 id="journeyTitle">讓建議更貼近你的日常</h3>
+                        <ol class="journey-list">
+                            <li><span aria-hidden="true">01</span><div><h4>基本資料</h4><p>年齡、身高與體重</p></div></li>
+                            <li><span aria-hidden="true">02</span><div><h4>健康狀況</h4><p>健康條件與體能自評</p></div></li>
+                            <li><span aria-hidden="true">03</span><div><h4>運動準備</h4><p>運動目標、習慣與 PAR-Q+ 問卷</p></div></li>
+                        </ol>
+                        <p class="journey-note">完成後可查看建議、修改資料，或下載 PDF 留存。</p>
+                    </section>
                 </div>
-            </div>
-            
-            <div class="text-center">
-                <button onclick="showPage('formPage')" class="btn-primary text-xl px-12 py-5 shadow-lg">
-                    開始使用
-                </button>
+                <section class="audience-section" aria-labelledby="audienceTitle">
+                    <div class="audience-intro">
+                        <h3 id="audienceTitle">每個階段，都有適合的開始</h3>
+                        <p>依 ACSM FITT-VP 原則與 WHO 身體活動建議指引，考量不同年齡與健康狀況。</p>
+                    </div>
+                    <dl class="audience-list">
+                        <div><dt>兒童 <span>6–11 歲</span></dt><dd>趣味性體能活動</dd></div>
+                        <div><dt>青少年 <span>12–17 歲</span></dt><dd>多元運動發展</dd></div>
+                        <div><dt>成人與銀髮族</dt><dd>健康維護與慢性病管理</dd></div>
+                    </dl>
+                </section>
             </div>
         </div>
-    </div>
 
     <!-- 表單頁 -->
     <div id="formPage" class="page">
@@ -137,13 +127,17 @@
                         <span id="progressText" class="text-sm font-semibold text-blue-600">0%</span>
                     </div>
                     <div id="progressTrack" class="w-full bg-gray-200 rounded-full h-3 overflow-hidden" role="progressbar" aria-label="完成進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                        <div id="progressBar" class="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <form id="healthForm">
+            <div class="form-utility">
+                <p id="draftStatus" role="status">填寫內容會暫存在此分頁。</p>
+                <button type="button" class="text-action" data-clear-assessment>清除填寫資料</button>
+            </div>
+            <div class="card form-card">
+                <form id="healthForm" novalidate>
                     <!-- 步驟 1: 基本資料 -->
                     <div class="form-step active" data-step="1">
                         <h3 tabindex="-1" class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">步驟 1: 基本資料</h3>
@@ -153,8 +147,7 @@
                             <label class="form-label" for="age">年齡 *</label>
                             <div class="input-wrapper">
                                 <input type="number" id="age" name="age" aria-describedby="ageMsg" min="6" max="120" required
-                                       class="form-input" placeholder="例如：35（6-120 歲）"
-                                       oninput="validateField(this, 6, 120); calculateBMI()">
+                                       class="form-input" placeholder="例如：35（6-120 歲）">
                                 <span id="ageIcon" class="validation-icon"></span>
                             </div>
                             <p id="ageMsg" class="hidden mt-1 text-sm text-red-700"></p>
@@ -165,7 +158,7 @@
                         
                         <div>
                             <label class="form-label" for="gender">性別 *</label>
-                            <select id="gender" name="gender" required class="form-input" onchange="calculateBMR()">
+                            <select id="gender" name="gender" required class="form-input">
                                 <option value="">請選擇</option>
                                 <option value="male">男</option>
                                 <option value="female">女</option>
@@ -179,9 +172,8 @@
                         <div>
                             <label class="form-label" for="height">身高 *（公分）</label>
                             <div class="input-wrapper">
-                                <input type="number" id="height" name="height" aria-describedby="heightMsg" min="100" max="250" required
-                                       class="form-input" placeholder="例如：165（100-250 cm）"
-                                       oninput="validateField(this, 100, 250); calculateBMI()">
+                                <input type="number" id="height" name="height" aria-describedby="heightMsg" min="100" max="250" step="0.1" required
+                                       class="form-input" placeholder="例如：165（100-250 cm）">
                                 <span id="heightIcon" class="validation-icon"></span>
                             </div>
                             <p id="heightMsg" class="hidden mt-1 text-sm text-red-700"></p>
@@ -190,9 +182,8 @@
                         <div>
                             <label class="form-label" for="weight">體重 *（公斤）</label>
                             <div class="input-wrapper">
-                                <input type="number" id="weight" name="weight" aria-describedby="weightMsg" min="20" max="300" required
-                                       class="form-input" placeholder="例如：60（20-300 kg）"
-                                       oninput="validateField(this, 20, 300); calculateBMI()">
+                                <input type="number" id="weight" name="weight" aria-describedby="weightMsg" min="20" max="300" step="0.1" required
+                                       class="form-input" placeholder="例如：60（20-300 kg）">
                                 <span id="weightIcon" class="validation-icon"></span>
                             </div>
                             <p id="weightMsg" class="hidden mt-1 text-sm text-red-700"></p>
@@ -210,7 +201,7 @@
                             <!-- 活動水平選擇 -->
                             <div class="mt-6">
                                 <label class="form-label" for="activityLevel">選擇您的活動水平（用於計算 TDEE）</label>
-                                <select id="activityLevel" name="activityLevel" class="form-input" onchange="calculateTDEE()">
+                                <select id="activityLevel" name="activityLevel" class="form-input">
                                     <option value="1.2">久坐（幾乎不運動）</option>
                                     <option value="1.375" selected>輕度活動（每週運動1-3天）</option>
                                     <option value="1.55">中度活動（每週運動3-5天）</option>
@@ -259,13 +250,12 @@
 
                         <!-- 步驟 1 導航按鈕 -->
                         <div class="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 mt-6 sm:mt-8">
-                            <button type="button" onclick="showPage('homePage')" class="btn-secondary order-2 sm:order-1">
+                            <button type="button" data-page="homePage" class="btn-secondary order-2 sm:order-1">
                                 返回首頁
                             </button>
-                            <button type="button" onclick="nextStep()" class="btn-primary order-1 sm:order-2">
+                            <button type="button" data-action="nextStep" class="btn-primary order-1 sm:order-2">
                                 下一步 →
                             </button>
-                        </div>
                         </div>
                     </div>
 
@@ -356,10 +346,10 @@
 
                         <!-- 步驟 2 導航按鈕 -->
                         <div class="flex justify-between mt-8">
-                            <button type="button" onclick="prevStep()" class="btn-secondary">
+                            <button type="button" data-action="prevStep" class="btn-secondary">
                                 ← 上一步
                             </button>
-                            <button type="button" onclick="nextStep()" class="btn-primary">
+                            <button type="button" data-action="nextStep" class="btn-primary">
                                 下一步 →
                             </button>
                         </div>
@@ -594,7 +584,7 @@
 
                         <!-- 步驟 3 導航按鈕 -->
                         <div class="flex justify-between mt-8">
-                            <button type="button" onclick="prevStep()" class="btn-secondary">
+                            <button type="button" data-action="prevStep" class="btn-secondary">
                                 ← 上一步
                             </button>
                             <button type="submit" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 text-lg shadow-lg transform hover:scale-105 transition-all duration-200">
@@ -620,135 +610,6 @@
                 <p class="text-lg text-gray-600">根據 ACSM FITT-VP 原則為您量身打造</p>
             </div>
 
-            <!-- AI 建議區塊 -->
-            <div id="aiRecommendationSection" class="mb-8">
-                <div class="card bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-2xl font-bold text-purple-800 flex items-center">
-                            <svg aria-hidden="true" class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                            </svg>
-                            AI 智慧建議
-                        </h3>
-                        <button id="refreshAiBtn" onclick="fetchAIRecommendation()" class="hidden text-purple-600 hover:text-purple-800 flex items-center text-sm">
-                            <svg aria-hidden="true" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            重新生成
-                        </button>
-                    </div>
-
-                    <!-- 使用者主動觸發：說明資料用途後才送出 -->
-                    <div id="aiConsent" class="py-4">
-                        <div class="bg-white rounded-lg p-4 border border-purple-100 mb-4">
-                            <p class="font-medium text-gray-800 mb-2">要取得 AI 補充說明嗎？（選用）</p>
-                            <ul class="text-sm text-gray-700 space-y-1">
-                                <li>• 按下按鈕後，您填寫的年齡、性別、身高體重、健康狀況、運動習慣、PAR-Q 回答與上方處方，會經本站伺服器轉送給第三方 AI 服務（預設 Groq）以產生說明。</li>
-                                <li>• 不包含姓名或聯絡方式；本站與 AI 服務均不會儲存這些資料作為個人檔案。</li>
-                                <li>• 不按也沒關係，下方的標準運動處方已完整可用。</li>
-                            </ul>
-                        </div>
-                        <div class="text-center">
-                            <button type="button" onclick="fetchAIRecommendation()" class="btn-primary">
-                                我了解，取得 AI 建議
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- AI 載入中狀態 -->
-                    <div id="aiLoading" class="hidden text-center py-8" role="status" aria-live="polite">
-                        <div class="inline-flex items-center">
-                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span class="text-lg text-purple-700">AI 正在分析您的資料，請稍候...</span>
-                        </div>
-                    </div>
-
-                    <!-- AI 建議內容 -->
-                    <div id="aiContent" class="hidden prose prose-purple max-w-none">
-                        <!-- 動態插入 AI 回應 -->
-                    </div>
-                    <p id="aiTruncatedNote" class="hidden mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        AI 回應長度達到上限，內容可能不完整。請以下方的標準運動處方為準，或按「重新生成」再試一次。
-                    </p>
-                    <p class="mt-4 text-sm text-gray-700 bg-white border border-purple-100 rounded-lg p-3">
-                        本區內容由 AI 自動產生，僅供衛教參考，無法取代醫師診察與個別化醫療建議。內容若與上方標準處方或您的醫師建議不同，請以醫師建議為準。
-                    </p>
-
-                    <!-- AI 錯誤狀態 -->
-                    <div id="aiError" class="hidden" role="alert">
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <div class="flex items-start">
-                                <svg aria-hidden="true" class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                                <div>
-                                    <p class="text-yellow-800 font-medium">AI 建議暫時無法使用</p>
-                                    <p id="aiErrorMessage" class="text-yellow-700 text-sm mt-1">請查看下方的標準運動處方建議。</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI 提供商標示 -->
-                    <div id="aiProviderBadge" class="hidden mt-4 text-right">
-                        <span class="text-sm text-gray-600">由 <span id="aiProviderName">AI</span> 提供建議</span>
-                    </div>
-
-                    <!-- 進階版 AI 設定 -->
-                    <div class="mt-4 pt-4 border-t border-purple-200">
-                        <button id="toggleAdvancedAI" onclick="toggleAdvancedAISettings()" class="text-sm text-purple-600 hover:text-purple-800 flex items-center">
-                            <svg aria-hidden="true" id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                            進階設定：使用自己的 API 金鑰
-                        </button>
-                        <div id="advancedAISettings" class="hidden mt-4 space-y-4">
-                            <div class="bg-white rounded-lg p-4 border border-purple-100">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">選擇 AI 提供商</label>
-                                <select id="aiProviderSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm" onchange="onProviderChange()">
-                                    <option value="auto">自動選擇（免費版）</option>
-                                    <option value="groq">Groq - 免費高速推理</option>
-                                    <option value="openai">OpenAI - GPT 系列</option>
-                                    <option value="claude">Claude - Anthropic</option>
-                                    <option value="gemini">Gemini - Google AI</option>
-                                </select>
-                            </div>
-
-                            <div id="modelSelectSection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">選擇模型</label>
-                                <select id="modelSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                    <!-- 動態生成模型選項 -->
-                                </select>
-                            </div>
-
-                            <div id="customApiKeySection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    <span id="apiKeyLabel">API 金鑰</span>
-                                    <span class="text-gray-600 font-normal">（選填，留空使用系統預設）</span>
-                                </label>
-                                <input type="password" id="customApiKey" placeholder="輸入您的 API 金鑰" autocomplete="off"
-                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
-                                <p id="apiKeyHint" class="text-sm text-gray-600 mt-1"></p>
-                            </div>
-
-                            <div class="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
-                                <p class="font-medium text-blue-800 mb-1"><span aria-hidden="true">💡</span> AI 提供商說明</p>
-                                <ul class="text-blue-700 space-y-1">
-                                    <li>• <strong>Groq</strong>：免費、快速，推薦一般使用</li>
-                                    <li>• <strong>OpenAI</strong>：GPT-4o 強大準確，需付費</li>
-                                    <li>• <strong>Claude</strong>：擅長中文、細緻分析</li>
-                                    <li>• <strong>Gemini</strong>：Google AI，多模態能力強</li>
-                                </ul>
-                                <p class="mt-2"><span aria-hidden="true">🔒</span> 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 免責聲明（結果頁常駐） -->
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800">
                 <p class="font-semibold mb-1">請先閱讀</p>
@@ -758,6 +619,12 @@
             <!-- 運動處方摘要卡片 -->
             <div id="prescriptionSummary" class="prescription-card mb-8">
                 <!-- 動態生成內容 -->
+            </div>
+
+            <div class="result-actions" role="group" aria-label="處方操作">
+                <button type="button" id="downloadPrescription" data-action="downloadPDF" class="btn-primary">下載 PDF</button>
+                <button type="button" data-page="formPage" class="btn-secondary">修改資料</button>
+                <button type="button" class="text-action" data-clear-assessment>清除並重新填寫</button>
             </div>
 
             <!-- 詳細運動建議 -->
@@ -779,9 +646,138 @@
                 </div>
             </div>
 
+            <!-- AI 建議區塊 -->
+            <div id="aiRecommendationSection" class="mb-8">
+                <div class="card ai-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-2xl font-bold text-purple-800 flex items-center">
+                            <svg aria-hidden="true" class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                            AI 補充說明（選用）
+                        </h3>
+                        <button id="refreshAiBtn" data-action="fetchAIRecommendation" class="hidden text-purple-600 hover:text-purple-800 flex items-center text-sm">
+                            <svg aria-hidden="true" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            重新生成
+                        </button>
+                    </div>
+
+                    <!-- 使用者主動觸發：說明資料用途後才送出 -->
+                    <div id="aiConsent" class="py-4">
+                        <div class="bg-white rounded-lg p-4 border border-purple-100 mb-4">
+                            <p class="font-medium text-gray-800 mb-2">要取得 AI 補充說明嗎？（選用）</p>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>• 按下按鈕後，您填寫的年齡、性別、身高體重、健康狀況、運動習慣、PAR-Q 回答與本頁處方，會經本站伺服器轉送給第三方 AI 服務（自動模式會使用本站已設定的供應商）以產生說明。</li>
+                                <li>• 送出內容不包含姓名或聯絡方式；資料會由您選擇的第三方 AI 服務處理。</li>
+                                <li>• 不按也沒關係，本頁的標準運動處方已完整可用。</li>
+                            </ul>
+                        </div>
+                        <div class="text-center">
+                            <button type="button" data-action="fetchAIRecommendation" class="btn-primary">
+                                我了解，取得 AI 建議
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI 載入中狀態 -->
+                    <div id="aiLoading" class="hidden text-center py-8" role="status" aria-live="polite">
+                        <div class="inline-flex items-center">
+                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-lg text-purple-700">AI 正在分析您的資料，請稍候...</span>
+                        </div>
+                    </div>
+
+                    <!-- AI 建議內容 -->
+                    <div id="aiContent" class="hidden prose prose-purple max-w-none">
+                        <!-- 動態插入 AI 回應 -->
+                    </div>
+                    <p id="aiTruncatedNote" class="hidden mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        AI 回應長度達到上限，內容可能不完整。請以本頁的標準運動處方為準，或按「重新生成」再試一次。
+                    </p>
+                    <p class="mt-4 text-sm text-gray-700 bg-white border border-purple-100 rounded-lg p-3">
+                        本區內容由 AI 自動產生，僅供衛教參考，無法取代醫師診察與個別化醫療建議。內容若與本頁標準處方或您的醫師建議不同，請以醫師建議為準。
+                    </p>
+
+                    <!-- AI 錯誤狀態 -->
+                    <div id="aiError" class="hidden" role="alert">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <div class="flex items-start">
+                                <svg aria-hidden="true" class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-yellow-800 font-medium">AI 建議暫時無法使用</p>
+                                    <p id="aiErrorMessage" class="text-yellow-700 text-sm mt-1">請查看本頁的標準運動處方建議。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI 提供商標示 -->
+                    <div id="aiProviderBadge" class="hidden mt-4 text-right">
+                        <span class="text-sm text-gray-600">由 <span id="aiProviderName">AI</span> 提供建議</span>
+                    </div>
+
+                    <!-- 進階版 AI 設定 -->
+                    <div class="mt-4 pt-4 border-t border-purple-200">
+                        <button id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="text-sm text-purple-600 hover:text-purple-800 flex items-center">
+                            <svg aria-hidden="true" id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                            進階設定：使用自己的 API 金鑰
+                        </button>
+                        <div id="advancedAISettings" class="hidden mt-4 space-y-4">
+                            <div class="bg-white rounded-lg p-4 border border-purple-100">
+                                <label for="aiProviderSelect" class="block text-sm font-medium text-gray-700 mb-2">選擇 AI 提供商</label>
+                                <select id="aiProviderSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="auto">自動選擇（使用站方設定）</option>
+                                    <option value="groq">Groq</option>
+                                    <option value="openai">OpenAI - GPT 系列</option>
+                                    <option value="claude">Claude - Anthropic</option>
+                                    <option value="gemini">Gemini - Google AI</option>
+                                </select>
+                            </div>
+
+                            <div id="modelSelectSection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
+                                <label for="modelSelect" class="block text-sm font-medium text-gray-700 mb-2">選擇模型</label>
+                                <select id="modelSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                    <!-- 動態生成模型選項 -->
+                                </select>
+                            </div>
+
+                            <div id="customApiKeySection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
+                                <label for="customApiKey" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <span id="apiKeyLabel">API 金鑰</span>
+                                    <span class="text-gray-600 font-normal">（選填，留空使用系統預設）</span>
+                                </label>
+                                <input type="password" id="customApiKey" aria-describedby="apiKeyHint" placeholder="輸入您的 API 金鑰" autocomplete="off"
+                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
+                                <p id="apiKeyHint" class="text-sm text-gray-600 mt-1"></p>
+                            </div>
+
+                            <div class="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
+                                <p class="font-medium text-blue-800 mb-1"><span aria-hidden="true">💡</span> AI 提供商說明</p>
+                                <ul class="text-blue-700 space-y-1">
+                                    <li>• <strong>Groq</strong>：提供開放模型推理服務</li>
+                                    <li>• <strong>OpenAI</strong>：提供 GPT 系列模型</li>
+                                    <li>• <strong>Claude</strong>：Anthropic 的 AI 模型</li>
+                                    <li>• <strong>Gemini</strong>：Google AI；部分舊模型限既有使用者存取</li>
+                                </ul>
+                                <p class="mt-2"><span aria-hidden="true">🔒</span> 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 進階說明區塊 -->
-            <div class="card mb-8">
-                <h3 class="text-2xl font-bold text-gray-800 mb-6">什麼是中等強度運動？</h3>
+            <details class="reference-panel">
+                <summary>什麼是中等強度運動？<span class="reference-hint">談話測試與自覺用力程度</span></summary>
                 <div class="grid md:grid-cols-2 gap-6">
                     <div>
                         <h4 class="text-lg font-semibold text-gray-700 mb-3">談話測試（Talk Test）</h4>
@@ -800,11 +796,11 @@
                         </p>
                     </div>
                 </div>
-            </div>
+            </details>
 
             <!-- MET 詳細說明 -->
-            <div class="card mb-8 bg-blue-50 border border-blue-200">
-                <h3 class="text-xl font-semibold text-blue-800 mb-4">MET (代謝當量) 說明</h3>
+            <details class="reference-panel">
+                <summary>MET（代謝當量）說明<span class="reference-hint">認識活動強度與熱量估算</span></summary>
                 <div class="text-blue-700 space-y-3">
                     <p><strong>定義：</strong>MET (Metabolic Equivalent of Task) 代表代謝當量，是衡量身體活動強度的標準單位。1 MET = 安靜時的能量消耗 (約每公斤體重每分鐘消耗3.5毫升氧氣)。</p>
 
@@ -827,40 +823,20 @@
                     <p><strong>計算方式：</strong>MET值 × 運動時間(分鐘) = MET-分鐘</p>
                     <p><strong>熱量計算：</strong>消耗熱量(大卡) = MET值 × 體重(公斤) × 運動時間(小時)</p>
                 </div>
-            </div>
+            </details>
 
-            <!-- 操作按鈕 -->
-            <div class="text-center">
-                <div class="flex justify-center items-center space-x-6">
-                    <div class="text-center">
-                        <button onclick="downloadPDF()" class="btn-icon-square" title="下載建議 PDF">
-                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-                            </svg>
-                        </button>
-                        <p class="text-sm text-gray-600 mt-2">下載 PDF</p>
-                    </div>
-                    <div class="text-center">
-                        <button onclick="showPage('formPage')" class="btn-icon-square" title="重新填寫">
-                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                        </button>
-                        <p class="text-sm text-gray-600 mt-2">重新填寫</p>
-                    </div>
-                    <div class="text-center">
-                        <button onclick="showPage('homePage')" class="btn-icon-square" title="返回首頁">
-                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                            </svg>
-                        </button>
-                        <p class="text-sm text-gray-600 mt-2">返回首頁</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     </main>
+
+    <dialog id="clearAssessmentDialog" class="clear-dialog" aria-labelledby="clearAssessmentTitle" aria-describedby="clearAssessmentDescription">
+        <h2 id="clearAssessmentTitle">清除這次填寫的資料？</h2>
+        <p id="clearAssessmentDescription">將清除問卷、此分頁的草稿、目前處方、AI 回覆與自行輸入的 API 金鑰。已下載的 PDF 不受影響。</p>
+        <form method="dialog" class="dialog-actions">
+            <button value="cancel" class="btn-secondary" autofocus>保留資料</button>
+            <button type="button" id="confirmClearAssessment" class="btn-danger-outline">清除並重新填寫</button>
+        </form>
+    </dialog>
 
     <!-- PDF 載入 Modal -->
     <div id="loadingModal" class="loading-modal">
@@ -872,7 +848,7 @@
     </div>
 
     <!-- 頁尾免責說明 -->
-    <footer class="bg-gray-800 text-white py-8 mt-12">
+    <footer class="site-footer bg-gray-800 text-white py-8 mt-12">
         <div class="max-w-6xl mx-auto px-4">
             <div class="text-center">
                 <div class="mb-4">
@@ -907,40 +883,8 @@
         </div>
     </footer>
 
+    <script src="pdf-loader.js"></script>
     <script src="script.js"></script>
     <script src="multi-step-form.js"></script>
-    <script>
-        // 延遲載入 PDF 相關函式庫
-        let pdfLibrariesLoaded = false;
-
-        async function loadPDFLibraries() {
-            if (pdfLibrariesLoaded) return Promise.resolve();
-
-            return Promise.all([
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-                           'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'),
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-                           'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H')
-            ]).then(() => {
-                pdfLibrariesLoaded = true;
-            });
-        }
-
-        function loadScript(src, integrity) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                if (integrity) {
-                    script.integrity = integrity;
-                    script.crossOrigin = 'anonymous';
-                }
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
-
-
-    </script>
 </body>
 </html>

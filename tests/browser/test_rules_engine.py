@@ -3,11 +3,12 @@
   PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3 tests/browser/<檔名>.py
 退出碼 0 = 全部通過。
 """
+import os
 import json
 import sys
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8765"
+BASE = os.environ.get("BASE_URL", "http://127.0.0.1:8765")
 NO = {f"parq_q{i}": "no" for i in range(1, 8)}
 def data(**kw):
     d = dict(age=30, gender="male", height=170, weight=70, bmi=24.2, health_status="healthy",

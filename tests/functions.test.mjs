@@ -31,6 +31,7 @@ const GOOD = {
 
 const KV_OK = { get: async () => "0", put: async () => {} };
 const KV_FULL = { get: async () => "10", put: async () => {} };
+const KV_READ_FAIL = { get: async () => { throw new Error("unavailable"); }, put: async () => {} };
 const KV_WRITE_FAIL = { get: async () => "0", put: async () => { throw new Error("quota"); } };
 
 function post(body, env) {
@@ -90,9 +91,12 @@ test("corsHeadersFor: 比對完整 origin（含 scheme）", () => {
 });
 
 test("handler: 驗證與白名單在限流之前", async () => {
-  let r = await asJson(await post({ userData: GOOD, provider: "claude", model: "claude-3-opus-20240229" }, { ANTHROPIC_API_KEY: "k", RATE_LIMIT_KV: KV_OK }));
+  let rateLimitCalls = 0;
+  const kv = { get: async () => { rateLimitCalls++; return "0"; }, put: async () => {} };
+  let r = await asJson(await post({ userData: GOOD, provider: "claude", model: "claude-3-opus-20240229" }, { ANTHROPIC_API_KEY: "k", RATE_LIMIT_KV: kv }));
   assert.equal(r.status, 400);
   assert.match(r.body.error, /允許清單/);
+  assert.equal(rateLimitCalls, 0);
 
   r = await asJson(await post({ userData: { ...GOOD, age: "abc" } }, { GROQ_API_KEY: "k", RATE_LIMIT_KV: KV_OK }));
   assert.equal(r.status, 400);
@@ -113,6 +117,60 @@ test("handler: 限流 429；KV 不可用時站方金鑰 fail-closed、自帶金�
 
   r = await asJson(await post({ userData: GOOD, provider: "groq" }, { GROQ_API_KEY: "k", RATE_LIMIT_KV: KV_WRITE_FAIL }));
   assert.equal(r.status, 503);
+});
+
+test("handler: auto 附帶任意金鑰不能繞過 KV 缺失、讀取或寫入失敗", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls++;
+    return Response.json({ choices: [{ message: { content: "mock" }, finish_reason: "stop" }] });
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  for (const kv of [undefined, KV_READ_FAIL, KV_WRITE_FAIL]) {
+    const r = await post(
+      { userData: GOOD, provider: "auto", customApiKey: "x" },
+      { GROQ_API_KEY: "site-key-fixture", RATE_LIMIT_KV: kv },
+    );
+    assert.equal(r.status, 503);
+    assert.equal(r.headers.get("Retry-After"), "60");
+  }
+  assert.equal(upstreamCalls, 0);
+});
+
+test("handler: explicit BYOK 在 KV 故障時只把自帶金鑰送往上游", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const authorizations = [];
+  globalThis.fetch = async (_url, init) => {
+    authorizations.push(init.headers.Authorization);
+    return Response.json({ choices: [{ message: { content: "mock" }, finish_reason: "stop" }] });
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  for (const kv of [undefined, KV_READ_FAIL, KV_WRITE_FAIL]) {
+    const r = await post(
+      { userData: GOOD, provider: "groq", customApiKey: "own-key-fixture" },
+      { GROQ_API_KEY: "site-key-fixture", RATE_LIMIT_KV: kv },
+    );
+    assert.equal(r.status, 200);
+  }
+  assert.deepEqual(authorizations, Array(3).fill("Bearer own-key-fixture"));
+});
+
+test("handler: auto 的站方金鑰 401 不誤判為自帶金鑰錯誤", async (t) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    assert.equal(init.headers.Authorization, "Bearer site-key-fixture");
+    return new Response("invalid key", { status: 401 });
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const r = await asJson(await post(
+    { userData: GOOD, provider: "auto", customApiKey: "x" },
+    { GROQ_API_KEY: "site-key-fixture", RATE_LIMIT_KV: KV_OK },
+  ));
+  assert.equal(r.status, 502);
+  assert.match(r.body.error, /服務設定異常/);
 });
 
 test("handler: 上游成功 / 截斷 / 401 / 空內容 / Gemini 路徑", async (t) => {
@@ -165,6 +223,86 @@ test("handler: 上游成功 / 截斷 / 401 / 空內容 / Gemini 路徑", async (
 test("handler: 超過 100KB 回 413", async () => {
   const r = await asJson(await post({ userData: { ...GOOD, pad: "x".repeat(120 * 1024) } }, { GROQ_API_KEY: "k", RATE_LIMIT_KV: KV_OK }));
   assert.equal(r.status, 413);
+});
+
+test("handler: 無 Content-Length 的超量串流提早取消，不讀完內容", async () => {
+  let chunksProduced = 0;
+  let canceled = false;
+  const chunk = new Uint8Array(64 * 1024).fill(32);
+  const stream = new ReadableStream({
+    pull(controller) {
+      if (chunksProduced === 32) return controller.close();
+      chunksProduced++;
+      controller.enqueue(chunk);
+    },
+    cancel() { canceled = true; },
+  }, { highWaterMark: 0 });
+  const request = new Request("https://example.com/api/ai-recommendation", {
+    method: "POST", body: stream, duplex: "half",
+  });
+  const response = await onRequestPost({ request, env: {} });
+  assert.equal(response.status, 413);
+  assert.equal(canceled, true);
+  assert.ok(chunksProduced <= 2, `read ${chunksProduced} chunks before stopping`);
+});
+
+test("handler: Content-Length 已超量時直接取消 body", async () => {
+  let read = false;
+  let canceled = false;
+  const stream = new ReadableStream({
+    pull(controller) { read = true; controller.close(); },
+    cancel() { canceled = true; },
+  }, { highWaterMark: 0 });
+  const request = new Request("https://example.com/api/ai-recommendation", {
+    method: "POST", headers: { "Content-Length": String(100 * 1024 + 1) },
+    body: stream, duplex: "half",
+  });
+  const response = await onRequestPost({ request, env: {} });
+  assert.equal(response.status, 413);
+  assert.equal(read, false);
+  assert.equal(canceled, true);
+});
+
+test("handler: 串流正確還原跨 chunk 的 UTF-8，且接受恰好 100KiB", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let upstreamSummary;
+  globalThis.fetch = async (_url, init) => {
+    upstreamSummary = JSON.parse(init.body).messages[1].content;
+    return Response.json({ choices: [{ message: { content: "mock" }, finish_reason: "stop" }] });
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const encoder = new TextEncoder();
+  const jsonText = JSON.stringify({ userData: GOOD, provider: "groq", customApiKey: "own-key-fixture" });
+  const bytes = encoder.encode(jsonText + " ".repeat(100 * 1024 - encoder.encode(jsonText).length));
+  const split = encoder.encode(jsonText.slice(0, jsonText.indexOf("有氧運動"))).length + 1;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, split));
+      controller.enqueue(bytes.slice(split));
+      controller.close();
+    },
+  });
+  const request = new Request("https://example.com/api/ai-recommendation", {
+    method: "POST", body: stream, duplex: "half",
+  });
+  const response = await onRequestPost({ request, env: {} });
+  assert.equal(response.status, 200);
+  assert.match(upstreamSummary, /有氧運動/);
+  assert.doesNotMatch(upstreamSummary, /\uFFFD/);
+});
+
+test("handler: 空白、非法 JSON/UTF-8、串流讀取錯誤都回 JSON 400", async () => {
+  const broken = new ReadableStream({
+    pull(controller) { controller.error(new Error("body interrupted")); },
+  });
+  for (const body of [undefined, "", "{invalid", new Uint8Array([0xff]), broken]) {
+    const request = new Request("https://example.com/api/ai-recommendation", {
+      method: "POST", body, duplex: "half",
+    });
+    const response = await onRequestPost({ request, env: {} });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).success, false);
+  }
 });
 
 test("MODEL_ALLOWLIST 每家都含 DEFAULT_MODELS", () => {

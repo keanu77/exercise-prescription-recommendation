@@ -3,12 +3,13 @@
   PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3 tests/browser/<檔名>.py
 退出碼 0 = 全部通過。
 """
+import os
 import json
 import sys
 import time
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8765"
+BASE = os.environ.get("BASE_URL", "http://127.0.0.1:8765")
 fails = 0
 def ok(cond, name, extra=""):
     global fails
@@ -27,8 +28,12 @@ with sync_playwright() as p:
     # 靜態結構
     st = pg.evaluate("""() => ({
       labelFor: document.querySelectorAll('label[for]').length,
-      groups: document.querySelectorAll('[role="radiogroup"],[role="group"]').length,
-      groupsLabelled: [...document.querySelectorAll('[role="radiogroup"],[role="group"]')].every(g => document.getElementById(g.getAttribute('aria-labelledby'))),
+      groups: document.querySelectorAll('#healthForm [role="radiogroup"],#healthForm [role="group"]').length,
+      groupsLabelled: [...document.querySelectorAll('[role="radiogroup"],[role="group"]')].every(g => {
+        if (g.getAttribute('aria-label')?.trim()) return true;
+        const ids = g.getAttribute('aria-labelledby')?.trim().split(/\s+/);
+        return ids?.length && ids.every(id => document.getElementById(id)?.textContent.trim());
+      }),
       tooltips: document.querySelectorAll('.tooltip-text').length,
       hintVisible: (() => { const el = [...document.querySelectorAll('input[name="diseases"][value="hypertension"]')][0]; const hint = el.closest('label').querySelector('.text-sm'); return hint && hint.textContent.includes('閉氣'); })(),
       svgNoHidden: [...document.querySelectorAll('svg')].filter(s => s.getAttribute('aria-hidden') !== 'true').length,
@@ -41,7 +46,7 @@ with sync_playwright() as p:
       textXsCount: document.querySelectorAll('.text-xs').length,
     })""")
     ok(st["labelFor"] >= 5, "label[for] on basic fields", st["labelFor"])
-    ok(st["groups"] == 13 and st["groupsLabelled"], "13 groups with aria-labelledby", json.dumps({"groups": st["groups"], "labelled": st["groupsLabelled"]}))
+    ok(st["groups"] == 13 and st["groupsLabelled"], "13 form groups; all form/action groups have accessible names", json.dumps({"groups": st["groups"], "labelled": st["groupsLabelled"]}))
     ok(st["tooltips"] == 0 and st["hintVisible"], "tooltips converted to visible hints")
     ok(st["svgNoHidden"] == 0, "all svg aria-hidden", st["svgNoHidden"])
     ok(st["formErrorRole"] == "alert" and st["aiLoadingRole"] == "status" and st["progressRole"] == "progressbar", "roles set")

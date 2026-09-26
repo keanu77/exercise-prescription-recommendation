@@ -5,25 +5,46 @@ let parqAnswers = {};
 let basicInfo = {};
 
 // 頁面路由管理
-function showPage(pageId) {
+const PARQ_PAGE_TITLES = {
+    homePage: 'PAR-Q+ 運動準備問卷系統',
+    basicInfoPage: '基本資料｜PAR-Q+ 運動準備問卷',
+    parqPage: '健康篩檢問題｜PAR-Q+ 運動準備問卷',
+    resultPage: '評估結果｜PAR-Q+ 運動準備問卷'
+};
+
+function showPage(pageId, { focusHeading = true } = {}) {
+    const targetPage = document.getElementById(pageId);
+    if (!targetPage) return;
+
     // 隱藏所有頁面
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.classList.remove('active'));
 
     // 顯示指定頁面
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-        targetPage.classList.add('active');
+    targetPage.classList.add('active');
+    document.title = PARQ_PAGE_TITLES[pageId] || PARQ_PAGE_TITLES.homePage;
+    const heading = targetPage.querySelector('h2');
+    if (focusHeading && heading) {
+        heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
     }
 
     // 滾動到頂部
     window.scrollTo(0, 0);
 }
 
+// 使用欄位既有的 required、min、max、step，避免無效資料進入即時計算。
+function readValidNumber(id) {
+    const input = document.getElementById(id);
+    return input?.value && input.validity.valid && Number.isFinite(input.valueAsNumber)
+        ? input.valueAsNumber
+        : null;
+}
+
 // BMI 計算功能
 function calculateBMI() {
-    const height = parseFloat(document.getElementById('height').value);
-    const weight = parseFloat(document.getElementById('weight').value);
+    const height = readValidNumber('height');
+    const weight = readValidNumber('weight');
 
     if (height && weight && height > 0 && weight > 0) {
         const heightInMeters = height / 100;
@@ -61,25 +82,25 @@ function calculateBMI() {
         categoryElement.textContent = category;
         categoryElement.className = `text-sm px-2 py-1 rounded ${categoryClass}`;
 
-        // 計算 BMR 和 TDEE
-        calculateBMR();
-
     } else {
         document.getElementById('bmiValue').textContent = '待計算';
         document.getElementById('bmiCategory').textContent = '';
         document.getElementById('bmiCategory').className = 'text-sm px-2 py-1 rounded';
     }
+    // 輸入清空或無效時也要同步清除衍生資料。
+    calculateBMR();
 }
 
 // BMR 基礎代謝率計算（使用 Mifflin-St Jeor 公式）
 function calculateBMR() {
-    const age = parseInt(document.getElementById('age').value);
+    const age = readValidNumber('age');
     const gender = document.getElementById('gender').value;
-    const height = parseFloat(document.getElementById('height').value);
-    const weight = parseFloat(document.getElementById('weight').value);
+    const height = readValidNumber('height');
+    const weight = readValidNumber('weight');
 
     if (!age || !gender || !height || !weight) {
         document.getElementById('bmrValue').textContent = '待計算';
+        calculateTDEE();
         return;
     }
 
@@ -104,12 +125,18 @@ function calculateTDEE() {
     const bmrElement = document.getElementById('bmrValue');
     const activityLevel = parseFloat(document.getElementById('activityLevel')?.value) || 1.375;
 
-    if (!bmrElement || bmrElement.textContent === '待計算') {
+    const bmr = Number(bmrElement?.textContent);
+    if (!Number.isFinite(bmr) || !readValidNumber('age') ||
+        !readValidNumber('height') || !readValidNumber('weight') ||
+        !document.getElementById('gender').value) {
         document.getElementById('tdeeValue').textContent = '待計算';
+        document.getElementById('calorieAdvice').classList.add('hidden');
+        for (const id of ['maintainCalories', 'loseCalories', 'gainCalories']) {
+            document.getElementById(id).textContent = '';
+        }
         return;
     }
 
-    const bmr = parseInt(bmrElement.textContent);
     const tdee = Math.round(bmr * activityLevel);
 
     document.getElementById('tdeeValue').textContent = tdee;
@@ -197,6 +224,9 @@ function proceedToPARQ() {
             return;
         }
     }
+
+    // 確保摘要與通過驗證的欄位一致。
+    calculateBMI();
 
     // 保存基本資料
     basicInfo = {
@@ -478,11 +508,21 @@ function getActivityLevelText(level) {
 }
 
 // PDF 下載功能
+let pdfDownloadInProgress = false;
+
 async function downloadPDF() {
+    if (pdfDownloadInProgress) return;
+    pdfDownloadInProgress = true;
+    let loadingMsg = null;
+    let pdfContent = null;
+    const downloadButton = document.getElementById('downloadPdfButton');
+    if (downloadButton) downloadButton.disabled = true;
     try {
         // 顯示載入中提示
-        const loadingMsg = document.createElement('div');
-        loadingMsg.innerHTML = '正在準備 PDF 下載...';
+        loadingMsg = document.createElement('div');
+        loadingMsg.id = 'pdfLoadingStatus';
+        loadingMsg.setAttribute('role', 'status');
+        loadingMsg.textContent = '正在準備 PDF 下載...';
         loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#3b82f6;color:white;padding:20px;border-radius:8px;z-index:10000;';
         document.body.appendChild(loadingMsg);
 
@@ -491,11 +531,9 @@ async function downloadPDF() {
             await loadPDFLibraries();
         }
 
-        // 移除載入提示
-        setTimeout(() => document.body.removeChild(loadingMsg), 500);
-
         // 創建一個臨時的PDF內容容器
-        const pdfContent = createPDFContent();
+        pdfContent = createPDFContent();
+        pdfContent.id = 'pdfExportContent';
         document.body.appendChild(pdfContent);
 
         // 使用 html2canvas 將內容轉換為圖片
@@ -508,9 +546,6 @@ async function downloadPDF() {
             scrollX: 0,
             scrollY: 0
         });
-
-        // 移除臨時容器
-        document.body.removeChild(pdfContent);
 
         // 創建 PDF
         const { jsPDF } = window.jspdf;
@@ -546,6 +581,11 @@ async function downloadPDF() {
     } catch (error) {
         console.error('PDF 生成錯誤:', error);
         alert('PDF 生成失敗，請稍後再試。');
+    } finally {
+        loadingMsg?.remove();
+        pdfContent?.remove();
+        if (downloadButton) downloadButton.disabled = false;
+        pdfDownloadInProgress = false;
     }
 }
 
@@ -691,6 +731,27 @@ function generateRiskSummaryForPDF(risk) {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+    const actions = { proceedToPARQ, generateAssessment, downloadPDF };
+    document.querySelectorAll('[data-page]').forEach((button) => {
+        button.addEventListener('click', () => showPage(button.dataset.page));
+    });
+    document.querySelectorAll('[data-action]').forEach((button) => {
+        const action = actions[button.dataset.action];
+        if (action) button.addEventListener('click', () => action());
+    });
+    document.getElementById('age').addEventListener('input', calculateBMR);
+    document.getElementById('gender').addEventListener('change', calculateBMR);
+    for (const id of ['height', 'weight']) {
+        document.getElementById(id).addEventListener('input', calculateBMI);
+    }
+    document.getElementById('activityLevel').addEventListener('change', calculateTDEE);
+    document.getElementById('parqForm').addEventListener('change', (event) => {
+        const input = event.target;
+        const question = /^q([1-7])$/.exec(input.name || '');
+        if (question && input.type === 'radio' && input.checked) {
+            selectAnswer(Number(question[1]), input.value);
+        }
+    });
     // 確保首頁為預設顯示頁面
-    showPage('homePage');
+    showPage('homePage', { focusHeading: false });
 });

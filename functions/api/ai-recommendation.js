@@ -32,16 +32,36 @@ export const onRequestOptions = corsPreflight;
 
 async function readJsonBody(request) {
   const declared = parseInt(request.headers.get("Content-Length") || "0", 10);
-  if (declared > MAX_BODY_BYTES) return { error: "請求內容過大", status: 413 };
-
-  const raw = await request.text();
-  if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
+  if (declared > MAX_BODY_BYTES) {
+    await request.body?.cancel().catch(() => {});
     return { error: "請求內容過大", status: 413 };
   }
+
+  let reader;
   try {
+    if (!request.body) return { error: "請求格式錯誤（需為 JSON）", status: 400 };
+    reader = request.body.getReader();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let bytesRead = 0;
+    let raw = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        return { error: "請求內容過大", status: 413 };
+      }
+      // 逐塊解碼保留跨 chunk 的 UTF-8 字元；只保留上限內的資料。
+      raw += decoder.decode(value, { stream: true });
+    }
+    raw += decoder.decode();
     return { payload: JSON.parse(raw) };
   } catch {
+    await reader?.cancel().catch(() => {});
     return { error: "請求格式錯誤（需為 JSON）", status: 400 };
+  } finally {
+    reader?.releaseLock();
   }
 }
 
@@ -49,7 +69,7 @@ function resolveProvider({ provider, model, sanitizedApiKey, env }) {
   if (provider === "auto") {
     const chosen = AUTO_ORDER.find((p) => env[CALLERS[p].envKey]);
     if (!chosen) return { error: "未設定任何 AI API 金鑰", status: 500 };
-    return { chosen, apiKey: env[CALLERS[chosen].envKey], chosenModel: DEFAULT_MODELS[chosen] };
+    return { chosen, apiKey: env[CALLERS[chosen].envKey], chosenModel: DEFAULT_MODELS[chosen], usingOwnKey: false };
   }
 
   const apiKey = sanitizedApiKey || env[CALLERS[provider].envKey];
@@ -60,7 +80,7 @@ function resolveProvider({ provider, model, sanitizedApiKey, env }) {
   if (!MODEL_ALLOWLIST[provider].includes(chosenModel)) {
     return { error: "指定的模型不在允許清單內", status: 400 };
   }
-  return { chosen: provider, apiKey, chosenModel };
+  return { chosen: provider, apiKey, chosenModel, usingOwnKey: Boolean(sanitizedApiKey) };
 }
 
 function describeUpstreamError(error, usingOwnKey) {
@@ -116,6 +136,12 @@ export async function onRequestPost({ request, env }) {
     return json({ success: false, error: "API 金鑰格式無效" }, 400, extra);
   }
 
+  const resolved = resolveProvider({ provider, model, sanitizedApiKey, env });
+  if (resolved.error) {
+    return json({ success: false, error: resolved.error }, resolved.status, extra);
+  }
+  const { chosen, apiKey, chosenModel, usingOwnKey } = resolved;
+
   // 限流放在驗證之後：無效請求不消耗 KV 寫入額度
   const rl = await checkRateLimit(request, env, RATE_LIMIT);
   if (!rl.allowed) {
@@ -125,20 +151,14 @@ export async function onRequestPost({ request, env }) {
       { ...extra, "Retry-After": "60" },
     );
   }
-  // 限流服務不可用時，站方金鑰一律 fail-closed；自帶金鑰者成本自負，照常放行
-  if (rl.degraded && !sanitizedApiKey) {
+  // 依實際使用的金鑰來源判斷：auto 永遠使用站方金鑰，即使請求附帶自帶金鑰。
+  if (rl.degraded && !usingOwnKey) {
     return json(
       { success: false, error: "AI 服務暫時無法使用，請稍後再試或使用自己的 API 金鑰" },
       503,
       { ...extra, "Retry-After": "60" },
     );
   }
-
-  const resolved = resolveProvider({ provider, model, sanitizedApiKey, env });
-  if (resolved.error) {
-    return json({ success: false, error: resolved.error }, resolved.status, extra);
-  }
-  const { chosen, apiKey, chosenModel } = resolved;
 
   try {
     const userSummary = buildUserSummary(validation.data);
@@ -156,7 +176,7 @@ export async function onRequestPost({ request, env }) {
     );
   } catch (error) {
     console.error("AI 建議生成錯誤:", error?.name, error?.message);
-    const { message, status } = describeUpstreamError(error, Boolean(sanitizedApiKey));
+    const { message, status } = describeUpstreamError(error, usingOwnKey);
     return json({ success: false, error: message }, status, extra);
   }
 }

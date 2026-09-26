@@ -3,11 +3,12 @@
   PYTHONPATH=~/Library/Python/3.9/lib/python/site-packages /usr/bin/python3 tests/browser/<檔名>.py
 退出碼 0 = 全部通過。
 """
+import os
 import json
 import sys
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8765"
+BASE = os.environ.get("BASE_URL", "http://127.0.0.1:8765")
 fails = 0
 def ok(cond, name, extra=""):
     global fails
@@ -52,7 +53,7 @@ with sync_playwright() as p:
     ok(st["iconPos"] == "absolute" and st["wrapperPos"] == "relative", "validation icon/wrapper styles migrated", json.dumps({"icon": st["iconPos"], "wrap": st["wrapperPos"]}))
     ok(st["loadingModal"] == "none" and st["loadingModalActive"] == "flex" and st["spinnerAnim"] == "spin", "loading modal styles migrated", json.dumps({"m": st["loadingModal"], "a": st["loadingModalActive"], "s": st["spinnerAnim"]}))
     ok(st["inactiveStepOpacity"] == "1" and st["inactiveLabelColor"] == "rgb(75, 85, 99)", "inactive step: opacity 1, gray-600 label (inline override gone)", json.dumps({"o": st["inactiveStepOpacity"], "c": st["inactiveLabelColor"]}))
-    ok("calculateBMR" not in st["oninput"], "oninput no duplicate calculateBMR", st["oninput"])
+    ok(st["oninput"] is None, "numeric input uses external event listener")
     ok(st["deadFns"] == [], "dead functions removed", st["deadFns"])
     ok(st["loadScriptArity"] == 2, "loadScript accepts integrity")
 
@@ -76,7 +77,7 @@ with sync_playwright() as p:
     ok(pg.evaluate("() => parseInt(document.getElementById('progressText').textContent) > 0"), "progress updates after debounce")
 
     # 草稿還原守門：sessionStorage 放 null 不噴錯
-    pg.evaluate("() => { sessionStorage.setItem('exerciseFormDraft', 'null'); }")
+    pg.evaluate("() => { sessionStorage.setItem('exerciseRxFormDraft', 'null'); }")
     pg.evaluate("() => { try { restoreFormDraft(); return true; } catch (e) { return false; } }")
     ok(pg.evaluate("() => { try { restoreFormDraft(); return true; } catch (e) { return false; } }"), "restoreFormDraft tolerates null draft")
     print("page errors:", errors, "console:", [c for c in console if "favicon" not in c][:3])
