@@ -1,3 +1,6 @@
+import '../../prescription-rules.js';
+import { adviceSchema } from './advice.js';
+export { DEFAULT_MODELS, MODEL_ALLOWLIST } from './models.js';
 /**
  * 運動處方 AI 建議 — 共用邏輯（Cloudflare Pages Functions 使用）
  * 金鑰一律由呼叫端傳入（Pages Secrets 或使用者自帶）。
@@ -64,8 +67,7 @@ const ENUMS = {
   parq_answer: ["yes", "no"],
 };
 const PARQ_KEYS = ["parq_q1", "parq_q2", "parq_q3", "parq_q4", "parq_q5", "parq_q6", "parq_q7"];
-const MAX_TYPE_ITEMS = 10;
-const TYPE_ITEM_PATTERN = /^[\u4e00-\u9fffA-Za-z0-9\s()（）\-\/、]{1,30}$/;
+
 
 // ============== 輸入驗證函數 ==============
 /**
@@ -83,7 +85,7 @@ function validateUserData(userData) {
 
   const numberIn = (key, min, max, label, integer) => {
     const raw = userData[key];
-    const n = typeof raw === "number" ? raw : Number(String(raw ?? "").trim());
+    const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : NaN;
     if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) {
       errors.push(`${label}必須在 ${min}-${max} 之間`);
       return;
@@ -123,7 +125,7 @@ function validateUserData(userData) {
   numberIn("height", 50, 300, "身高", false);
   numberIn("weight", 10, 500, "體重", false);
   enumIn("gender", ENUMS.gender, "性別", true);
-  enumIn("health_status", ENUMS.health_status, "健康狀況", false);
+  enumIn("health_status", ENUMS.health_status, "健康狀況", true);
   enumIn("fitness_level", ENUMS.fitness_level, "體能自評", true);
   enumIn("exercise_habit", ENUMS.exercise_habit, "運動習慣", true);
   enumIn("exercise_goal", ENUMS.exercise_goal, "運動目標", true);
@@ -140,14 +142,14 @@ function validateUserData(userData) {
   // PAR-Q 答案：只接受 parq_q1..7 = yes|no
   const pa = userData.parq_answers;
   if (pa === undefined) {
-    data.parq_answers = {};
+    errors.push("請完整回答七題 PAR-Q");
   } else if (!pa || typeof pa !== "object" || Array.isArray(pa)) {
     errors.push("PAR-Q 答案格式錯誤");
   } else {
     data.parq_answers = {};
     for (const key of PARQ_KEYS) {
       const v = pa[key];
-      if (v === undefined) continue;
+      if (v === undefined) { errors.push("請完整回答七題 PAR-Q"); break; }
       if (!ENUMS.parq_answer.includes(v)) {
         errors.push("PAR-Q 答案含無效值");
         break;
@@ -156,35 +158,10 @@ function validateUserData(userData) {
     }
   }
 
-  // prescription：前端規則引擎的結果，仍需範圍與白名單檢查
-  const p = userData.prescription;
-  if (!p || typeof p !== "object" || Array.isArray(p)) {
-    errors.push("缺少運動處方資料");
-  } else {
-    const rx = {};
-    const freq = Number(p.frequency);
-    const time = Number(p.time);
-    if (!Number.isInteger(freq) || freq < 1 || freq > 7) errors.push("運動處方頻率無效");
-    else rx.frequency = freq;
-    if (!Number.isInteger(time) || time < 5 || time > 180) errors.push("運動處方時間無效");
-    else rx.time = time;
-    if (typeof p.intensity !== "string" || !ENUMS.intensity.includes(p.intensity)) {
-      errors.push("運動處方強度無效");
-    } else rx.intensity = p.intensity;
-    if (
-      !Array.isArray(p.type) ||
-      p.type.length === 0 ||
-      p.type.length > MAX_TYPE_ITEMS ||
-      !p.type.every((t) => typeof t === "string" && TYPE_ITEM_PATTERN.test(t))
-    ) {
-      errors.push("運動處方類型格式錯誤");
-    } else rx.type = [...p.type];
-    if (p.volume !== undefined) {
-      const vol = Number(p.volume);
-      rx.volume = Number.isFinite(vol) && vol >= 0 && vol <= 10000 ? Math.round(vol) : 0;
-    }
-    data.prescription = rx;
-  }
+  if (data.health_status === "healthy" && data.diseases?.length) errors.push("健康狀況與疾病選項不一致，請重新確認");
+  if (data.limitations?.includes("none") && data.limitations.length > 1) errors.push("運動限制選項不一致");
+  // Ignore client prescription/risk entirely: compute with the exact same shared rules.
+  if (!errors.length) data.prescription = globalThis.ExerciseRules.calculateFITTVP(data);
 
   return { valid: errors.length === 0, errors, data: errors.length === 0 ? data : null };
 }
@@ -193,466 +170,60 @@ function validateUserData(userData) {
 function sanitizeApiKey(key) {
   if (!key || typeof key !== "string") return null;
   // API 金鑰只允許字母數字和連字號/底線
-  return key.replace(/[^a-zA-Z0-9\-_]/g, "").substring(0, 200);
+  return /^[a-zA-Z0-9_-]{1,256}$/.test(key) ? key : null;
 }
 
 
-// 運動處方 AI 系統提示詞
-const SYSTEM_PROMPT = `# Role (角色設定)
-你是一位資深的運動醫學專科醫師與臨床研究員，熟悉最新的 ACSM (美國運動醫學會) 指引、WHO 2020 身體活動指南與相關實證文獻。
-
-# Task (任務)
-請根據提供的用戶資料，制定一份具備「實證基礎」且「臨床可行」的個人化運動處方。
-
-# Output Format (輸出格式)
-請使用以下 HTML 結構輸出，確保格式清晰、專業：
-
-<div class="ai-section">
-<h4>🔬 第一部分：臨床推理與運動效益</h4>
-
-<p><strong>📋 個人化評估摘要</strong></p>
-<p>[根據用戶資料，簡述其健康狀況、體能水平、運動目標的綜合評估]</p>
-
-<p><strong>🧬 運動改善機轉</strong></p>
-<p>[說明運動如何改善用戶主要健康問題的生理機制，例如：]</p>
-<ul>
-<li>代謝改善：GLUT4 轉位增加、胰島素敏感性提升</li>
-<li>心血管效益：血管內皮功能改善、血壓調節</li>
-<li>肌肉骨骼：肌力維持、骨密度保護</li>
-<li>神經心理：抗發炎細胞激素、情緒調節</li>
-</ul>
-
-<p><strong>⚡ 運動前安全篩檢</strong></p>
-<p>絕對禁忌症（若有以下情況請勿運動，先就醫）：</p>
-<ul>[根據用戶疾病列出]</ul>
-<p>相對禁忌症（需經醫師評估後方可運動）：</p>
-<ul>[根據用戶疾病列出]</ul>
-</div>
-
-<div class="ai-section">
-<h4>📊 第二部分：FITT-VP 運動處方</h4>
-
-<p><strong>🏃 有氧運動處方</strong></p>
-<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
-<tr style="background:#f3f4f6;">
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">項目</th>
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">處方內容</th>
-</tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Frequency 頻率</strong></td><td style="border:1px solid #ddd; padding:8px;">[每週 X 天]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Intensity 強度</strong></td><td style="border:1px solid #ddd; padding:8px;">[RPE X-X/10 或 X-X% HRR，若服用β阻斷劑請用 RPE]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Time 時間</strong></td><td style="border:1px solid #ddd; padding:8px;">[每次 X-X 分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Type 類型</strong></td><td style="border:1px solid #ddd; padding:8px;">[具體運動項目，考量功能限制]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Volume 總量</strong></td><td style="border:1px solid #ddd; padding:8px;">[每週總計 X 分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Progression 進程</strong></td><td style="border:1px solid #ddd; padding:8px;">[每 X 週增加 X%，漸進原則]</td></tr>
-</table>
-
-<p><strong>🏋️ 阻力訓練處方</strong></p>
-<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
-<tr style="background:#f3f4f6;">
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">項目</th>
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">處方內容</th>
-</tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Frequency 頻率</strong></td><td style="border:1px solid #ddd; padding:8px;">[每週 X 天，間隔至少 48 小時]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Intensity 強度</strong></td><td style="border:1px solid #ddd; padding:8px;">[X-X% 1RM 或 RPE X-X/10]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Sets × Reps</strong></td><td style="border:1px solid #ddd; padding:8px;">[X 組 × X-X 次]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Type 類型</strong></td><td style="border:1px solid #ddd; padding:8px;">[訓練動作，見下方詳細列表]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Progression 進程</strong></td><td style="border:1px solid #ddd; padding:8px;">[當可完成目標次數時，增加 X% 負荷]</td></tr>
-</table>
-
-<p><strong>💪 具體訓練動作</strong></p>
-<p><em>上肢動作：</em></p>
-<ul>
-[列出 2-3 個動作，每個包含：動作名稱、組數×次數、動作要領、居家替代選項]
-</ul>
-<p><em>下肢動作：</em></p>
-<ul>
-[列出 2-3 個動作，格式同上，注意避開功能限制]
-</ul>
-<p><em>核心動作：</em></p>
-<ul>
-[列出 1-2 個動作，格式同上]
-</ul>
-
-<p><strong>🧘 柔軟度訓練處方</strong></p>
-<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
-<tr style="background:#f3f4f6;">
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">項目</th>
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">處方內容</th>
-</tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Frequency</strong></td><td style="border:1px solid #ddd; padding:8px;">[每週 X 天，建議每日]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Intensity</strong></td><td style="border:1px solid #ddd; padding:8px;">[伸展至緊繃但不疼痛]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Time</strong></td><td style="border:1px solid #ddd; padding:8px;">[每個動作維持 X-X 秒，重複 X 次]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Type</strong></td><td style="border:1px solid #ddd; padding:8px;">[靜態伸展動作列表]</td></tr>
-</table>
-
-<p><strong>⚖️ 神經肌肉/平衡訓練</strong>（適用於銀髮族或有跌倒風險者）</p>
-<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
-<tr style="background:#f3f4f6;">
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">項目</th>
-<th style="border:1px solid #ddd; padding:8px; text-align:left;">處方內容</th>
-</tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Frequency</strong></td><td style="border:1px solid #ddd; padding:8px;">[每週 X 天]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Type</strong></td><td style="border:1px solid #ddd; padding:8px;">[太極、單腳站立、動態平衡等]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;"><strong>Time</strong></td><td style="border:1px solid #ddd; padding:8px;">[每次 X-X 分鐘]</td></tr>
-</table>
-</div>
-
-<div class="ai-section">
-<h4>📅 第三部分：每週訓練計畫範例</h4>
-<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
-<tr style="background:#f3f4f6;">
-<th style="border:1px solid #ddd; padding:8px;">星期</th>
-<th style="border:1px solid #ddd; padding:8px;">訓練內容</th>
-<th style="border:1px solid #ddd; padding:8px;">時間</th>
-</tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週一</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週二</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週三</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週四</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週五</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週六</td><td style="border:1px solid #ddd; padding:8px;">[內容]</td><td style="border:1px solid #ddd; padding:8px;">[分鐘]</td></tr>
-<tr><td style="border:1px solid #ddd; padding:8px;">週日</td><td style="border:1px solid #ddd; padding:8px;">[休息或輕度活動]</td><td style="border:1px solid #ddd; padding:8px;">-</td></tr>
-</table>
-</div>
-
-<div class="ai-section">
-<h4>⚠️ 第四部分：衛教與風險管理</h4>
-
-<p><strong>🚨 紅旗徵兆（出現以下症狀請立即停止運動並就醫）</strong></p>
-<ul>
-[根據用戶疾病列出具體警示症狀，例如：]
-<li>胸痛、胸悶或壓迫感</li>
-<li>異常呼吸困難</li>
-<li>頭暈、意識模糊</li>
-<li>心悸或心跳不規則</li>
-</ul>
-
-<p><strong>💊 藥物與運動交互作用</strong></p>
-<ul>
-[根據用戶用藥情況說明，例如：]
-<li>β阻斷劑：心率反應鈍化，請改用 RPE 評估強度</li>
-<li>降血糖藥/胰島素：運動前後監測血糖，準備含糖食物</li>
-<li>降血壓藥：避免快速姿勢變換，注意姿勢性低血壓</li>
-</ul>
-
-<p><strong>🛡️ 運動安全守則</strong></p>
-<ul>
-<li>熱身：運動前 5-10 分鐘低強度活動</li>
-<li>收操：運動後 5-10 分鐘緩和伸展</li>
-<li>水分補充：運動前中後適量飲水</li>
-<li>環境注意：避免極端溫度環境運動</li>
-</ul>
-</div>
-
-<div class="ai-section">
-<h4>🌟 給您的鼓勵</h4>
-<p>[一段溫暖、專業的鼓勵話語，強調運動的長期效益，並給予持續的信心和支持]</p>
-</div>
-
-# Important Principles (重要原則)
-- 始終使用繁體中文回覆
-- 處方必須具體可執行（明確的數值：組數、次數、時間、強度）
-- 考量用戶的疾病限制，避免禁忌動作
-- 若用戶服用影響心率藥物（如 β阻斷劑），強度指標必須改用 RPE
-- 提供居家與健身房兩種選項
-- 對於高風險用戶（PAR-Q 多項為「是」），強調就醫評估的重要性
-- 保持專業但易懂的語氣，適合一般民眾閱讀
-- 不提供診斷或治療建議，僅提供運動指導
-
-# Reference Exercise Database (參考動作庫)
-- 上肢：伏地挺身（跪姿/標準/窄距）、啞鈴肩推、啞鈴划船、彈力帶拉伸、牆壁伏地挺身
-- 下肢：深蹲（椅子深蹲/高腳杯深蹲）、弓箭步、臀橋、單腳硬舉、小腿上提、靠牆靜蹲
-- 核心：棒式（跪姿/標準）、死蟲式、鳥狗式、仰臥捲腹、側棒式
-- 平衡：單腳站立、腳跟腳尖走路、太極、坐站練習
-- 柔軟度：股四頭肌伸展、腿後肌伸展、胸肌伸展、上背伸展、髖屈肌伸展`;
-
-// 建構用戶資料摘要
-// PAR-Q+ 2025 題目標籤（供 AI 摘要用；順序對應 parq_q1..parq_q7）
-const PARQ_QUESTION_LABELS = {
-  parq_q1: "醫師曾告知患有心臟病或高血壓",
-  parq_q2: "休息、日常生活或身體活動時會胸痛",
-  parq_q3: "過去 12 個月內曾因頭暈失去平衡或失去意識",
-  parq_q4: "曾被診斷其他慢性疾病（心臟病與高血壓除外）",
-  parq_q5: "目前正在服用治療慢性疾病的處方藥",
-  parq_q6: "有可能因增加活動而加重的骨骼、關節或軟組織問題",
-  parq_q7: "醫師曾告知只能在醫療監督下進行身體活動",
-};
-
-// PAR-Q+ 分級規則（與 script.js assessPARQRisk、parq-script.js assessParqLevel 一致）：
-// 依 ACSM 2015 運動前篩檢演算法：q2 胸痛、q3 頭暈／失去意識為徵候症狀，q7 醫囑須醫療監督 → high；
-// 其他任一「是」→ moderate（q1 心臟病／高血壓、q5 服藥者心率不可靠）；全「否」→ low
-const PARQ_SYMPTOM_QUESTIONS = ["parq_q2", "parq_q3", "parq_q7"];
-const PARQ_CARDIAC_DISEASE_QUESTIONS = ["parq_q1", "parq_q5"];
-
-function assessParqLevel(answers) {
-  const safe = answers && typeof answers === "object" ? answers : {};
-  const yesQuestions = Object.keys(PARQ_QUESTION_LABELS).filter(
-    (q) => safe[q] === "yes",
-  );
-  const symptomFlag = PARQ_SYMPTOM_QUESTIONS.some((q) => safe[q] === "yes");
-  const cardiacDiseaseFlag = PARQ_CARDIAC_DISEASE_QUESTIONS.some(
-    (q) => safe[q] === "yes",
-  );
-  const level = symptomFlag ? "high" : yesQuestions.length > 0 ? "moderate" : "low";
-  return { level, yesCount: yesQuestions.length, yesQuestions, symptomFlag, cardiacDiseaseFlag };
+export { validateUserData, sanitizeApiKey };
+export const SYSTEM_PROMPT = '你協助使用者落實既有運動計畫。從各組 eligibleActions 選兩個最貼近個人限制的不同 ID，依優先順序排列。consultation 模式只選就醫前準備。不得新增文字、數值、來源或動作。時間、器材、動機、兒少、服藥等專屬選項若適用，優先選擇。只輸出符合 schema 的 JSON。';
+export function buildUserSummary(data, ctx) {
+  // No client text, names or keys; trusted baseline supplies all clinical context.
+  return JSON.stringify({profile:{age:data.age,gender:data.gender,diseases:data.diseases,fitness:fitnessMap[data.fitness_level],habit:habitMap[data.exercise_habit],goal:goalMap[data.exercise_goal],limitations:data.limitations,parq_answers:data.parq_answers}, baseline:ctx.baseline, risk:ctx.risk.level, mode:ctx.consult?'consultation':'actions',eligibleActions:ctx.catalog});
 }
-
-function buildUserSummary(data) {
-  const {
-    age,
-    gender,
-    height,
-    weight,
-    bmi,
-    health_status,
-    diseases,
-    fitness_level,
-    exercise_habit,
-    exercise_goal,
-    limitations,
-    parq_answers,
-    prescription,
-  } = data;
-
-  // 性別轉換
-  const genderText =
-    gender === "male" ? "男性" : gender === "female" ? "女性" : "其他";
-
-  // 體能水平轉換
-
-  // 運動習慣轉換
-
-  // 運動目標轉換
-
-  // 疾病轉換
-
-  // 限制轉換
-
-  // PAR-Q 評估（分級規則與前端 script.js assessPARQRisk 一致）
-  const parq = assessParqLevel(parq_answers);
-  const parqRiskLevel = {
-    low: "低風險（PAR-Q+ 全部回答否，可循序漸進開始）",
-    moderate: parq.cardiacDiseaseFlag
-      ? "中度風險（心臟病／高血壓或服藥；需完成 PAR-Q+ 追蹤問題並諮詢，心率不可靠請用 RPE）"
-      : "中度風險（有回答「是」的項目；需完成 PAR-Q+ 追蹤問題並諮詢）",
-    high: "高風險（胸痛、頭暈／昏厥或醫囑須醫療監督；任何強度前都需醫師評估，評估前僅低強度）",
-  }[parq.level];
-  const parqYesCount = parq.yesCount;
-  const parqYesDetail =
-    parq.yesQuestions.length > 0
-      ? parq.yesQuestions.map((q) => `  - ${PARQ_QUESTION_LABELS[q]}`).join("\n")
-      : "  - 無";
-
-  // 年齡分組
-  let ageGroup = "";
-  if (age >= 6 && age <= 11) ageGroup = "兒童（6-11歲）";
-  else if (age >= 12 && age <= 17) ageGroup = "青少年（12-17歲）";
-  else if (age >= 18 && age <= 64) ageGroup = "成人（18-64歲）";
-  else if (age >= 65) ageGroup = "銀髮族（65歲以上）";
-
-  return `
-【用戶基本資料】
-- 年齡：${age} 歲（${ageGroup}）
-- 性別：${genderText}
-- 身高：${height} 公分
-- 體重：${weight} 公斤
-${bmi ? `- BMI：${bmi}` : "- BMI：未計算（未成年）"}
-
-【健康狀況】
-- 整體健康：${health_status === "healthy" ? "健康狀況良好" : "有健康狀況需注意"}
-- 相關疾病：${diseases && diseases.length > 0 ? diseases.map((d) => diseaseMap[d] || d).join("、") : "無"}
-- 體能自評：${fitnessMap[fitness_level] || fitness_level}
-
-【運動習慣與目標】
-- 目前運動習慣：${habitMap[exercise_habit] || exercise_habit}
-- 運動目標：${goalMap[exercise_goal] || exercise_goal}
-- 運動限制：${limitations && limitations.length > 0 ? limitations.map((l) => limitationMap[l] || l).join("、") : "無"}
-
-【PAR-Q+ 運動準備評估】
-- 風險等級：${parqRiskLevel}
-- 回答「是」的問題數：${parqYesCount}/7
-- 回答「是」的項目：
-${parqYesDetail}
-
-【系統計算的處方建議】
-- 建議頻率：每週 ${prescription.frequency} 次
-- 建議時間：每次 ${prescription.time} 分鐘
-- 建議強度：${prescription.intensity}
-- 運動類型：${prescription.type.join("、")}
-`;
+export function parseRetryAfter(raw, now=Date.now()) {
+  if(!raw) return null;
+  const n=/^\d+$/.test(raw)?Number(raw):Math.ceil((Date.parse(raw)-now)/1000);
+  return Number.isFinite(n)&&n>=0 ? Math.min(Math.ceil(n),86400) : null;
 }
-
-// ============== 請求逾時設定 ==============
-// 避免上游 AI 供應商緩慢/掛住時，後端 fetch 無限期掛起佔用連線
-const AI_REQUEST_TIMEOUT_MS = 30000;
-
-// ============== 預設模型配置 ==============
-// 模型白名單：client 指定的 model 必須在清單內，避免用站方金鑰打任意（高價）模型。
-// 前端 script.js 的 AI_PROVIDERS 清單必須與此同步。
-// 註：Groq / Gemini / OpenAI 的可用模型名稱會隨供應商異動，請定期核對官方清單。
-const MODEL_ALLOWLIST = {
-  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"],
-  openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"],
-  claude: ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"],
-  gemini: ["gemini-2.5-flash", "gemini-2.5-pro"],
-};
-const DEFAULT_MODELS = {
-  groq: "openai/gpt-oss-120b", // 2026-09-18：llama-3.3-70b-versatile 已被 Groq 下架，改用 gpt-oss-120b
-  openai: "gpt-4o-mini",
-  claude: "claude-opus-5",
-  gemini: "gemini-2.5-flash",
-};
-
-// ============== AI 提供商呼叫函數 ==============
-
-// ============== 上游呼叫共用 ==============
-const USER_PROMPT_PREFIX = "請根據以下用戶資料，提供個人化的運動處方建議：\n\n";
-const MAX_OUTPUT_TOKENS = 8192; // 模板本身含多個表格，2048 會把後段的安全警示截掉
-
-async function readUpstreamError(response, label) {
-  let detail = response.statusText || String(response.status);
-  try {
-    const text = await response.text();
-    try {
-      const parsed = JSON.parse(text);
-      detail = parsed?.error?.message || parsed?.message || detail;
-    } catch {
-      if (text) detail = text.slice(0, 200);
-    }
-  } catch {
-    /* 讀不到錯誤體就用 statusText */
+const MAX_OUTPUT_TOKENS=1800;
+export async function callProvider(provider, summary, apiKey, model, ctx) {
+  const schema=adviceSchema(ctx), messages=[{role:'system',content:SYSTEM_PROMPT},{role:'user',content:summary}];
+  let url, headers, body;
+  if(provider==='groq') {
+    url='https://api.groq.com/openai/v1/chat/completions'; headers={Authorization:`Bearer ${apiKey}`};
+    body={model,messages,max_completion_tokens:MAX_OUTPUT_TOKENS,reasoning_effort:'low',response_format:{type:'json_schema',json_schema:{name:'action_cards',strict:true,schema}}};
+  } else if(provider==='openai') {
+    url='https://api.openai.com/v1/responses';headers={Authorization:`Bearer ${apiKey}`};
+    body={model,input:messages,store:false,max_output_tokens:MAX_OUTPUT_TOKENS,reasoning:{effort:'low'},text:{format:{type:'json_schema',name:'action_cards',strict:true,schema}}};
+  } else if(provider==='claude') {
+    url='https://api.anthropic.com/v1/messages';headers={'x-api-key':apiKey,'anthropic-version':'2023-06-01'};
+    body={model,max_tokens:MAX_OUTPUT_TOKENS,system:SYSTEM_PROMPT,messages:messages.slice(1),output_config:{format:{type:'json_schema',schema}}};
+  } else {
+    url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;headers={'x-goog-api-key':apiKey};
+    body={systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},contents:[{role:'user',parts:[{text:summary}]}],generationConfig:{maxOutputTokens:MAX_OUTPUT_TOKENS,thinkingConfig:{thinkingLevel:'low'},responseMimeType:'application/json',responseJsonSchema:schema}};
   }
-  const err = new Error(`${label} API 錯誤 (${response.status}): ${detail}`);
-  err.upstreamStatus = response.status;
-  return err;
-}
-
-function ensureContent(text, label) {
-  if (typeof text !== "string" || text.trim() === "") {
-    throw new Error(`${label} API 回傳空白內容`);
+  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+  if(!response.ok) {
+    await response.body?.cancel();
+    throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
   }
-  return text;
+  const result=await response.json();
+  let content, complete=false, inputTokens, outputTokens;
+  if(provider==='groq') {
+    const choice=result.choices?.[0];content=choice?.message?.content;complete=choice?.finish_reason==='stop'&&!choice?.message?.refusal;
+    inputTokens=result.usage?.prompt_tokens;outputTokens=result.usage?.completion_tokens;
+  } else if(provider==='openai') {
+    const parts=(result.output||[]).flatMap(x=>x.content||[]);
+    content=parts.filter(p=>p.type==='output_text').map(p=>p.text).join('');complete=result.status==='completed'&&!parts.some(p=>p.type==='refusal');
+    inputTokens=result.usage?.input_tokens;outputTokens=result.usage?.output_tokens;
+  } else if(provider==='claude') {
+    content=(result.content||[]).filter(p=>p.type==='text').map(p=>p.text).join('');complete=result.stop_reason==='end_turn';
+    inputTokens=result.usage?.input_tokens;outputTokens=result.usage?.output_tokens;
+  } else {
+    const candidate=result.candidates?.[0];content=(candidate?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('');complete=candidate?.finishReason==='STOP'&&!result.promptFeedback?.blockReason;
+    inputTokens=result.usageMetadata?.promptTokenCount;outputTokens=(result.usageMetadata?.candidatesTokenCount||0)+(result.usageMetadata?.thoughtsTokenCount||0);
+  }
+  if(!complete||typeof content!=='string'||!content.trim()||content.length>10000) throw Object.assign(new Error('Incomplete response'),{code:'INCOMPLETE_OUTPUT'});
+  const count=n=>Number.isSafeInteger(n)&&n>=0?n:null;
+  return {content,model,usage:{inputTokens:count(inputTokens),outputTokens:count(outputTokens)}};
 }
-
-function postJson(url, headers, body) {
-  return fetch(url, {
-    method: "POST",
-    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-}
-
-// 呼叫 Groq API（OpenAI 相容格式）
-async function callGroqAPI(userSummary, apiKey, model = DEFAULT_MODELS.groq) {
-  const response = await postJson(
-    "https://api.groq.com/openai/v1/chat/completions",
-    { Authorization: `Bearer ${apiKey}` },
-    {
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: USER_PROMPT_PREFIX + userSummary },
-      ],
-      max_tokens: 6000, // gpt-oss 為 reasoning 模型，推理 token 也計入上限
-      reasoning_effort: "low",
-      temperature: 0.7,
-    },
-  );
-  if (!response.ok) throw await readUpstreamError(response, "Groq");
-  const data = await response.json();
-  const choice = data?.choices?.[0];
-  return {
-    content: ensureContent(choice?.message?.content, "Groq"),
-    model,
-    truncated: choice?.finish_reason === "length",
-  };
-}
-
-// 呼叫 Claude API
-async function callClaudeAPI(userSummary, apiKey, model = DEFAULT_MODELS.claude) {
-  const response = await postJson(
-    "https://api.anthropic.com/v1/messages",
-    { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    {
-      model,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: USER_PROMPT_PREFIX + userSummary }],
-    },
-  );
-  if (!response.ok) throw await readUpstreamError(response, "Claude");
-  const data = await response.json();
-  const text = (data?.content || [])
-    .filter((b) => b?.type === "text")
-    .map((b) => b.text)
-    .join("");
-  return {
-    content: ensureContent(text, "Claude"),
-    model,
-    truncated: data?.stop_reason === "max_tokens",
-  };
-}
-
-// 呼叫 Gemini API
-async function callGeminiAPI(userSummary, apiKey, model = DEFAULT_MODELS.gemini) {
-  const response = await postJson(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    // 金鑰走 header，避免出現在 URL（URL 易被 log / proxy 記錄）
-    { "x-goog-api-key": apiKey },
-    {
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: USER_PROMPT_PREFIX + userSummary }] }],
-      generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
-    },
-  );
-  if (!response.ok) throw await readUpstreamError(response, "Gemini");
-  const data = await response.json();
-  const candidate = data?.candidates?.[0];
-  const text = (candidate?.content?.parts || []).map((p) => p?.text || "").join("");
-  return {
-    content: ensureContent(text, "Gemini"),
-    model,
-    truncated: candidate?.finishReason === "MAX_TOKENS",
-  };
-}
-
-// 呼叫 OpenAI API
-async function callOpenAIAPI(userSummary, apiKey, model = DEFAULT_MODELS.openai) {
-  const response = await postJson(
-    "https://api.openai.com/v1/chat/completions",
-    { Authorization: `Bearer ${apiKey}` },
-    {
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: USER_PROMPT_PREFIX + userSummary },
-      ],
-      max_tokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
-    },
-  );
-  if (!response.ok) throw await readUpstreamError(response, "OpenAI");
-  const data = await response.json();
-  const choice = data?.choices?.[0];
-  return {
-    content: ensureContent(choice?.message?.content, "OpenAI"),
-    model,
-    truncated: choice?.finish_reason === "length",
-  };
-}
-
-export {
-  validateUserData,
-  sanitizeApiKey,
-  buildUserSummary,
-  assessParqLevel,
-  SYSTEM_PROMPT,
-  DEFAULT_MODELS,
-  MODEL_ALLOWLIST,
-  AI_REQUEST_TIMEOUT_MS,
-  callGroqAPI,
-  callClaudeAPI,
-  callGeminiAPI,
-  callOpenAIAPI,
-};

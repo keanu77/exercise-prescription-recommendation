@@ -47,7 +47,7 @@ with sync_playwright() as p:
       };
     }""")
     ok(st["inlineStyle"] == 0, "no inline <style> in index.html")
-    ok(st["purifyDefer"] and st["purifyLoaded"], "DOMPurify defer + SRI + loaded", json.dumps({"defer": st["purifyDefer"], "loaded": st["purifyLoaded"]}))
+    ok(not st["purifyDefer"] and not st["purifyLoaded"], "structured cards require no external HTML sanitizer")
     ok(st["fontWeights"] and st["preconnectCdn"], "font weights 400/500/700 + cdnjs preconnect")
     ok(st["iconPos"] == "absolute" and st["wrapperPos"] == "relative", "validation icon/wrapper styles migrated", json.dumps({"icon": st["iconPos"], "wrap": st["wrapperPos"]}))
     ok(st["loadingModal"] == "none" and st["loadingModalActive"] == "flex" and st["spinnerAnim"] == "spin", "loading modal styles migrated", json.dumps({"m": st["loadingModal"], "a": st["loadingModalActive"], "s": st["spinnerAnim"]}))

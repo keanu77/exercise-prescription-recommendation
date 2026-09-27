@@ -22,24 +22,25 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
 
-### 兩段式處方：client 算 baseline，AI 只做「補充說明」
-1. 使用者填完 `index.html` 的多步驟表單後，**`script.js` 在前端完成確定性計算**：`calculateFITTVP()` 產生 FITT-VP 處方、`assessPARQRisk()` 算 PAR-Q 分級、`calculateBMI/BMR/TDEE()`、MET 熱量。這份結果先直接顯示。
-2. 結果頁的 AI 區塊先顯示資料用途說明，**使用者按下按鈕後**才把 `userData`（含前端算好的 `prescription`）POST 到 `/api/ai-recommendation`。server 不重算處方，只把正規化後的資料餵給 AI。
-   → 改處方邏輯要改 `script.js` 的 `calculateFITTVP`；改 AI 輸出要改 `functions/_lib/ai.js` 的 `SYSTEM_PROMPT`。兩者是獨立的兩套邏輯。
+### 兩段式處方：共用規則＋選用 AI 行動卡
+1. `prescription-rules.js` 包含原樣抽出的 `calculateFITTVP`、PAR-Q 與 safety caps，供瀏覽器及 Pages Function 共用。修改規則時在此檔操作；`script.js` 處理表單與顯示。
+2. `ai-ui.js` 先讀取 `/api/providers` 目錄，使用者同意後送 schemaVersion:2 與表單資料。伺服器嚴格驗證完整問卷、忽略 client 處方並重算可信 baseline。
+3. `functions/_lib/advice.js` 依條件建立行動項目；AI 只回適用 ID，伺服器驗證後轉成三張固定卡片。高風險／需追蹤者只提供諮詢準備。文字用 DOM textContent 顯示，沒有模型 HTML。
+4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
 - 兩入口使用 `.site-app` 共用運動風格：黑／米白／萊姆綠；主表單 desktop 左側步驟欄、mobile 橫向步驟。品牌文字 Noto Sans TC，英文及數字 Barlow Condensed；899px 以下評估頁回到單欄。
 - 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
 - 首頁圖片在 `assets/running-track-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；只用在首頁。原始生成說明與來源見 `docs/sports-design-2026-09-27.md`。圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
-- 目前 17 個打包資產（含 PDF renderer、中文字型與授權），`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
+- 目前 19 個打包資產（含 PDF renderer、中文字型與授權），`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
 - 視覺變更不可改動風險分級語意色、醫療提醒、AI 同意流程或處方公式。
 
 ### 表單與輸出流程
 - 主入口先呈現標準處方與下載／修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入 jsPDF 與本機中文字型、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- DOMPurify CDN 固定 3.4.16，搭配 SRI；升級需重新計算 SRI 並跑 AI 與 CSP 瀏覽器測試。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。`aiPDFSections()` 只在使用者勾選時附上當次有效行動卡；重設／重新產生清空附錄。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。
@@ -55,12 +56,12 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - q1 心臟病／高血壓、q5 服用處方藥 → `hrZoneUnsafe`，不給心率區間改用 RPE（ACSM）。
 - 改規則要三處一起改，並更新 README 的說明。
 
-### functions/：四家 AI provider 的統一 proxy
-- `functions/api/ai-recommendation.js`：CORS → 讀 body（100KB）→ `validateUserData` 正規化 → 限流 → 依 `provider` 呼叫 → 統一 JSON。`auto` 依 `AUTO_ORDER`（Groq → Claude → Gemini → OpenAI）挑第一家有金鑰的，**沒有失敗 fallback**（避免默默燒付費額度）。
-- `functions/_lib/ai.js`：`validateUserData` 回傳 `{valid, errors, data}`，**`buildUserSummary` 只吃 `data`**。所有 enum（含 `diseases` / `limitations` 元素、`prescription.intensity`）走白名單；新增表單選項時要同步補 `diseaseMap` / `limitationMap` 等對照表（它們同時是白名單來源）。
-- `MODEL_ALLOWLIST` / `DEFAULT_MODELS` 在 `ai.js`；**前端 `script.js` 的 `AI_PROVIDERS` 清單必須同步**，否則後端回 400。
-- 限流（`functions/_lib/http.js checkRateLimit`）是 KV 計數、盡力而為；回傳 `degraded` 時，站方金鑰的請求 fail-closed 回 503，只有實際使用自帶金鑰的請求放行（`auto` 一律使用站方金鑰）。
-- **AI 輸出是 HTML 不是 markdown**：`SYSTEM_PROMPT` 要求 `<div class="ai-section">…</div>` 結構，前端 `DOMPurify.sanitize()` 後才 `innerHTML`；DOMPurify 未載入時顯示錯誤，不 fallback。回應含 `truncated` 旗標時前端會顯示提示。
+### functions/：四家 provider 的結構化 proxy
+- `ai-recommendation.js`：CORS、100KiB body、schemaVersion:2、完整正規化、10次/IP/分鐘、站方預算、可信規則、provider adapter、選取 ID 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
+- 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
+- `ai.js` 只取正規化資料；`advice.js` 控制文案、適用性、schema、來源。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
+- `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；按最大輸入／輸出 token 成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
+- `scripts/evaluate-ai.mjs`：30合成案例×3次，先預留成本、$10上限即停止。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
 
 ### 表單驗證與前端多入口
 - 主表單 `novalidate` 由 `validateCurrentStep(step)` 統一處理 required、min/max、step 與單選；最終送出重新驗證全部步驟，顯示並聚焦第一個錯誤。身高／體重接受一位小數，年齡維持整數。
@@ -79,5 +80,5 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - JS/CSS 沒有內容 hash，`_headers` 對 `/*.js` `/*.css` 設 `max-age=0, must-revalidate`，靠 ETag 避免新 HTML 搭舊 JS；不要改回長快取。
 - Zeabur 版 Express server 已於 2026-09-26 移除（git tag `zeabur-final` 可回溯）。本機開發一律 `npm run dev`。
 
-### AI 改版規劃（尚未實作）
-- 使用者要求重新評估 AI 補充說明，方案與 2026-09-27 官方模型／費用查核在 `docs/ai-redesign-plan-2026-09-27.md`。本輪僅規劃，未改 AI 模型、提示詞或 Functions。候選模型尚未用本站帳號作新一輪品質評測。
+### AI 生活行動卡
+- 規劃 `docs/ai-redesign-plan-2026-09-27.md`；本轮實作、可執行驗證與限制見 `docs/ai-redesign-implementation-2026-09-27.md`。其他候選模型與人工評分仍待有效帳號實測，不能以 mock 推論醫療品質。

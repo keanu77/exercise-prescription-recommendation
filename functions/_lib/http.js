@@ -94,7 +94,7 @@ export async function checkRateLimit(request, env, { scope, limit, windowSeconds
     console.warn("rate-limit KV read failed:", err?.message);
     return { allowed: true, remaining: null, degraded: true };
   }
-  if (count >= limit) return { allowed: false, remaining: 0, degraded: false };
+  if (count >= limit) return { allowed: false, remaining: 0, degraded: false, retryAfter: windowSeconds - Math.floor(Date.now() / 1000) % windowSeconds };
 
   try {
     await kv.put(key, String(count + 1), { expirationTtl: windowSeconds * 2 });

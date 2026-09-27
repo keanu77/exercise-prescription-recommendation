@@ -3,30 +3,15 @@
  * 流程：CORS → 讀 body → 驗證並正規化 → 限流 → 依 provider 呼叫 AI → 統一 JSON 回應。
  * 金鑰來自 Pages 專案的 Secrets（GROQ_API_KEY 等），使用者也可自帶 customApiKey。
  */
-import {
-  validateUserData,
-  sanitizeApiKey,
-  buildUserSummary,
-  DEFAULT_MODELS,
-  MODEL_ALLOWLIST,
-  callGroqAPI,
-  callClaudeAPI,
-  callGeminiAPI,
-  callOpenAIAPI,
-} from "../_lib/ai.js";
+import { validateUserData, sanitizeApiKey, buildUserSummary, callProvider, SYSTEM_PROMPT } from "../_lib/ai.js";
+import { MODELS, DEFAULT_MODELS, MODEL_ALLOWLIST, publicCatalog } from "../_lib/models.js";
+import { buildAdviceContext, validateSelection, presentAdvice, adviceSchema, RULES_VERSION, PROMPT_VERSION } from "../_lib/advice.js";
+import { reserveSiteBudget } from "../_lib/budget.js";
 import { json, corsHeadersFor, corsPreflight, checkRateLimit } from "../_lib/http.js";
 
 const MAX_BODY_BYTES = 100 * 1024;
 const VALID_PROVIDERS = ["auto", "groq", "claude", "gemini", "openai"];
 const RATE_LIMIT = { scope: "ai", limit: 10, windowSeconds: 60 };
-
-const CALLERS = {
-  groq: { call: callGroqAPI, envKey: "GROQ_API_KEY", label: "Groq", missing: "未設定 Groq API 金鑰", missingStatus: 500 },
-  claude: { call: callClaudeAPI, envKey: "ANTHROPIC_API_KEY", label: "Claude", missing: "請提供 Claude API 金鑰", missingStatus: 400 },
-  gemini: { call: callGeminiAPI, envKey: "GEMINI_API_KEY", label: "Gemini", missing: "請提供 Gemini API 金鑰", missingStatus: 400 },
-  openai: { call: callOpenAIAPI, envKey: "OPENAI_API_KEY", label: "OpenAI", missing: "請提供 OpenAI API 金鑰", missingStatus: 400 },
-};
-const AUTO_ORDER = ["groq", "claude", "gemini", "openai"];
 
 export const onRequestOptions = corsPreflight;
 
@@ -66,26 +51,24 @@ async function readJsonBody(request) {
 }
 
 function resolveProvider({ provider, model, sanitizedApiKey, env }) {
-  if (provider === "auto") {
-    const chosen = AUTO_ORDER.find((p) => env[CALLERS[p].envKey]);
-    if (!chosen) return { error: "未設定任何 AI API 金鑰", status: 500 };
-    return { chosen, apiKey: env[CALLERS[chosen].envKey], chosenModel: DEFAULT_MODELS[chosen], usingOwnKey: false };
-  }
-
-  const apiKey = sanitizedApiKey || env[CALLERS[provider].envKey];
-  if (!apiKey) {
-    return { error: CALLERS[provider].missing, status: CALLERS[provider].missingStatus };
-  }
-  const chosenModel = model || DEFAULT_MODELS[provider];
-  if (!MODEL_ALLOWLIST[provider].includes(chosenModel)) {
-    return { error: "指定的模型不在允許清單內", status: 400 };
-  }
-  return { chosen: provider, apiKey, chosenModel, usingOwnKey: Boolean(sanitizedApiKey) };
+  const chosen = provider === "auto" ? publicCatalog(env).defaultProvider : provider;
+  if (!chosen) return { error: "目前沒有可用的站方 AI 服務，請使用自己的金鑰", status: 503 };
+  const chosenModel = provider === "auto" ? DEFAULT_MODELS[chosen] : (model || DEFAULT_MODELS[chosen]);
+  if (!MODEL_ALLOWLIST[chosen].includes(chosenModel)) return { error: "指定的模型不在允許清單內", status: 400 };
+  const modelInfo = MODELS[chosen].models.find(m=>m.id===chosenModel);
+  const usingOwnKey = provider !== "auto" && Boolean(sanitizedApiKey);
+  if (!usingOwnKey && !modelInfo.siteEnabled) return {error:"此候選模型需使用自己的 API 金鑰；尚未完成本站品質評測",status:400};
+  const apiKey = usingOwnKey ? sanitizedApiKey : env[MODELS[chosen].envKey];
+  if (!apiKey) return {error:"請提供此服務的 API 金鑰",status:400};
+  return {chosen,chosenModel,modelInfo,apiKey,usingOwnKey};
 }
 
 function describeUpstreamError(error, usingOwnKey) {
   if (error?.name === "TimeoutError" || error?.name === "AbortError") {
     return { message: "AI 回應逾時，請稍後再試一次", status: 504 };
+  }
+  if (["INVALID_OUTPUT", "INCOMPLETE_OUTPUT"].includes(error?.code)) {
+    return {message:"AI 回應未通過完整性檢查，請繼續參考上方處方，或稍後重試",status:502};
   }
   const upstream = error?.upstreamStatus;
   if (upstream === 401 || upstream === 403) {
@@ -94,7 +77,7 @@ function describeUpstreamError(error, usingOwnKey) {
       : { message: "AI 服務設定異常，請稍後再試或改用自己的 API 金鑰", status: 502 };
   }
   if (upstream === 429) {
-    return { message: "AI 服務目前流量過大，請稍後再試", status: 503 };
+    return { message: "AI 服務目前流量過大，請稍後再試", status: 429 };
   }
   if (upstream === 400 || upstream === 404) {
     return { message: "AI 服務拒絕此請求（模型可能已停用），請改選其他模型", status: 502 };
@@ -112,8 +95,9 @@ export async function onRequestPost({ request, env }) {
   const body = await readJsonBody(request);
   if (body.error) return json({ success: false, error: body.error }, body.status, extra);
 
-  const { userData, provider = "auto", model = null, customApiKey = null } = body.payload || {};
+  const { schemaVersion, userData, provider = "auto", model = null, customApiKey = null } = body.payload || {};
 
+  if (schemaVersion !== 2) return json({success:false,error:"網站已更新，請重新整理頁面後再產生建議"},409,extra);
   if (!userData) {
     return json({ success: false, error: "缺少用戶資料" }, 400, extra);
   }
@@ -140,7 +124,7 @@ export async function onRequestPost({ request, env }) {
   if (resolved.error) {
     return json({ success: false, error: resolved.error }, resolved.status, extra);
   }
-  const { chosen, apiKey, chosenModel, usingOwnKey } = resolved;
+  const { chosen, apiKey, chosenModel, modelInfo, usingOwnKey } = resolved;
 
   // 限流放在驗證之後：無效請求不消耗 KV 寫入額度
   const rl = await checkRateLimit(request, env, RATE_LIMIT);
@@ -148,7 +132,7 @@ export async function onRequestPost({ request, env }) {
     return json(
       { success: false, error: "請求過於頻繁，請稍後再試（每分鐘最多 10 次）" },
       429,
-      { ...extra, "Retry-After": "60" },
+      { ...extra, "Retry-After": String(rl.retryAfter) },
     );
   }
   // 依實際使用的金鑰來源判斷：auto 永遠使用站方金鑰，即使請求附帶自帶金鑰。
@@ -160,23 +144,31 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
+  const context = buildAdviceContext(validation.data);
+  const userSummary = buildUserSummary(validation.data, context);
+  // UTF-8 bytes conservatively bound token count, plus protocol overhead.
+  const inputTokenBound = new TextEncoder().encode(SYSTEM_PROMPT + userSummary + JSON.stringify(adviceSchema(context))).byteLength + 1000;
+  if (inputTokenBound > 48000) return json({success:false,error:"本次資料超過 AI 處理上限，請使用標準處方"},400,extra);
+  if (!usingOwnKey) {
+    const budget = await reserveSiteBudget(env, modelInfo, inputTokenBound);
+    if (!budget.allowed) return json({success:false,error:budget.error},503,{...extra,"Retry-After":String(budget.retryAfter)});
+  }
+  const started = Date.now();
   try {
-    const userSummary = buildUserSummary(validation.data);
-    const result = await CALLERS[chosen].call(userSummary, apiKey, chosenModel);
-    return json(
-      {
-        success: true,
-        recommendation: result.content,
-        provider: `${CALLERS[chosen].label} (${result.model})`,
-        model: result.model,
-        truncated: Boolean(result.truncated),
-      },
-      200,
-      extra,
-    );
+    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context);
+    const selection = validateSelection(result.content, context);
+    const usage = result.usage;
+    const estimatedCostUSD = usage.inputTokens === null || usage.outputTokens === null ? null :
+      (usage.inputTokens * modelInfo.inputUSD + usage.outputTokens * modelInfo.outputUSD) / 1e6;
+    const meta = {provider:chosen,model:chosenModel,promptVersion:PROMPT_VERSION,rulesVersion:RULES_VERSION,
+      generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD};
+    // Deliberately omit profile, prompt, selected actions, raw response and API key from logs.
+    console.info(JSON.stringify({event:"ai_complete",...meta}));
+    return json({success:true,schemaVersion:2,...presentAdvice(selection,context),meta},200,extra);
   } catch (error) {
-    console.error("AI 建議生成錯誤:", error?.name, error?.message);
+    console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",status:error?.upstreamStatus||null,durationMs:Date.now()-started}));
     const { message, status } = describeUpstreamError(error, usingOwnKey);
-    return json({ success: false, error: message }, status, extra);
+    const headers = error?.retryAfter !== null && error?.retryAfter !== undefined ? {...extra,"Retry-After":String(error.retryAfter)} : extra;
+    return json({success:false,error:message},status,headers);
   }
 }

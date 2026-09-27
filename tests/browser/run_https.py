@@ -12,7 +12,16 @@ if len(sys.argv) < 2:
     raise SystemExit('Usage: run_https.py <test_script.py>')
 root=Path(__file__).resolve().parents[2]
 csp=next(l.split(':',1)[1].strip() for l in (root/'_headers').read_text().splitlines() if l.strip().startswith('Content-Security-Policy:'))
+CATALOG = subprocess.check_output(['node', '--input-type=module', '-e', "import {publicCatalog} from './functions/_lib/models.js'; process.stdout.write(JSON.stringify(publicCatalog({GROQ_API_KEY:'test-only-not-a-secret'})))"], cwd=root)
 class Handler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/api/providers':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(CATALOG)
+        else:
+            super().do_GET()
     def log_message(self,*args):pass
     def end_headers(self):
         self.send_header('Content-Security-Policy',csp);super().end_headers()

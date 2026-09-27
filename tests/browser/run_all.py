@@ -12,7 +12,16 @@ SITE_CSP = next(line.split(':', 1)[1].strip() for line in (ROOT / '_headers').re
                 if line.strip().startswith('Content-Security-Policy:'))
 
 
+CATALOG = subprocess.check_output(['node', '--input-type=module', '-e', "import {publicCatalog} from './functions/_lib/models.js'; process.stdout.write(JSON.stringify(publicCatalog({GROQ_API_KEY:'test-only-not-a-secret'})))"], cwd=ROOT)
 class QuietHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/api/providers':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(CATALOG)
+        else:
+            super().do_GET()
     def log_message(self, *_args):
         pass
 

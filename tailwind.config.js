@@ -5,6 +5,7 @@ export default {
     "./index.html",
     "./parq-form.html",
     "./script.js",
+    "./ai-ui.js",
     "./multi-step-form.js",
     "./parq-script.js",
   ],

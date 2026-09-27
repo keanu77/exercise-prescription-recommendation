@@ -1,5 +1,7 @@
 # 運動處方推薦系統
 
+> 2026-09-27 AI 改版：選用的「把運動計畫帶進生活」提供三張行動卡，前後端共用處方規則、伺服器重算，AI 只選適用重點。候選模型採自帶金鑰、標示待評測。架構、評測及預算限制以 [新版實作文件](docs/ai-redesign-implementation-2026-09-27.md) 為準（下方歷史 AI 範例尚未逐項更新）。
+
 基於美國運動醫學會（ACSM）FITT-VP 原則與世界衛生組織（WHO）2020 身體活動指引的運動處方工具。使用者填寫多步驟問卷後，前端以確定性規則計算 FITT-VP 處方、PAR-Q+ 風險分級、BMI/BMR/TDEE 與 MET 熱量估算；另可在結果頁按下按鈕，由 AI 產生補充說明。
 
 線上使用：https://exerciseprescription.sportsmedicine.tw/

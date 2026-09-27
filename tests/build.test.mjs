@@ -21,7 +21,7 @@ async function createFixture(t) {
   await writeFile(path.join(dir, "src/input.css"), "@tailwind utilities;\n");
   await writeFile(path.join(dir, "index.html"), '<div class="text-blue-700">Fixture</div>\n');
   await writeFile(path.join(dir, "parq-form.html"), '<div class="text-green-700">PAR-Q fixture</div>\n');
-  for (const file of ["script.js", "multi-step-form.js", "parq-script.js", "pdf-loader.js", "pdf-report.js"]) {
+  for (const file of ["script.js", "prescription-rules.js", "ai-ui.js", "multi-step-form.js", "parq-script.js", "pdf-loader.js", "pdf-report.js"]) {
     await writeFile(path.join(dir, file), "// Fixture script\n");
   }
   for (const file of ["favicon.ico", "favicon.svg", "apple-touch-icon.png", "og-image.png", "_headers", "assets/running-track-720.webp", "assets/running-track-1440.webp", "assets/fonts/ExerciseReportSans-Regular.ttf", "assets/fonts/OFL.txt"]) {

@@ -127,7 +127,7 @@ with sync_playwright() as p:
             assert len(library_requests) == 3, library_requests  # jsPDF, failed font, successful font
             assert not any('html2canvas' in url for url in library_requests)
 
-            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long']
+            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-appendix']
             baseline = page.evaluate('JSON.parse(JSON.stringify(basicInfo))' if standalone else 'JSON.parse(JSON.stringify(window.lastFormData))')
             standard_text = None
             for scenario in scenarios:
@@ -143,6 +143,7 @@ with sync_playwright() as p:
                     }''', {'base': baseline, 'scenario': scenario})
                 else:
                     page.evaluate('''({base, scenario}) => {
+                      resetAISection();
                       window.lastFormData = JSON.parse(JSON.stringify(base));
                       if (scenario === 'child') Object.assign(window.lastFormData, {age:12, gender:'other'});
                       if (scenario === 'high') Object.assign(window.lastFormData, {
@@ -151,6 +152,10 @@ with sync_playwright() as p:
                         parq_answers: Object.fromEntries(Array.from({length:7},(_,i)=>[`parq_q${i+1}`,'yes']))
                       });
                       window.lastPrescription = calculateFITTVP(window.lastFormData);
+                      if (scenario === 'ai-appendix') {
+                        lastAIResult={advice:{summary:'測試用的生活行動附錄',startToday:['安排方便的時段。','準備需要的用品。'],adaptations:['記下生活中的限制。','和專業人員討論調整。'],checkIn:['記錄自己的感受。','留意健康狀況變化。']},safety:'本附錄不是新處方，請依原處方與醫師建議。',mode:'actions',meta:{model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:ExerciseRules.rulesVersion,promptVersion:'action-cards-2'}};
+                        document.getElementById('includeAiInPdf').checked=true;
+                      }
                       if (scenario === 'long') {
                         window.lastPrescription.progression = '長表格測試：' + '每次活動後記錄感受與恢復狀況。'.repeat(180) + '表格結束。';
                         window.lastPrescription.recommendations.push('長段落測試：' + '依計畫逐步活動並記錄身體反應。'.repeat(200) + '段落結束。');
@@ -172,6 +177,8 @@ with sync_playwright() as p:
                     standard_text = text
                 if scenario == 'mobile':
                     assert count == 2 and text == standard_text, 'Viewport changed report content or pagination'
+                if scenario == 'ai-appendix':
+                    assert count >= 3 and 'AI協助選取的生活行動' in text and 'test-only' in text
                 if scenario == 'long':
                     assert count >= 4 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'child':

@@ -12,6 +12,8 @@ ASSETS=(
   index.html
   parq-form.html
   script.js
+  prescription-rules.js
+  ai-ui.js
   multi-step-form.js
   parq-script.js
   pdf-loader.js
@@ -59,7 +61,7 @@ if ! cmp -s "$ROOT/tailwind.css" "$CSS_CHECK_DIR/tailwind.css"; then
 fi
 
 # 3. 語法檢查
-for f in script.js multi-step-form.js parq-script.js pdf-loader.js pdf-report.js; do
+for f in script.js prescription-rules.js ai-ui.js multi-step-form.js parq-script.js pdf-loader.js pdf-report.js; do
   node --check "$ROOT/$f"
 done
 

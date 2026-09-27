@@ -32,9 +32,6 @@
     <!-- Tailwind 預編譯（取代 CDN，移除 CSP unsafe-eval） -->
     <link rel="stylesheet" href="/tailwind.css">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <!-- DOMPurify：清洗 AI 回傳 HTML（只在使用者按下 AI 建議後使用，故可 defer；缺少時前端 fail-closed） -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.16/purify.min.js"
-            integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
     <!-- PDF 函式庫延遲載入，僅在需要時載入 -->
 </head>
 <body class="site-app rx-app">
@@ -659,134 +656,41 @@
                 </div>
             </div>
 
-            <!-- AI 建議區塊 -->
-            <div id="aiRecommendationSection" class="mb-8">
+            <!-- Optional action cards: health data is sent only on explicit request. -->
+            <section id="aiRecommendationSection" class="mb-8" aria-labelledby="aiHeading">
                 <div class="card ai-card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-2xl font-bold text-purple-800 flex items-center"><span class="panel-index" aria-hidden="true">03</span>
-                            <svg aria-hidden="true" class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                            </svg>
-                            AI 補充說明（選用）
-                        </h3>
-                        <button id="refreshAiBtn" data-action="fetchAIRecommendation" class="hidden text-purple-600 hover:text-purple-800 flex items-center text-sm">
-                            <svg aria-hidden="true" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            重新生成
-                        </button>
+                    <div class="action-heading">
+                        <div><p class="action-kicker">下一步 · AI 協助整理</p><h3 id="aiHeading">把運動計畫帶進生活</h3></div>
+                        <button type="button" id="refreshAiBtn" data-action="fetchAIRecommendation" class="hidden action-link">重新產生</button>
                     </div>
-
-                    <!-- 使用者主動觸發：說明資料用途後才送出 -->
-                    <div id="aiConsent" class="py-4">
-                        <div class="bg-white rounded-lg p-4 border border-purple-100 mb-4">
-                            <p class="font-medium text-gray-800 mb-2">要取得 AI 補充說明嗎？（選用）</p>
-                            <ul class="text-sm text-gray-700 space-y-1">
-                                <li>• 按下按鈕後，您填寫的年齡、性別、身高體重、健康狀況、運動習慣、PAR-Q 回答與本頁處方，會經本站伺服器轉送給第三方 AI 服務（自動模式會使用本站已設定的供應商）以產生說明。</li>
-                                <li>• 送出內容不包含姓名或聯絡方式；資料會由您選擇的第三方 AI 服務處理。</li>
-                                <li>• 不按也沒關係，本頁的標準運動處方已完整可用。</li>
-                            </ul>
-                        </div>
-                        <div class="text-center">
-                            <button type="button" data-action="fetchAIRecommendation" class="btn-primary">
-                                我了解，取得 AI 建議
-                            </button>
-                        </div>
+                    <p class="action-intro">依照上方處方，整理容易開始的做法與提醒。</p>
+                    <p id="aiDestination" class="action-destination" aria-live="polite">正在確認可用的 AI 服務…</p>
+                    <div id="aiConsent">
+                        <div class="action-preview" aria-hidden="true"><span>01　今天怎麼開始</span><span>02　遇到限制怎麼調整</span><span>03　下次要觀察什麼</span></div>
+                        <p class="action-privacy">按下按鈕後，年齡、性別、身高體重、健康狀況、運動習慣、目標、限制及 PAR-Q 回答會經本站處理，將個人概況與核對後的處方傳給上述服務。內容不含姓名或聯絡方式；資料處理依各服務商條款。不使用 AI，標準處方仍完整可用。</p>
+                        <button type="button" id="generateAiBtn" data-action="fetchAIRecommendation" class="btn-primary" disabled>產生我的行動建議</button>
                     </div>
-
-                    <!-- AI 載入中狀態 -->
-                    <div id="aiLoading" class="hidden text-center py-8" role="status" aria-live="polite">
-                        <div class="inline-flex items-center">
-                            <svg class="animate-spin h-8 w-8 text-purple-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span class="text-lg text-purple-700">AI 正在分析您的資料，請稍候...</span>
-                        </div>
+                    <div id="aiLoading" class="hidden action-loading" role="status" aria-live="polite">
+                        <p>正在依你的處方整理行動重點，請稍候…</p>
+                        <button type="button" data-action="cancelAIRecommendation" class="action-link">取消等待</button>
                     </div>
-
-                    <!-- AI 建議內容 -->
-                    <div id="aiContent" class="hidden prose prose-purple max-w-none">
-                        <!-- 動態插入 AI 回應 -->
-                    </div>
-                    <p id="aiTruncatedNote" class="hidden mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        AI 回應長度達到上限，內容可能不完整。請以本頁的標準運動處方為準，或按「重新生成」再試一次。
-                    </p>
-                    <p class="mt-4 text-sm text-gray-700 bg-white border border-purple-100 rounded-lg p-3">
-                        本區內容由 AI 自動產生，僅供衛教參考，無法取代醫師診察與個別化醫療建議。內容若與本頁標準處方或您的醫師建議不同，請以醫師建議為準。
-                    </p>
-
-                    <!-- AI 錯誤狀態 -->
-                    <div id="aiError" class="hidden" role="alert">
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <div class="flex items-start">
-                                <svg aria-hidden="true" class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                                <div>
-                                    <p class="text-yellow-800 font-medium">AI 建議暫時無法使用</p>
-                                    <p id="aiErrorMessage" class="text-yellow-700 text-sm mt-1">請查看本頁的標準運動處方建議。</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI 提供商標示 -->
-                    <div id="aiProviderBadge" class="hidden mt-4 text-right">
-                        <span class="text-sm text-gray-600">由 <span id="aiProviderName">AI</span> 提供建議</span>
-                    </div>
-
-                    <!-- 進階版 AI 設定 -->
-                    <div class="mt-4 pt-4 border-t border-purple-200">
-                        <button id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="text-sm text-purple-600 hover:text-purple-800 flex items-center">
-                            <svg aria-hidden="true" id="advancedAIIcon" class="w-4 h-4 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                            進階設定：使用自己的 API 金鑰
-                        </button>
-                        <div id="advancedAISettings" class="hidden mt-4 space-y-4">
-                            <div class="bg-white rounded-lg p-4 border border-purple-100">
-                                <label for="aiProviderSelect" class="block text-sm font-medium text-gray-700 mb-2">選擇 AI 提供商</label>
-                                <select id="aiProviderSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                    <option value="auto">自動選擇（使用站方設定）</option>
-                                    <option value="groq">Groq</option>
-                                    <option value="openai">OpenAI - GPT 系列</option>
-                                    <option value="claude">Claude - Anthropic</option>
-                                    <option value="gemini">Gemini - Google AI</option>
-                                </select>
-                            </div>
-
-                            <div id="modelSelectSection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
-                                <label for="modelSelect" class="block text-sm font-medium text-gray-700 mb-2">選擇模型</label>
-                                <select id="modelSelect" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                    <!-- 動態生成模型選項 -->
-                                </select>
-                            </div>
-
-                            <div id="customApiKeySection" class="hidden bg-white rounded-lg p-4 border border-purple-100">
-                                <label for="customApiKey" class="block text-sm font-medium text-gray-700 mb-2">
-                                    <span id="apiKeyLabel">API 金鑰</span>
-                                    <span class="text-gray-600 font-normal">（選填，留空使用系統預設）</span>
-                                </label>
-                                <input type="password" id="customApiKey" aria-describedby="apiKeyHint" placeholder="輸入您的 API 金鑰" autocomplete="off"
-                                       class="w-full p-2 border border-gray-300 rounded-lg text-sm font-mono">
-                                <p id="apiKeyHint" class="text-sm text-gray-600 mt-1"></p>
-                            </div>
-
-                            <div class="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
-                                <p class="font-medium text-blue-800 mb-1"><span aria-hidden="true">💡</span> AI 提供商說明</p>
-                                <ul class="text-blue-700 space-y-1">
-                                    <li>• <strong>Groq</strong>：提供開放模型推理服務</li>
-                                    <li>• <strong>OpenAI</strong>：提供 GPT 系列模型</li>
-                                    <li>• <strong>Claude</strong>：Anthropic 的 AI 模型</li>
-                                    <li>• <strong>Gemini</strong>：Google AI；部分舊模型限既有使用者存取</li>
-                                </ul>
-                                <p class="mt-2"><span aria-hidden="true">🔒</span> 您的 API 金鑰僅用於本次請求，不會被儲存。</p>
-                            </div>
+                    <div id="aiContent" class="hidden" aria-live="polite"></div>
+                    <div id="aiError" class="hidden action-error" role="alert"><p>行動建議暫時無法使用</p><p id="aiErrorMessage"></p><p>你仍可使用上方的標準處方。</p></div>
+                    <p id="aiRetryStatus" role="status" class="action-note"></p>
+                    <div id="aiProviderBadge" class="hidden action-note">由 <span id="aiProviderName">AI</span> 協助選取行動重點，處方與安全提醒由本站規則提供。</div>
+                    <label id="aiPdfOption" class="hidden action-pdf"><input type="checkbox" id="includeAiInPdf"> 下載 PDF 時，附上這份行動卡</label>
+                    <p class="action-note">AI 依個人條件從本站預設建議中選取重點，不另開處方，也未即時查詢研究。內容僅供參考，不能取代個別醫療建議。</p>
+                    <div class="action-settings">
+                        <button type="button" id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="action-link"><span id="advancedAIIcon" aria-hidden="true">⌄</span> 進階設定：使用自己的 API 金鑰</button>
+                        <div id="advancedAISettings" class="hidden action-settings-fields">
+                            <div><label for="aiProviderSelect">選擇 AI 提供商</label><select id="aiProviderSelect"><option value="auto">使用站方服務</option></select></div>
+                            <div id="modelSelectSection" class="hidden"><label for="modelSelect">選擇模型</label><select id="modelSelect"></select></div>
+                            <div id="customApiKeySection" class="hidden"><label for="customApiKey" id="apiKeyLabel">API 金鑰</label><input type="password" id="customApiKey" aria-describedby="apiKeyHint" autocomplete="off" placeholder="輸入您的 API 金鑰"><p id="apiKeyHint" class="action-note"></p></div>
+                            <p class="action-note">候選模型尚未完成本站品質評測，需自備有效金鑰與額度。金鑰只用於這次請求、不寫入儲存空間。切換服務會清空金鑰；不會自動將資料轉送其他服務。</p>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- 進階說明區塊 -->
             <details class="reference-panel">
@@ -900,6 +804,8 @@
 
     <script src="pdf-loader.js"></script>
     <script src="pdf-report.js"></script>
+    <script src="prescription-rules.js"></script>
+    <script src="ai-ui.js"></script>
     <script src="script.js"></script>
     <script src="multi-step-form.js"></script>
 </body>

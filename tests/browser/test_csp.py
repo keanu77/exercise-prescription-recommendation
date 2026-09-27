@@ -14,9 +14,9 @@ with sync_playwright() as p:
         assert page.locator('script:not([src])').count() == 0
         assert page.evaluate("[...document.querySelectorAll('*')].every(el=>[...el.attributes].every(a=>!/^on/i.test(a.name)))")
         if path == '/':
-            assert page.evaluate('DOMPurify.version') == '3.4.16'
-            sanitized = page.evaluate('''() => DOMPurify.sanitize('<p>Safe text</p><script>bad()</script><img src=x onerror="bad()"><a href="javascript:bad()">link</a>')''')
-            assert 'Safe text' in sanitized and 'bad()' not in sanitized and '<script' not in sanitized
+            assert page.evaluate('typeof ExerciseRules.calculateFITTVP') == 'function'
+            assert page.evaluate('typeof renderAIResult') == 'function'
+            assert page.locator('script[src*=purify]').count() == 0
         page.evaluate('''() => {
           window.cspViolations = [];
           document.addEventListener('securitypolicyviolation', e=>window.cspViolations.push(e.effectiveDirective));
