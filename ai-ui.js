@@ -20,9 +20,10 @@ async function loadAICatalog() {
       const response = await fetch('/api/providers', { signal: AbortSignal.timeout(6000) });
       const result = await response.json();
       if (!response.ok || result.schemaVersion !== 2 || !Array.isArray(result.providers)) throw new Error('catalog');
-      aiCatalog = result;
+      // Also filter older catalog responses during rolling deployments.
+      aiCatalog = {...result, providers:result.providers.filter(p=>p.id==='groq'), defaultProvider:result.defaultProvider==='groq'?'groq':null};
       const select = aiEl('aiProviderSelect');
-      select.replaceChildren(new Option('使用站方服務','auto'), ...result.providers.map(p=>new Option(p.name,p.id)));
+      select.replaceChildren(new Option('使用站方 Groq 服務','auto'), ...aiCatalog.providers.map(p=>new Option('自行設定 Groq 模型與金鑰',p.id)));
       onProviderChange();
     } catch {
       aiEl('aiDestination').textContent = '暫時無法確認服務。按下「產生我的行動建議」可重新連線；確認服務後需再按一次才會傳送資料。';
@@ -160,13 +161,31 @@ async function fetchAIRecommendation() {
     if(seq===aiRequestSeq){aiAbortController=null;updateRetryButtons();}
   }
 }
+function aiActionPDFSections(r) {
+  return [
+    ...adviceGroups.map((g,i)=>({title:r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i],kind:'list',items:[...r.advice[g]]})),
+    {title:'產生紀錄',kind:'paragraph',items:[`${r.meta.model} / ${r.meta.generatedAt} / 處方 ${r.meta.rulesVersion} / 行動卡 ${r.meta.promptVersion}`,'PAR-Q+ 官方問卷與追蹤評估：https://eparmedx.com/']},
+  ];
+}
 function aiPDFSections() {
   if(!lastAIResult || !aiEl('includeAiInPdf').checked) return [];
   const r=lastAIResult;
   return [
     {title:'附錄  AI 協助選取的生活行動',kind:'paragraph',newPage:true,appendix:true,items:[r.advice.summary,r.safety,'本附錄不是新處方，也未即時查詢研究。']},
-    ...adviceGroups.map((g,i)=>({title:r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i],kind:'list',items:[...r.advice[g]]})),
-    {title:'產生紀錄',kind:'paragraph',items:[`${r.meta.model} / ${r.meta.generatedAt} / 處方 ${r.meta.rulesVersion} / 行動卡 ${r.meta.promptVersion}`,'PAR-Q+ 官方問卷與追蹤評估：https://eparmedx.com/']},
+    ...aiActionPDFSections(r),
   ];
+}
+function createAIPDFReport() {
+  if(!lastAIResult) throw new Error('請先產生 AI 行動建議。');
+  const r=lastAIResult;
+  return {
+    title:'AI 運動行動報告',
+    compact:true,
+    subtitle:r.mode==='consultation'?'整理就醫前的準備、問題與觀察重點。':'依據目前的運動處方，整理日常做法與提醒。',
+    date:new Date(r.meta.generatedAt).toLocaleDateString('zh-TW'),
+    notice:{level:r.risk,title:r.mode==='consultation'?'先完成醫療評估與諮詢':'依照目前處方安排活動',body:r.safety},
+    sections:[{title:'行動摘要',kind:'paragraph',items:[r.advice.summary]},...aiActionPDFSections(r)],
+    disclaimer:'AI 依個人條件從本站預設建議中選取重點，不另開處方，也未即時查詢研究。請搭配標準運動處方與安全提醒使用；內容僅供參考，不能取代個別醫療建議。',
+  };
 }
 document.addEventListener('DOMContentLoaded',()=>{loadAICatalog();aiEl('modelSelect').addEventListener('change',updateAIDestination);aiEl('customApiKey').addEventListener('input',updateRetryButtons);});

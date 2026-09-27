@@ -755,6 +755,7 @@ body {
 .action-provenance p { margin:8px 0; }
 .action-provenance a { display:inline-block; padding:10px 0; text-decoration:underline; }
 .action-pdf { display:flex; gap:10px; align-items:center; padding:14px 0; font-size:14px; cursor:pointer; }
+.action-downloads { margin:18px 0 8px; }
 .action-pdf input { width:18px; height:18px; flex-shrink:0; accent-color:#384a27; }
 .action-settings { margin-top:20px; border-top:1px solid #e4e6df; padding-top:12px; }
 .action-settings-fields { margin-top:12px; }

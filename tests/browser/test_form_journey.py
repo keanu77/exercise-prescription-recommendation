@@ -78,9 +78,9 @@ with sync_playwright() as p:
         expect(page.locator('#aiConsent')).to_be_visible()
         page.locator('#toggleAdvancedAI').click()
         expect(page.locator('#toggleAdvancedAI')).to_have_attribute('aria-expanded', 'true')
-        page.get_by_label('選擇 AI 提供商').select_option('openai')
+        page.get_by_label('Groq 使用方式').select_option('groq')
         expect(page.get_by_label('選擇模型')).to_be_visible()
-        expect(page.get_by_label('OpenAI API 金鑰')).to_be_visible()
+        expect(page.get_by_label('Groq API 金鑰')).to_be_visible()
         page.locator('#toggleAdvancedAI').click()
         expect(page.locator('#toggleAdvancedAI')).to_have_attribute('aria-expanded', 'false')
         if width == 390:

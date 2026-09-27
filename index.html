@@ -676,12 +676,15 @@
                     <div id="aiError" class="hidden action-error" role="alert"><p>行動建議暫時無法使用</p><p id="aiErrorMessage"></p><p>你仍可使用上方的標準處方。</p></div>
                     <p id="aiRetryStatus" role="status" class="action-note"></p>
                     <div id="aiProviderBadge" class="hidden action-note">由 <span id="aiProviderName">AI</span> 協助選取行動重點，處方與安全提醒由本站規則提供。</div>
-                    <label id="aiPdfOption" class="hidden action-pdf"><input type="checkbox" id="includeAiInPdf"> 下載 PDF 時，附上這份行動卡</label>
+                    <div id="aiPdfOption" class="hidden action-downloads">
+                        <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary">下載 AI 報告 PDF</button>
+                        <label class="action-pdf"><input type="checkbox" id="includeAiInPdf"> 下載標準處方 PDF 時，也附上這份 AI 行動卡</label>
+                    </div>
                     <p class="action-note">AI 依個人條件從本站預設建議中選取重點，不另開處方，也未即時查詢研究。內容僅供參考，不能取代個別醫療建議。</p>
                     <div class="action-settings">
-                        <button type="button" id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="action-link"><span id="advancedAIIcon" aria-hidden="true">⌄</span> 進階設定：使用自己的 API 金鑰</button>
+                        <button type="button" id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="action-link"><span id="advancedAIIcon" aria-hidden="true">⌄</span> 進階設定：Groq 模型與金鑰</button>
                         <div id="advancedAISettings" class="hidden action-settings-fields">
-                            <div><label for="aiProviderSelect">選擇 AI 提供商</label><select id="aiProviderSelect"><option value="auto">使用站方服務</option></select></div>
+                            <div><label for="aiProviderSelect">Groq 使用方式</label><select id="aiProviderSelect"><option value="auto">使用站方 Groq 服務</option></select></div>
                             <div id="modelSelectSection" class="hidden"><label for="modelSelect">選擇模型</label><select id="modelSelect"></select></div>
                             <div id="customApiKeySection" class="hidden"><label for="customApiKey" id="apiKeyLabel">API 金鑰</label><input type="password" id="customApiKey" aria-describedby="apiKeyHint" autocomplete="off" placeholder="輸入您的 API 金鑰"><p id="apiKeyHint" class="action-note"></p></div>
                             <p class="action-note">候選模型尚未完成本站品質評測，需自備有效金鑰與額度。金鑰只用於這次請求、不寫入儲存空間。切換服務會清空金鑰；不會自動將資料轉送其他服務。</p>

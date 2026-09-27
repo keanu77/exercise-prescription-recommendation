@@ -677,7 +677,7 @@ function clearAssessment() {
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
   // 僅綁定已知操作，不解析或執行 HTML 屬性中的程式碼。
-  const actions = { nextStep, prevStep, downloadPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
+  const actions = { nextStep, prevStep, downloadPDF, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
   document.querySelectorAll("[data-page]").forEach((button) => {
     button.addEventListener("click", () => showPage(button.dataset.page));
   });
@@ -1324,16 +1324,25 @@ function getExerciseExamples(types) {
 let pdfDownloadInProgress = false;
 
 async function downloadPDF() {
+  return savePDFReport(createPDFReport, "運動處方建議");
+}
+
+async function downloadAIPDF() {
+  if (!lastAIResult) return;
+  return savePDFReport(createAIPDFReport, "AI運動行動報告");
+}
+
+async function savePDFReport(buildReport, filePrefix) {
   if (pdfDownloadInProgress) return;
   pdfDownloadInProgress = true;
-  const downloadButton = document.getElementById("downloadPrescription");
-  if (downloadButton) downloadButton.disabled = true;
+  const downloadButtons = ["downloadPrescription", "downloadAiReport"].map(id => document.getElementById(id)).filter(Boolean);
+  downloadButtons.forEach(button => { button.disabled = true; });
   try {
     // 顯示載入 Modal
     showLoadingModal();
 
     // Snapshot the displayed result before asynchronous font/library loading.
-    const report = createPDFReport();
+    const report = buildReport();
     await loadPDFLibraries();
     const pdf = renderPDFReport(report);
 
@@ -1342,7 +1351,7 @@ async function downloadPDF() {
     const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`;
 
     // 下載 PDF
-    pdf.save(`運動處方建議_${dateStr}.pdf`);
+    pdf.save(`${filePrefix}_${dateStr}.pdf`);
 
   } catch (error) {
     console.error("PDF 生成錯誤:", error);
@@ -1350,7 +1359,7 @@ async function downloadPDF() {
   } finally {
     hideLoadingModal();
     pdfDownloadInProgress = false;
-    if (downloadButton) downloadButton.disabled = false;
+    downloadButtons.forEach(button => { button.disabled = false; });
   }
 }
 

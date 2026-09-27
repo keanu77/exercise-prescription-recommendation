@@ -15,6 +15,11 @@ function renderPDFReport(report) {
     doc.setLanguage('zh-TW');
 
     const left = 18, right = 192, width = right - left, bottom = 273;
+    // Short standalone action reports use less whitespace at the same text size.
+    const sectionSpace = report.compact ? 10 : 13;
+    const sectionGap = report.compact ? 3 : 5;
+    const paragraphGap = report.compact ? 2 : 3;
+    const lineSpacing = report.compact ? 1.4 : 1.5;
     const ink = '#202820', muted = '#60675F', line = '#DCE0D7';
     const riskColors = { low: '#306743', moderate: '#855600', high: '#A33030' };
     const riskFills = { low: '#F0F5ED', moderate: '#FAF4E6', high: '#FAEEEE' };
@@ -48,7 +53,7 @@ function renderPDFReport(report) {
         const heading = currentSection.title + (continued ? '（續）' : '');
         text(heading, left, y + 5, 13);
         rule(y + 8);
-        y += 13;
+        y += sectionSpace;
     }
     function nextPage(continued = true) {
         doc.addPage(); header();
@@ -62,9 +67,9 @@ function renderPDFReport(report) {
     function paragraph(value, { bullet = false, size = 10.5, color = ink } = {}) {
         const x = left + (bullet ? 5 : 0);
         const lines = wrap(value, right - x, size);
-        const leading = size * 0.352778 * 1.5;
-        const height = lines.length * leading + 3;
-        ensure(height <= 190 ? height : leading * 2 + 3);
+        const leading = size * 0.352778 * lineSpacing;
+        const height = lines.length * leading + paragraphGap;
+        ensure(height <= 190 ? height : leading * 2 + paragraphGap);
         lines.forEach((part, index) => {
             ensure(leading + 2);
             if (bullet && index === 0) {
@@ -73,7 +78,7 @@ function renderPDFReport(report) {
             text(part, x, y + size * 0.352778, size, color);
             y += leading;
         });
-        y += 3;
+        y += paragraphGap;
     }
     function tableRow(label, value) {
         const labelLines = wrap(label, 32, 10);
@@ -128,7 +133,7 @@ function renderPDFReport(report) {
         const firstHeight = section.kind === 'rows'
             ? Math.max(wrap(first[0], 32, 10).length, wrap(first[1], width - 43).length) * 5.6 + 7
             : section.kind === 'facts' ? 13 : wrap(first, width - 5).length * 5.6 + 3;
-        ensure(13 + (firstHeight <= 190 ? firstHeight : 35));
+        ensure(sectionSpace + (firstHeight <= 190 ? firstHeight : 35));
         currentSection = section;
         sectionHeading();
         if (section.kind === 'facts') {
@@ -150,7 +155,7 @@ function renderPDFReport(report) {
                 bullet: section.kind === 'list', color: section.warning ? '#903030' : ink,
             }));
         }
-        y += 5;
+        y += sectionGap;
     }
     if (!disclaimerDrawn) drawDisclaimer();
 

@@ -40,7 +40,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 主入口先呈現標準處方與下載／修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入 jsPDF 與本機中文字型、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- AI 不再載入 DOMPurify；模型無法注入 HTML。`aiPDFSections()` 只在使用者勾選時附上當次有效行動卡；重設／重新產生清空附錄。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。`aiPDFSections()` 只在使用者勾選時附上當次有效行動卡；`createAIPDFReport()` 可直接下載獨立 AI 報告，不依賴勾選。兩者共用行動段落、PDF loader 與下載防重複；重設／重新產生隱藏下載並清空附錄。獨立 AI PDF 用 compact 留白，字級不縮小，標準處方與 PAR-Q 排版不變。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。
@@ -58,7 +58,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 
 ### functions/：四家 provider 的結構化 proxy
 - `ai-recommendation.js`：CORS、100KiB body、schemaVersion:2、完整正規化、10次/IP/分鐘、站方預算、可信規則、provider adapter、選取 ID 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
-- 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
+- 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在後端供相容用途，不顯示在網站。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
 - `ai.js` 只取正規化資料；`advice.js` 控制文案、適用性、schema、來源。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
 - `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；按最大輸入／輸出 token 成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
 - `scripts/evaluate-ai.mjs`：30合成案例×3次，先預留成本、$10上限即停止。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。

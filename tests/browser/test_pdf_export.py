@@ -20,8 +20,9 @@ AI_FIXTURE = json.loads(subprocess.check_output(['node','--input-type=module','-
 import {readFileSync} from 'node:fs';
 import {validateUserData} from './functions/_lib/ai.js';
 import {buildAdviceContext,presentAdvice,RULES_VERSION,PROMPT_VERSION} from './functions/_lib/advice.js';
-const ctx=buildAdviceContext(validateUserData(JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases[0].data).data);
-console.log(JSON.stringify({...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION}}));
+const cases=JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases;
+const result=i=>{const ctx=buildAdviceContext(validateUserData(cases[i].data).data);return {success:true,schemaVersion:2,...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{provider:'groq',model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION}}};
+console.log(JSON.stringify({normal:result(0),high:result(9)}));
 """],cwd=ROOT))
 
 
@@ -136,11 +137,11 @@ with sync_playwright() as p:
             assert len(library_requests) == 3, library_requests  # jsPDF, failed font, successful font
             assert not any('html2canvas' in url for url in library_requests)
 
-            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-appendix']
+            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-appendix', 'ai-report', 'ai-report-mobile', 'ai-consultation']
             baseline = page.evaluate('JSON.parse(JSON.stringify(basicInfo))' if standalone else 'JSON.parse(JSON.stringify(window.lastFormData))')
             standard_text = None
             for scenario in scenarios:
-                page.set_viewport_size({'width': 390 if scenario == 'mobile' else 1440, 'height': 1000})
+                page.set_viewport_size({'width': 390 if scenario in ['mobile','ai-report-mobile'] else 1440, 'height': 1000})
                 if standalone:
                     page.evaluate('''({base, scenario}) => {
                       basicInfo = {...base};
@@ -169,18 +170,51 @@ with sync_playwright() as p:
                         window.lastPrescription.progression = '長表格測試：' + '每次活動後記錄感受與恢復狀況。'.repeat(180) + '表格結束。';
                         window.lastPrescription.recommendations.push('長段落測試：' + '依計畫逐步活動並記錄身體反應。'.repeat(200) + '段落結束。');
                       }
-                    }''', {'base': baseline, 'scenario': scenario, 'aiFixture': AI_FIXTURE})
-                report = page.evaluate('''() => {
-                  const report = createPDFReport();
+                    }''', {'base': baseline, 'scenario': scenario, 'aiFixture': AI_FIXTURE['normal']})
+                ai_report = scenario.startswith('ai-report') or scenario == 'ai-consultation'
+                export_button = button
+                if ai_report:
+                    response = AI_FIXTURE['high' if scenario == 'ai-consultation' else 'normal']
+                    page.route('**/api/providers', lambda route: route.fulfill(json={'schemaVersion':2,'providers':[{'id':'groq','name':'Groq','models':[{'id':'openai/gpt-oss-120b','name':'GPT-OSS 120B','requiresKey':False,'status':'本站基準'}]}],'defaultProvider':'groq'}))
+                    page.route('**/api/ai-recommendation', lambda route: route.fulfill(json=response))
+                    page.evaluate('loadAICatalog()')
+                    page.locator('#generateAiBtn').click()
+                    expect(page.locator('#aiContent')).to_be_visible()
+                    export_button = page.get_by_role('button', name='下載 AI 報告 PDF', exact=True)
+                    expect(export_button).to_be_visible()
+                    expect(page.locator('#includeAiInPdf')).not_to_be_checked()
+                    if scenario == 'ai-report':
+                        # Both export entry points share a guard and recover after load failure.
+                        page.evaluate('''() => { window.realPDFLoader=loadPDFLibraries; window.loadCount=0;
+                          window.loadPDFLibraries=()=>{window.loadCount++;return new Promise((_ok,reject)=>{window.failPDFLoad=reject;});}; }''')
+                        export_button.click(); expect(export_button).to_be_disabled(); expect(button).to_be_disabled()
+                        page.evaluate('downloadAIPDF();downloadPDF()')
+                        assert page.evaluate('window.loadCount') == 1
+                        page.evaluate("window.failPDFLoad(new Error('mock AI PDF failure'))")
+                        expect(export_button).to_be_enabled(); expect(button).to_be_enabled()
+                        page.evaluate('window.loadPDFLibraries=window.realPDFLoader')
+                        assert len(alerts) == 2
+                report = page.evaluate('''aiReport => {
+                  const report = aiReport ? createAIPDFReport() : createPDFReport();
                   report.sections.forEach(s => s.items = s.items.map(i => Array.isArray(i) ? i.map(cleanPDFText) : cleanPDFText(i)));
                   return report;
-                }''')
+                }''', ai_report)
                 with page.expect_download(timeout=60000) as event:
-                    button.click()
+                    export_button.click()
                 target = OUT / f'{engine}-{"parq" if standalone else "exercise"}-{scenario}.pdf'
                 event.value.save_as(target)
                 assert event.value.failure() is None
                 count, text = verify_pdf(target, report)
+                if ai_report:
+                    assert event.value.suggested_filename.startswith('AI運動行動報告_')
+                    assert 'AI運動行動報告' in text and 'test-only' in text
+                    assert 'FITT-VP運動計畫' not in text, 'Standalone AI report should not depend on appendix checkbox'
+                    if scenario == 'ai-report':
+                        ai_standard_text = text
+                    elif scenario == 'ai-report-mobile':
+                        assert text == ai_standard_text, 'Viewport changed AI report content'
+                    else:
+                        assert '就醫前整理' in text and '帶去詢問的問題' in text
                 if scenario == 'standard':
                     assert count == 2, count
                     standard_text = text
@@ -198,6 +232,6 @@ with sync_playwright() as p:
                 assert page.locator('#pdfLoadingStatus, #pdfExportContent, #loadingModal.active').count() == 0
                 assert len(library_requests) == 3, 'Exports must reuse the loaded font and jsPDF'
                 print(f'[OK] {target.name}: {count} pages, {target.stat().st_size} bytes; all text present, no overlaps, printable margins')
-            assert len(alerts) == 1 and not errors, (alerts, errors)
+            assert len(alerts) == (1 if standalone else 2) and not errors, (alerts, errors)
             page.close()
         browser.close()

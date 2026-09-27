@@ -18,7 +18,8 @@ export const MODELS = {
 export const DEFAULT_MODELS = Object.fromEntries(Object.entries(MODELS).map(([p,v])=>[p,v.models[0].id]));
 export const MODEL_ALLOWLIST = Object.fromEntries(Object.entries(MODELS).map(([p,v])=>[p,v.models.map(m=>m.id)]));
 export function publicCatalog(env) {
-  const providers = Object.entries(MODELS).map(([id,p])=>({ id, name:p.name, models:p.models.map(m=>({id:m.id, name:m.name, requiresKey:!m.siteEnabled || !env[p.envKey], status:m.siteEnabled?'本站基準':'候選模型・尚未完成本站品質評測'})) }));
+  // Keep other adapters internal; the website currently offers Groq only.
+  const providers = Object.entries(MODELS).filter(([id])=>id==='groq').map(([id,p])=>({ id, name:p.name, models:p.models.map(m=>({id:m.id, name:m.name, requiresKey:!m.siteEnabled || !env[p.envKey], status:m.siteEnabled?'本站基準':'候選模型・尚未完成本站品質評測'})) }));
   const defaultProvider = providers.find(p=>p.models.some(m=>!m.requiresKey))?.id || null;
   return {schemaVersion:2, providers, defaultProvider, available:Object.fromEntries(providers.map(p=>[p.id,p.models.some(m=>!m.requiresKey)]))};
 }

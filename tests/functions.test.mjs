@@ -307,7 +307,8 @@ test('daily site budget reserves before call, caps exhausted days, fails closed 
 });
 test('catalog exposes no secrets, candidates cannot consume site keys, old client receives refresh notice',async()=>{
  const cat=publicCatalog({GROQ_API_KEY:'secret-fixture',OPENAI_API_KEY:'secret-fixture'});
- assert.equal(cat.defaultProvider,'groq');assert.equal(cat.available.openai,false);assert.doesNotMatch(JSON.stringify(cat),/secret-fixture|envKey/);
+ assert.equal(cat.defaultProvider,'groq');assert.deepEqual(cat.providers.map(p=>p.id),['groq']);assert.deepEqual(cat.available,{groq:true});
+ const noSiteKey=publicCatalog({OPENAI_API_KEY:'secret-fixture'});assert.equal(noSiteKey.defaultProvider,null);assert.deepEqual(noSiteKey.available,{groq:false});assert.ok(noSiteKey.providers[0].models.every(m=>m.requiresKey));assert.doesNotMatch(JSON.stringify(cat),/secret-fixture|envKey/);
  let r=await post({userData:GOOD,provider:'openai'},{OPENAI_API_KEY:'key',RATE_LIMIT_KV:KV_OK});assert.equal(r.status,400);
  r=await post({schemaVersion:1,userData:GOOD},{});assert.equal(r.status,409);
  assert.equal(parseRetryAfter('15'),15);assert.equal(parseRetryAfter('bad'),null);

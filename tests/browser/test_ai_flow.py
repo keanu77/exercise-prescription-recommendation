@@ -4,7 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright,expect
 ROOT=Path(__file__).resolve().parents[2]
 BASE=os.environ.get('BASE_URL','http://127.0.0.1:8765')
-OUT=ROOT/'.claude/audit/ai-redesign-20260927/screens'
+OUT=Path(os.environ.get('AI_OUTPUT_DIR',str(ROOT/'.claude/audit/groq-pdf-20260927/screens')))
 OUT.mkdir(parents=True,exist_ok=True)
 fixture=json.loads(subprocess.check_output(['node','--input-type=module','-e',"""
 import {readFileSync} from 'node:fs';
@@ -31,6 +31,8 @@ with sync_playwright() as p:
    page.goto(BASE,wait_until='networkidle')
    page.evaluate('''data=>{window.lastFormData=data;window.lastPrescription=calculateFITTVP(data);displayPrescriptionSummary(window.lastPrescription);showPage('resultPage');resetAISection();}''',fixture['data'])
    expect(page.locator('#aiConsent')).to_be_visible();assert not calls
+   expect(page.locator('#downloadAiReport')).to_be_hidden()
+   assert page.locator('#aiProviderSelect option').evaluate_all('(els)=>els.map(el=>el.value)')==['auto','groq']
    expect(page.locator('#aiDestination')).to_contain_text('Groq')
    page.locator('#generateAiBtn').click()
    expect(page.locator('#aiContent')).to_be_visible()
@@ -38,6 +40,8 @@ with sync_playwright() as p:
    assert calls[0]['provider']=='groq' and calls[0]['model']=='openai/gpt-oss-120b', 'Pin the provider shown before consent'
    assert page.locator('.action-item').count()==3
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+   expect(page.locator('#downloadAiReport')).to_be_visible()
+   assert page.evaluate('createAIPDFReport().sections[0].items[0]')==fixture['normal']['advice']['summary']
    assert page.evaluate('aiPDFSections().length')==0
    page.locator('#includeAiInPdf').check()
    assert page.evaluate('aiPDFSections().length')==5
@@ -50,6 +54,7 @@ with sync_playwright() as p:
    page.locator('#refreshAiBtn').click();expect(page.locator('#aiError')).to_be_visible()
    assert page.evaluate('!window.injection && lastAIResult===null')
    expect(page.locator('#aiPdfOption')).to_be_hidden()
+   assert page.evaluate('()=>{try{createAIPDFReport();return false;}catch{return true;}}')
    # Even a hostile same-origin text fixture is rendered as text, never HTML.
    evil=json.loads(json.dumps(fixture['normal']));evil['advice']['summary']='<img src=x onerror="window.injection=true">'
    current['response']=evil;page.locator('#refreshAiBtn').click()
@@ -63,16 +68,21 @@ with sync_playwright() as p:
    # Deliberately ignore AbortSignal to prove stale completions stay discarded.
    page.evaluate('''()=>{window.originalFetch=window.fetch; window.fetch=(url,options)=>new Promise(resolve=>{window.pendingSignal=options.signal;window.finishOld=resolve;});}''')
    page.locator('#generateAiBtn').click();expect(page.locator('#aiLoading')).to_be_visible()
+   expect(page.locator('#downloadAiReport')).to_be_hidden()
    page.get_by_role('button',name='取消等待').click();expect(page.locator('#aiConsent')).to_be_visible()
    assert page.evaluate('window.pendingSignal.aborted')
    page.evaluate('r=>window.finishOld(new Response(JSON.stringify(r)))',fixture['normal'])
    page.wait_for_timeout(100);expect(page.locator('#aiContent')).to_be_empty()
    page.evaluate('window.fetch=window.originalFetch')
-   page.locator('#toggleAdvancedAI').click();page.select_option('#aiProviderSelect','openai')
-   expect(page.locator('#aiDestination')).to_contain_text('OpenAI')
+   page.locator('#toggleAdvancedAI').click();page.select_option('#aiProviderSelect','groq')
+   expect(page.locator('#aiDestination')).to_contain_text('Groq')
    page.locator('#customApiKey').fill('fake-key')
-   page.select_option('#aiProviderSelect','gemini');expect(page.locator('#customApiKey')).to_have_value('')
-   assert page.locator('#modelSelect option').first.get_attribute('value')=='gemini-3.8-flash'
+   page.select_option('#aiProviderSelect','auto');expect(page.locator('#customApiKey')).to_have_value('')
+   page.select_option('#aiProviderSelect','groq')
+   assert page.locator('#modelSelect option').first.get_attribute('value')=='openai/gpt-oss-120b'
+   page.select_option('#modelSelect','openai/gpt-oss-20b')
+   expect(page.locator('#aiDestination')).to_contain_text('需提供自己的金鑰')
+   page.locator('#advancedAISettings').screenshot(path=str(OUT/f'{engine}-{width}-groq-settings.png'))
    # Daily site budget must allow a genuine BYOK retry while IP limits stay global.
    page.select_option('#aiProviderSelect','auto')
    current.update(response={'success':False,'retryScope':'site','error':'今日站方額度已用完'},status=503,headers={'Retry-After':'3600'})
