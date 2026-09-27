@@ -4,7 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright,expect
 ROOT=Path(__file__).resolve().parents[2]
 BASE=os.environ.get('BASE_URL','http://127.0.0.1:8765')
-OUT=Path(os.environ.get('AI_OUTPUT_DIR',str(ROOT/'.claude/audit/groq-pdf-20260927/screens')))
+OUT=Path(os.environ.get('AI_OUTPUT_DIR',str(ROOT/'.claude/audit/ai-report-v2-20260927/screens')))
 OUT.mkdir(parents=True,exist_ok=True)
 fixture=json.loads(subprocess.check_output(['node','--input-type=module','-e',"""
 import {readFileSync} from 'node:fs';
@@ -31,7 +31,7 @@ with sync_playwright() as p:
    page.goto(BASE,wait_until='networkidle')
    page.evaluate('''data=>{window.lastFormData=data;window.lastPrescription=calculateFITTVP(data);displayPrescriptionSummary(window.lastPrescription);showPage('resultPage');resetAISection();}''',fixture['data'])
    expect(page.locator('#aiConsent')).to_be_visible();assert not calls
-   expect(page.locator('#downloadAiReport')).to_be_hidden()
+   expect(page.locator('#downloadAiReport')).to_be_visible();expect(page.locator('#downloadAiReport')).to_be_disabled()
    assert page.locator('#aiProviderSelect option').evaluate_all('(els)=>els.map(el=>el.value)')==['auto','groq']
    expect(page.locator('#aiDestination')).to_contain_text('Groq')
    page.locator('#generateAiBtn').click()
@@ -44,7 +44,11 @@ with sync_playwright() as p:
    assert page.evaluate('createAIPDFReport().sections[0].items[0]')==fixture['normal']['advice']['summary']
    assert page.evaluate('aiPDFSections().length')==0
    page.locator('#includeAiInPdf').check()
-   assert page.evaluate('aiPDFSections().length')==5
+   assert page.evaluate('aiPDFSections().length')==11
+   assert page.locator('.ai-report-section').count()==6
+   standard=page.locator('#downloadPrescription').bounding_box(); ai=page.locator('#downloadAiReport').bounding_box()
+   assert abs(standard['y']-ai['y'])<2 and standard['x']+standard['width']<=ai['x']
+   expect(page.locator('#downloadAiReport')).to_be_enabled()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
    current['response']=fixture['high'];page.locator('#refreshAiBtn').click()
    expect(page.locator('.action-item h4').first).to_have_text('就醫前整理')
@@ -68,7 +72,7 @@ with sync_playwright() as p:
    # Deliberately ignore AbortSignal to prove stale completions stay discarded.
    page.evaluate('''()=>{window.originalFetch=window.fetch; window.fetch=(url,options)=>new Promise(resolve=>{window.pendingSignal=options.signal;window.finishOld=resolve;});}''')
    page.locator('#generateAiBtn').click();expect(page.locator('#aiLoading')).to_be_visible()
-   expect(page.locator('#downloadAiReport')).to_be_hidden()
+   expect(page.locator('#downloadAiReport')).to_be_visible();expect(page.locator('#downloadAiReport')).to_be_disabled()
    page.get_by_role('button',name='取消等待').click();expect(page.locator('#aiConsent')).to_be_visible()
    assert page.evaluate('window.pendingSignal.aborted')
    page.evaluate('r=>window.finishOld(new Response(JSON.stringify(r)))',fixture['normal'])

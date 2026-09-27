@@ -87,7 +87,8 @@ with sync_playwright() as p:
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.on('dialog', lambda dialog: (alerts.append(dialog.message), dialog.dismiss()))
             page.on('request', lambda request: library_requests.append(request.url)
-                    if '/jspdf/' in request.url or '/html2canvas/' in request.url or '/assets/fonts/' in request.url else None)
+                    if '/assets/vendor/jspdf' in request.url or '/jspdf/' in request.url or '/html2canvas/' in request.url or '/assets/fonts/' in request.url else None)
+            page.route('**/cdnjs.cloudflare.com/**', lambda route: route.abort())
             page.goto(BASE + ('/parq-form.html' if standalone else '/'), wait_until='networkidle')
             assert not library_requests, 'PDF dependencies must be lazy'
             page.get_by_role('button', name='開始評估' if standalone else '開始使用', exact=True).click()
@@ -208,9 +209,18 @@ with sync_playwright() as p:
                 if ai_report:
                     assert event.value.suggested_filename.startswith('AI運動行動報告_')
                     assert 'AI運動行動報告' in text and 'test-only' in text
+                    assert '你的條件與本次重點' in text and '可直接使用的回顧紀錄' in text
                     assert 'FITT-VP運動計畫' not in text, 'Standalone AI report should not depend on appendix checkbox'
                     if scenario == 'ai-report':
                         ai_standard_text = text
+                        # A fresh user click can save again when automatic downloading is blocked.
+                        expect(page.locator('#pdfSaveLink')).to_be_visible()
+                        with page.expect_download(timeout=60000) as retry:
+                            page.get_by_role('link', name='儲存 PDF', exact=True).click()
+                        copy = OUT / f'{engine}-ai-manual-save.pdf'
+                        retry.value.save_as(copy)
+                        assert copy.read_bytes() == target.read_bytes()
+                        assert page.locator('#pdfOpenLink').get_attribute('href').startswith('blob:')
                     elif scenario == 'ai-report-mobile':
                         assert text == ai_standard_text, 'Viewport changed AI report content'
                     else:
@@ -221,7 +231,7 @@ with sync_playwright() as p:
                 if scenario == 'mobile':
                     assert count == 2 and text == standard_text, 'Viewport changed report content or pagination'
                 if scenario == 'ai-appendix':
-                    assert count == 3 and 'AI協助選取的生活行動' in text and 'test-only' in text
+                    assert count >= 4 and 'AI協助選取的生活行動' in text and 'test-only' in text
                 if scenario == 'long':
                     assert count >= 4 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'child':
@@ -232,6 +242,22 @@ with sync_playwright() as p:
                 assert page.locator('#pdfLoadingStatus, #pdfExportContent, #loadingModal.active').count() == 0
                 assert len(library_requests) == 3, 'Exports must reuse the loaded font and jsPDF'
                 print(f'[OK] {target.name}: {count} pages, {target.stat().st_size} bytes; all text present, no overlaps, printable margins')
+            if not standalone:
+                page.evaluate('r=>{renderAIResult(r);setAIState("content");}', AI_FIXTURE['normal'])
+                downloads=[]
+                page.on('download', lambda item: downloads.append(item))
+                page.evaluate('''() => {window.realPDFLoader=loadPDFLibraries;
+                  window.loadPDFLibraries=()=>new Promise(resolve=>{window.finishPDFLoad=resolve;});}''')
+                page.locator('#downloadAiReport').click()
+                expect(page.locator('#downloadAiReport')).to_be_disabled()
+                page.evaluate('resetAISection();window.finishPDFLoad()')
+                expect(button).to_be_enabled()
+                page.evaluate('window.loadPDFLibraries=window.realPDFLoader')
+                assert not downloads, 'Clearing a report must discard pending PDF work'
+                page.evaluate('resetAISection()')
+                expect(page.locator('#downloadAiReport')).to_be_disabled()
+                expect(page.locator('#pdfDownloadFeedback')).to_be_hidden()
+                assert page.locator('#pdfSaveLink').get_attribute('href') is None
             assert len(alerts) == (1 if standalone else 2) and not errors, (alerts, errors)
             page.close()
         browser.close()

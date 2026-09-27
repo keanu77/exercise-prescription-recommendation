@@ -1322,6 +1322,22 @@ function getExerciseExamples(types) {
 
 // PDF 下載功能
 let pdfDownloadInProgress = false;
+let pdfDownloadUrl = null;
+let pdfDownloadSequence = 0;
+
+function updatePDFButtons() {
+  document.getElementById('downloadPrescription').disabled = pdfDownloadInProgress;
+  document.getElementById('downloadAiReport').disabled = pdfDownloadInProgress || !lastAIResult;
+}
+
+function clearPDFDownload() {
+  pdfDownloadSequence++;
+  if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl);
+  pdfDownloadUrl = null;
+  document.getElementById('pdfDownloadFeedback').classList.add('hidden');
+  document.getElementById('pdfDownloadLinks').classList.add('hidden');
+  for (const id of ['pdfSaveLink','pdfOpenLink']) document.getElementById(id).removeAttribute('href');
+}
 
 async function downloadPDF() {
   return savePDFReport(createPDFReport, "運動處方建議");
@@ -1334,9 +1350,12 @@ async function downloadAIPDF() {
 
 async function savePDFReport(buildReport, filePrefix) {
   if (pdfDownloadInProgress) return;
+  clearPDFDownload();
+  const sequence = pdfDownloadSequence;
   pdfDownloadInProgress = true;
-  const downloadButtons = ["downloadPrescription", "downloadAiReport"].map(id => document.getElementById(id)).filter(Boolean);
-  downloadButtons.forEach(button => { button.disabled = true; });
+  updatePDFButtons();
+  const feedback = document.getElementById('pdfDownloadFeedback');
+  const message = document.getElementById('pdfDownloadMessage');
   try {
     // 顯示載入 Modal
     showLoadingModal();
@@ -1344,6 +1363,7 @@ async function savePDFReport(buildReport, filePrefix) {
     // Snapshot the displayed result before asynchronous font/library loading.
     const report = buildReport();
     await loadPDFLibraries();
+    if (sequence !== pdfDownloadSequence) return;
     const pdf = renderPDFReport(report);
 
     // 生成檔案名稱
@@ -1351,15 +1371,27 @@ async function savePDFReport(buildReport, filePrefix) {
     const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`;
 
     // 下載 PDF
-    pdf.save(`${filePrefix}_${dateStr}.pdf`);
+    const filename = `${filePrefix}_${dateStr}.pdf`;
+    pdfDownloadUrl = URL.createObjectURL(pdf.output('blob'));
+    const saveLink = document.getElementById('pdfSaveLink');
+    saveLink.href = pdfDownloadUrl;
+    saveLink.download = filename;
+    document.getElementById('pdfOpenLink').href = pdfDownloadUrl;
+    document.getElementById('pdfDownloadLinks').classList.remove('hidden');
+    feedback.classList.remove('hidden');
+    message.textContent = `${filename} 已準備好。若未開始下載，請按「儲存 PDF」；手機也可開啟預覽後儲存。`;
+    saveLink.click();
 
   } catch (error) {
     console.error("PDF 生成錯誤:", error);
+    if (sequence !== pdfDownloadSequence) return;
+    feedback.classList.remove('hidden');
+    message.textContent = 'PDF 尚未產生，請確認網路後再次按下載。報告內容仍保留在本頁。';
     alert("PDF 生成失敗，請稍後再試。可能是瀏覽器不支援或網路問題。");
   } finally {
     hideLoadingModal();
     pdfDownloadInProgress = false;
-    downloadButtons.forEach(button => { button.disabled = false; });
+    updatePDFButtons();
   }
 }
 

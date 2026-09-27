@@ -30,7 +30,20 @@ function renderPDFReport(report) {
     };
     const wrap = (value, maxWidth, size = 10.5) => {
         font(size);
-        return doc.splitTextToSize(cleanPDFText(value), maxWidth);
+        const cleaned = cleanPDFText(value);
+        // Mixed Chinese/numeric prose should wrap by glyph width, rather than
+        // treating the entire Chinese sentence after a space as one long word.
+        if (report.compact && /[\u3400-\u9fff]/u.test(cleaned)) {
+            const lines = []; let line = '';
+            for (const char of cleaned) {
+                if (line && doc.getTextWidth(line + char) > maxWidth) {
+                    lines.push(line.trimEnd()); line = char.trimStart();
+                } else line += char;
+            }
+            if (line) lines.push(line);
+            return lines;
+        }
+        return doc.splitTextToSize(cleaned, maxWidth);
     };
     const rule = (at, color = line) => {
         doc.setDrawColor(color); doc.setLineWidth(0.25); doc.line(left, at, right, at);

@@ -18,6 +18,7 @@ ASSETS=(
   parq-script.js
   pdf-loader.js
   pdf-report.js
+  assets/vendor/jspdf.umd.min.js
   assets/fonts/ExerciseReportSans-Regular.ttf
   assets/fonts/OFL.txt
   tailwind.css

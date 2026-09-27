@@ -1,6 +1,6 @@
 # 運動處方推薦系統
 
-> 2026-09-27 AI 改版：選用的「把運動計畫帶進生活」提供三張行動卡，前後端共用處方規則、伺服器重算，AI 只選適用重點。網站設定目前只提供 Groq；行動卡產生後可直接下載 AI 報告 PDF，也可勾選併入標準處方。架構、評測及預算限制以 [新版實作文件](docs/ai-redesign-implementation-2026-09-27.md) 為準。
+> 2026-09-27 AI 改版：選用的「把運動計畫帶進生活」提供三張行動卡，前後端共用處方規則、伺服器重算，AI 只選適用重點。網站設定目前只提供 Groq；行動卡產生後可直接下載含個人解讀與回顧表的完整 AI 報告 PDF，也可勾選併入標準處方。架構、評測及預算限制以 [新版實作文件](docs/ai-redesign-implementation-2026-09-27.md) 為準。
 
 基於美國運動醫學會（ACSM）FITT-VP 原則與世界衛生組織（WHO）2020 身體活動指引的運動處方工具。使用者填寫多步驟問卷後，前端以確定性規則計算 FITT-VP 處方、PAR-Q+ 風險分級、BMI/BMR/TDEE 與 MET 熱量估算；另可在結果頁按下按鈕，由 AI 產生補充說明。
 
@@ -45,7 +45,7 @@ npx wrangler pages secret put GROQ_API_KEY --project-name exercise-prescription
 npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度檢查）→ wrangler pages deploy dist
 ```
 
-`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright、Chromium 與 Poppler（PDF 文字／版面檢查使用 `pdftotext`），並能存取 cdnjs（實際 PDF 匯出）；可用 `PY`、`PYTHONPATH` 指定環境。
+`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright、Chromium 與 Poppler（PDF 文字／版面檢查使用 `pdftotext`），PDF 元件與字型均由本站載入（測試會阻擋 cdnjs，確認沒有外部 CDN 依賴）；可用 `PY`、`PYTHONPATH` 指定環境。
 
 `wrangler.toml` 已綁定 `RATE_LIMIT_KV`；`ALLOWED_ORIGINS` 留空代表只允許同站呼叫 `/api`。
 

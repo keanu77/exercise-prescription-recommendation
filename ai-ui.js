@@ -61,9 +61,12 @@ function setAIState(state) {
   aiEl('aiRecommendationSection').setAttribute('aria-busy',String(state==='loading'));
   aiEl('refreshAiBtn').classList.toggle('hidden',state==='idle'||state==='loading');
   aiEl('advancedAISettings').querySelectorAll('input,select').forEach(el=>{el.disabled=state==='loading';});
+  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可直接下載或合併至標準處方。':state==='loading'?'AI 報告產生中；標準處方 PDF 仍可下載。':'先產生下方 AI 建議，即可下載完整 AI 報告。';
+  updatePDFButtons();
 }
 function clearAIResult() {
   lastAIResult=null;
+  clearPDFDownload();
   aiEl('aiContent').replaceChildren();
   aiEl('aiProviderBadge').classList.add('hidden');
   aiEl('aiPdfOption').classList.add('hidden');
@@ -99,8 +102,15 @@ function validateAIResult(r) {
   return r?.success===true && r.schemaVersion===2 && ['actions','consultation'].includes(r.mode) &&
     ['low','moderate','high'].includes(r.risk) && r.meta?.rulesVersion===ExerciseRules.rulesVersion &&
     str(r.meta.model,100) && str(r.meta.provider,30) && str(r.meta.promptVersion,60) &&
-    Number.isFinite(Date.parse(r.meta.generatedAt)) && str(r.safety,500) && str(r.advice?.summary,300) &&
+    Number.isFinite(Date.parse(r.meta.generatedAt)) && str(r.safety,500) && str(r.advice?.summary,300) && validateDetailedReport(r.report) &&
     adviceGroups.every(g=>Array.isArray(r.advice[g]) && r.advice[g].length===2 && r.advice[g].every(t=>str(t,300)));
+}
+function validateDetailedReport(report) {
+  const ids=['profile','prescription','barriers','schedule','safety','tracking'];
+  const text=v=>typeof v==='string' && v.length>0 && v.length<=2000;
+  return report?.version===1 && Array.isArray(report.sections) && report.sections.length===ids.length &&
+    report.sections.every((s,i)=>s?.id===ids[i] && text(s.title) && ['list','rows'].includes(s.kind) && Array.isArray(s.items) && s.items.length>0 && s.items.length<=30 &&
+      s.items.every(item=>s.kind==='rows'?Array.isArray(item)&&item.length===2&&item.every(text):text(item)));
 }
 function renderAIResult(r) {
   const root=aiEl('aiContent');root.replaceChildren();
@@ -111,9 +121,22 @@ function renderAIResult(r) {
     card.append(element('span',`0${i+1}`,'action-number'),element('h4',r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i]));
     const list=element('ul');for(const line of r.advice[g]) list.append(element('li',line));card.append(list);cards.append(card);
   }); root.append(cards);
+  const report=element('div',undefined,'ai-report-details');
+  for(const section of r.report.sections) {
+    const block=element('section',undefined,'ai-report-section');
+    block.append(element('h4',section.title));
+    const content=element(section.kind==='rows'?'dl':'ul');
+    for(const item of section.items) {
+      if(section.kind==='rows') {
+        const row=element('div');row.append(element('dt',item[0]),element('dd',item[1]));content.append(row);
+      } else content.append(element('li',item));
+    }
+    block.append(content);report.append(block);
+  }
+  root.append(report);
   const details=element('details',undefined,'action-provenance');details.append(element('summary','依據與限制'));
   details.append(element('p',`${r.meta.model} · ${new Date(r.meta.generatedAt).toLocaleString('zh-TW')} · 處方 ${r.meta.rulesVersion} · 行動卡 ${r.meta.promptVersion}`));
-  details.append(element('p','處方與必要提醒由本站規則產生；AI 僅選取適用的生活行動。尚未執行即時文獻檢索或個別醫療評估。'));
+  details.append(element('p','AI 依個人條件選取行動重點；個人條件解讀、處方與必要提醒由本站依問卷及既有規則整理。尚未執行即時文獻檢索或個別醫療評估。'));
   // Source destination is site-controlled, never model-provided.
   const link=element('a','PAR-Q+ 官方問卷與追蹤評估 ↗');link.href='https://eparmedx.com/';link.target='_blank';link.rel='noopener noreferrer';details.append(link);root.append(details);
   aiEl('aiProviderName').textContent=r.meta.model;aiEl('aiProviderBadge').classList.remove('hidden');
@@ -164,6 +187,7 @@ async function fetchAIRecommendation() {
 function aiActionPDFSections(r) {
   return [
     ...adviceGroups.map((g,i)=>({title:r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i],kind:'list',items:[...r.advice[g]]})),
+    ...r.report.sections.map(s=>({title:s.title,kind:s.kind,items:s.items.map(item=>Array.isArray(item)?[...item]:item)})),
     {title:'產生紀錄',kind:'paragraph',items:[`${r.meta.model} / ${r.meta.generatedAt} / 處方 ${r.meta.rulesVersion} / 行動卡 ${r.meta.promptVersion}`,'PAR-Q+ 官方問卷與追蹤評估：https://eparmedx.com/']},
   ];
 }
@@ -181,11 +205,11 @@ function createAIPDFReport() {
   return {
     title:'AI 運動行動報告',
     compact:true,
-    subtitle:r.mode==='consultation'?'整理就醫前的準備、問題與觀察重點。':'依據目前的運動處方，整理日常做法與提醒。',
+    subtitle:r.mode==='consultation'?'你的條件、諮詢準備、重要提醒與回顧紀錄。':'你的條件、處方解讀、執行重點與回顧紀錄。',
     date:new Date(r.meta.generatedAt).toLocaleDateString('zh-TW'),
     notice:{level:r.risk,title:r.mode==='consultation'?'先完成醫療評估與諮詢':'依照目前處方安排活動',body:r.safety},
     sections:[{title:'行動摘要',kind:'paragraph',items:[r.advice.summary]},...aiActionPDFSections(r)],
-    disclaimer:'AI 依個人條件從本站預設建議中選取重點，不另開處方，也未即時查詢研究。請搭配標準運動處方與安全提醒使用；內容僅供參考，不能取代個別醫療建議。',
+    disclaimer:'AI 選取行動重點，個人條件解讀與安全提醒由本站依問卷及既有規則整理，不另開處方，也未即時查詢研究。請搭配標準運動處方與安全提醒使用；內容僅供參考，不能取代個別醫療建議。',
   };
 }
 document.addEventListener('DOMContentLoaded',()=>{loadAICatalog();aiEl('modelSelect').addEventListener('change',updateAIDestination);aiEl('customApiKey').addEventListener('input',updateRetryButtons);});

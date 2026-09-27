@@ -1,4 +1,5 @@
 import '../../prescription-rules.js';
+import { buildDetailedReport } from './report.js';
 export const RULES_VERSION = globalThis.ExerciseRules.rulesVersion;
 export const PROMPT_VERSION = 'action-cards-3';
 export const SOURCE = { id:'parq', title:'PAR-Q+ 官方問卷與追蹤評估', url:'https://eparmedx.com/' };
@@ -49,5 +50,5 @@ export function validateSelection(content,ctx) {
 }
 export function presentAdvice(selection,ctx) {
   const advice={summary:ctx.summary,...Object.fromEntries(groups.map(g=>[g,selection[g].map(id=>ctx.catalog[g][id])])),questionsForClinician:[],sourceIds:['parq']};
-  return {advice,mode:ctx.consult?'consultation':'actions',risk:ctx.risk.level,safety:ctx.safety,baseline:ctx.baseline,sources:[SOURCE]};
+  return {advice,report:buildDetailedReport(ctx),mode:ctx.consult?'consultation':'actions',risk:ctx.risk.level,safety:ctx.safety,baseline:ctx.baseline,sources:[SOURCE]};
 }

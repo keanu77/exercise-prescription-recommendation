@@ -8,7 +8,7 @@ let pdfFontPromise = null;
 function loadPDFFont() {
     if (pdfFontData) return Promise.resolve(pdfFontData);
     if (pdfFontPromise) return pdfFontPromise;
-    pdfFontPromise = fetch('assets/fonts/ExerciseReportSans-Regular.ttf')
+    pdfFontPromise = fetch('assets/fonts/ExerciseReportSans-Regular.ttf', {signal:AbortSignal.timeout(20000)})
         .then(response => {
             if (!response.ok) throw new Error('PDF 字型載入失敗，請稍後再試。');
             return response.arrayBuffer();
@@ -33,7 +33,7 @@ function loadPDFLibraries() {
     if (window.jspdf?.jsPDF && pdfFontData) return Promise.resolve();
     if (pdfLibrariesPromise) return pdfLibrariesPromise;
     pdfLibrariesPromise = Promise.all([
-        window.jspdf?.jsPDF || loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+        window.jspdf?.jsPDF || loadScript('assets/vendor/jspdf.umd.min.js',
                    'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'),
         loadPDFFont()
     ]).finally(() => { pdfLibrariesPromise = null; });
@@ -49,12 +49,15 @@ function loadScript(src, integrity) {
             script.integrity = integrity;
             script.crossOrigin = 'anonymous';
         }
-        script.onload = resolve;
-        script.onerror = () => {
+        const failed = () => {
+            clearTimeout(timer);
             script.remove();
             pdfScriptLoads.delete(src);
             reject(new Error('PDF 元件載入失敗，請稍後再試。'));
         };
+        const timer = setTimeout(failed, 20000);
+        script.onload = () => { clearTimeout(timer); resolve(); };
+        script.onerror = failed;
         document.head.appendChild(script);
     });
     pdfScriptLoads.set(src, pending);
