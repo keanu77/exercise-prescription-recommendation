@@ -14,7 +14,7 @@
 - 供應商目錄集中 `functions/_lib/models.js`，`/api/providers` 公開不含金鑰的目錄。Groq GPT-OSS 120B 保持站方基準；20B、GPT-6 Luna/Sol、Claude Sonnet 5、Gemini 3.8 Flash 標示待評測，僅使用者自帶金鑰可呼叫，不消耗站方其他模型額度。
 - OpenAI 採 Responses + strict JSON / store:false；Groq strict JSON；Claude output_config.format；Gemini generateContent + responseJsonSchema、thinkingLevel low。其他模型的有效帳號相容與人工品質分數仍須實測，不以 mock 當成成功呼叫。
 - 每次上限 1,800 output tokens；上游 30 秒、前端 40 秒涵蓋讀取 response body。每 IP 10 次／分鐘，站方 KV 不可用時 fail-closed。每日預留預算預設 US$2，可設 `AI_DAILY_BUDGET_USD`（上限 $10），每次依 UTF-8 bytes 推算保守輸入 token 上界及最大輸出先預留，失敗不退還。**KV get/put 非原子，是盡力預算防線；要硬性帳單上限仍需供應商帳號限制／原子儲存。**
-- 日誌只有 provider/model/version/time/tokens/latency/錯誤碼，不記表單、提示、回應全文或金鑰。不自動跨供應商重試。
+- 日誌只有 provider/model/version/time/tokens/latency/錯誤碼，不記表單、提示、回應全文或金鑰。不自動跨供應商重試。前端把同意前顯示的 provider/model 明確寫入請求；站方設定改變時也不默默改送別家。
 
 ## 驗證方法
 

@@ -15,6 +15,8 @@ if(!pricing) throw new Error('Unknown model');
 const customApiKey=process.env[MODELS[provider].envKey]||null;
 const output=process.env.AI_EVAL_OUTPUT||'.claude/audit/ai-redesign-20260927/evaluation.json';
 const repeats=Number(process.env.AI_EVAL_REPEATS||3);
+if(!Number.isInteger(repeats)||repeats<1||repeats>3) throw new Error('AI_EVAL_REPEATS must be 1..3');
+if(fs.existsSync(output)) throw new Error('Evaluation output exists; choose a new AI_EVAL_OUTPUT to preserve prior costs and evidence');
 const cases=JSON.parse(fs.readFileSync('tests/fixtures/ai-cases.json')).cases;
 const report={provider,model,startedAt:new Date().toISOString(),budgetUSD:10,reservedUSD:0,reportedCostUSD:0,results:[],humanReview:'pending'};
 const persist=()=>fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');

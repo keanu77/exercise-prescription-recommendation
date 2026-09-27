@@ -49,12 +49,12 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 心率區間依最終強度給（`HEART_RATE_ZONES`，ACSM %HRmax：輕 57-63、中 64-76、劇 77-95）；PAR-Q+ q1 心臟病／高血壓、q5 服藥、疾病選項心臟病史、心悸、PAR-Q+ 高風險時 `heartRateZone = null` 改用 RPE（Borg 6-20：輕 9-11、中 12-13、劇 14-17）。
 - 兒童青少年維持每日活動原則，PAR-Q+ 低風險的體能微調只套用於成人且有規律運動習慣者。
 
-### PAR-Q+ 分級（三處必須一致）
-題目為 **PAR-Q+ 2025 第 1 頁 7 題**（eparmedx.com，官方中文版 2026-01 轉繁體），不是舊版 PAR-Q 2002。`script.js assessPARQRisk`、`parq-script.js assessParqLevel`、`functions/_lib/ai.js assessParqLevel` 三處規則相同：
+### PAR-Q+ 分級（共用引擎與獨立問卷須一致）
+題目為 **PAR-Q+ 2025 第 1 頁 7 題**（eparmedx.com，官方中文版 2026-01 轉繁體），不是舊版 PAR-Q 2002。`prescription-rules.js assessPARQRisk`（主表單及後端共用）、`parq-script.js assessParqLevel` 規則相同：
 - 官方規則是二元：全「否」→ 可開始（>45 歲且不習慣劇烈運動者，劇烈強度前先諮詢合格運動專業人員）；任一「是」→ 完成第 2、3 頁追蹤問題／ePARmed-X+ 並諮詢；取得許可前僅低強度（ePARmed-X+ 醫師許可表 2026）。
 - 分級只決定處方保守程度，對應 ACSM 2015 運動前篩檢演算法（GETP 11th）：q2 胸痛、q3 頭暈／失去意識（徵候症狀）、q7 醫囑須醫療監督 → `high`（任何強度前先評估，cap light）；其他任一「是」→ `moderate`（已知疾病／服藥且已規律運動者 cap moderate，否則 cap light-moderate）；全「否」→ `low`。
 - q1 心臟病／高血壓、q5 服用處方藥 → `hrZoneUnsafe`，不給心率區間改用 RPE（ACSM）。
-- 改規則要三處一起改，並更新 README 的說明。
+- 改規則要共用引擎與獨立問卷一起核對，並更新 README 的說明。
 
 ### functions/：四家 provider 的結構化 proxy
 - `ai-recommendation.js`：CORS、100KiB body、schemaVersion:2、完整正規化、10次/IP/分鐘、站方預算、可信規則、provider adapter、選取 ID 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。

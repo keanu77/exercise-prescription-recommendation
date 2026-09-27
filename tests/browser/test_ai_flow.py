@@ -35,6 +35,7 @@ with sync_playwright() as p:
    page.locator('#generateAiBtn').click()
    expect(page.locator('#aiContent')).to_be_visible()
    assert len(calls)==1 and calls[0]['schemaVersion']==2 and 'prescription' not in calls[0]['userData']
+   assert calls[0]['provider']=='groq' and calls[0]['model']=='openai/gpt-oss-120b', 'Pin the provider shown before consent'
    assert page.locator('.action-item').count()==3
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
    assert page.evaluate('aiPDFSections().length')==0

@@ -116,6 +116,14 @@ async function fetchAIRecommendation() {
   if(Date.now()<aiRetryUntil) return;
   if(!aiCatalog) {await loadAICatalog();return;} // Consent again after destination becomes known.
   const settings=getAISettings();
+  // Pin the displayed destination. If server configuration changes, fail instead
+  // of silently sending the profile to another provider under an old consent.
+  if(settings.provider==='auto') {
+    const shown=aiCatalog.providers.find(p=>p.id===aiCatalog.defaultProvider);
+    const shownModel=shown?.models.find(m=>!m.requiresKey);
+    if(!shownModel) {clearAIResult();aiEl('aiErrorMessage').textContent='目前沒有可用的站方 AI 服務，請在進階設定使用自己的金鑰。';setAIState('error');return;}
+    settings.provider=shown.id;settings.model=shownModel.id;settings.customApiKey=null;
+  }
   const selected=aiCatalog.providers.find(p=>p.id===settings.provider)?.models.find(m=>m.id===settings.model);
   if(settings.provider!=='auto' && selected?.requiresKey && !settings.customApiKey) {
     clearAIResult();aiEl('aiErrorMessage').textContent='此候選模型需要自己的 API 金鑰，請在進階設定填入。';setAIState('error');return;
