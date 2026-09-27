@@ -29,7 +29,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
-- 兩入口使用 `.site-app` 共用剪紙風格：暖米白紙面、海藍／霧藍、少量陶土橘與鼠尾草綠紙層；主表單 desktop 左側步驟欄、mobile 橫向步驟。標題與正文 Noto Sans TC 無襯線、英文及數字採正常字寬 system-ui；899px 以下評估頁回到單欄。原始圖片來源見 `docs/cut-paper-design-2026-09-27.md`；最新藍色與字體調整見 `docs/blue-typography-2026-09-27.md`。
+- 兩入口使用 `.site-app` 共用剪紙風格：米白紙面、亮萊姆綠主色，搭配海藍／霧藍與跑道磚紅紙層；主表單 desktop 左側步驟欄、mobile 橫向步驟。標題與正文 Noto Sans TC 無襯線、英文及數字採正常字寬 system-ui；899px 以下評估頁回到單欄。原始圖片來源見 `docs/cut-paper-design-2026-09-27.md`；最新亮綠／藍／跑道色與字體調整見 `docs/blue-typography-2026-09-27.md`。
 - 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
 - 首頁圖片在 `assets/sports-paper-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；使用者選定 D 剪紙拼貼，原圖 `assets/hero-options/d-cut-paper-collage.png`，完整提示詞在同目錄 `d-cut-paper-collage-prompt.md`。兩入口共用，維持無圖片說明文字；圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
