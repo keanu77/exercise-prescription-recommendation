@@ -178,7 +178,11 @@ export { validateUserData, sanitizeApiKey };
 export const SYSTEM_PROMPT = '你協助使用者落實既有運動計畫。從各組 eligibleActions 選兩個最貼近個人限制的不同 ID，依優先順序排列。consultation 模式只選就醫前準備。不得新增文字、數值、來源或動作。時間、器材、動機、兒少、服藥等專屬選項若適用，優先選擇。只輸出符合 schema 的 JSON。';
 export function buildUserSummary(data, ctx) {
   // No client text, names or keys; trusted baseline supplies all clinical context.
-  return JSON.stringify({profile:{age:data.age,gender:data.gender,diseases:data.diseases,fitness:fitnessMap[data.fitness_level],habit:habitMap[data.exercise_habit],goal:goalMap[data.exercise_goal],limitations:data.limitations,parq_answers:data.parq_answers}, baseline:ctx.baseline, risk:ctx.risk.level, mode:ctx.consult?'consultation':'actions',eligibleActions:ctx.catalog});
+  const {frequency,time,intensity,type,heartRateZone}=ctx.baseline;
+  const eligibleActions=Object.fromEntries(Object.entries(ctx.catalog).map(([group,items])=>
+    [group,Object.fromEntries(Object.entries(items).map(([id,text])=>[id,text.split(/[，。]/)[0]]))]));
+  return JSON.stringify({profile:{age:data.age,gender:data.gender,diseases:data.diseases,fitness:fitnessMap[data.fitness_level],habit:habitMap[data.exercise_habit],goal:goalMap[data.exercise_goal],limitations:data.limitations},
+    baseline:{frequency,time,intensity,type,heartRateZone},risk:ctx.risk.level,mode:ctx.consult?'consultation':'actions',eligibleActions});
 }
 export function parseRetryAfter(raw, now=Date.now()) {
   if(!raw) return null;

@@ -32,12 +32,12 @@ for(const c of cases) for(let repeat=0;repeat<repeats;repeat++) {
   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({schemaVersion:2,userData:c.data,provider,model,customApiKey}),signal:AbortSignal.timeout(45000)});
   const r=await response.json();
   const success=response.ok&&r.success&&r.schemaVersion===2&&JSON.stringify(r.baseline)===JSON.stringify(ctx.baseline);
-  result={case:c.id,repeat:repeat+1,status:response.status,success:Boolean(success),durationMs:Date.now()-started,meta:r.meta||null,mode:r.mode||null,advice:r.advice||null,error:r.error||null};
+  result={case:c.id,repeat:repeat+1,status:response.status,success:Boolean(success),durationMs:Date.now()-started,meta:r.meta||null,retryAfter:response.headers.get('Retry-After'),mode:r.mode||null,advice:r.advice||null,error:r.error||null};
   if(r.meta?.estimatedCostUSD) report.reportedCostUSD+=r.meta.estimatedCostUSD;
  } catch {result={case:c.id,repeat:repeat+1,success:false,error:'request_failed',durationMs:Date.now()-started};}
  report.results.push(result);persist();
  console.log(JSON.stringify({completed:report.results.length,total:cases.length*repeats,success:result.success,status:result.status,case:c.id}));
- if(report.results.length<cases.length*repeats) await new Promise(resolve=>setTimeout(resolve,7000));
+ if(report.results.length<cases.length*repeats) await new Promise(resolve=>{const raw=result.retryAfter;const retry=raw && /^\d+$/.test(raw)?Number(raw)*1000:raw?Math.max(0,Date.parse(raw)-Date.now()):0;setTimeout(resolve,Math.max(7000,Number.isFinite(retry)?retry:0));});
 }
 const times=report.results.map(r=>r.durationMs).sort((a,b)=>a-b);
 report.summary={completed:report.results.length,passed:report.results.filter(r=>r.success).length,p95Ms:times[Math.ceil(times.length*.95)-1]};

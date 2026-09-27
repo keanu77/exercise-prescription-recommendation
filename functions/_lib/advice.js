@@ -1,6 +1,6 @@
 import '../../prescription-rules.js';
 export const RULES_VERSION = globalThis.ExerciseRules.rulesVersion;
-export const PROMPT_VERSION = 'action-cards-2';
+export const PROMPT_VERSION = 'action-cards-3';
 export const SOURCE = { id:'parq', title:'PAR-Q+ 官方問卷與追蹤評估', url:'https://eparmedx.com/' };
 const groups = ['startToday','adaptations','checkIn'];
 // The model prioritizes eligible actions, never authors a dose, diagnosis or URL.
