@@ -115,6 +115,7 @@ test("handler: 限流 429；KV 不可用時站方金鑰 fail-closed、自帶金�
 
   r = await asJson(await post({ userData: GOOD, provider: "groq" }, { GROQ_API_KEY: "k" }));
   assert.equal(r.status, 503);
+  assert.equal(r.body.retryScope, "site");
 
   r = await asJson(await post({ userData: GOOD, provider: "groq" }, { GROQ_API_KEY: "k", RATE_LIMIT_KV: KV_WRITE_FAIL }));
   assert.equal(r.status, 503);

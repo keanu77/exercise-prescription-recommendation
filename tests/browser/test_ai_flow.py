@@ -73,6 +73,15 @@ with sync_playwright() as p:
    page.locator('#customApiKey').fill('fake-key')
    page.select_option('#aiProviderSelect','gemini');expect(page.locator('#customApiKey')).to_have_value('')
    assert page.locator('#modelSelect option').first.get_attribute('value')=='gemini-3.8-flash'
+   # Daily site budget must allow a genuine BYOK retry while IP limits stay global.
+   page.select_option('#aiProviderSelect','auto')
+   current.update(response={'success':False,'retryScope':'site','error':'今日站方額度已用完'},status=503,headers={'Retry-After':'3600'})
+   page.locator('#generateAiBtn').click();expect(page.locator('#refreshAiBtn')).to_be_disabled()
+   page.select_option('#aiProviderSelect','groq');page.locator('#customApiKey').fill('fixture-own-key')
+   expect(page.locator('#refreshAiBtn')).to_be_enabled()
+   current.update(response=fixture['normal'],status=200,headers={})
+   page.locator('#refreshAiBtn').click();expect(page.locator('#aiContent')).to_be_visible()
+   assert calls[-1]['customApiKey']=='fixture-own-key'
    assert not errors,errors
    print(f'[OK] {engine}/{width}: consent, cards, consultation, PDF selection, malformed output, XSS, 429, cancel/stale, catalog')
    page.close()

@@ -10,10 +10,10 @@
 - 截斷、拒答、錯誤 schema 或不適用 ID 不呈現為完成結果；前端只用 DOM textContent。移除不再需要的 DOMPurify CDN。
 - 明列資料目的地、主動同意、真實等待狀態、取消、Retry-After 倒數、重設與過期回應隔離。取得服務目錄失敗時，再次取得成功也不自動送出健康資料。
 - 來源固定為 PAR-Q+ 官方問卷；未做文獻檢索，不宣稱有最新研究支持每個生活行動。原處方必要 warnings 仍在主報告。
-- 勾選後 PDF 加入獨立附錄，標示 AI 任務、模型、時間、規則與提示版本；重新產生／清除後取消勾選及舊結果。
+- 勾選後 PDF 加入獨立附錄，標示 AI 任務、模型、時間、規則與提示版本；重新產生／清除後取消勾選及舊結果。使用提醒保留在基礎報告，附錄另起一頁，避免提醒孤立到尾頁。
 - 供應商目錄集中 `functions/_lib/models.js`，`/api/providers` 公開不含金鑰的目錄。Groq GPT-OSS 120B 保持站方基準；20B、GPT-6 Luna/Sol、Claude Sonnet 5、Gemini 3.8 Flash 標示待評測，僅使用者自帶金鑰可呼叫，不消耗站方其他模型額度。
 - OpenAI 採 Responses + strict JSON / store:false；Groq strict JSON；Claude output_config.format；Gemini generateContent + responseJsonSchema、thinkingLevel low。其他模型的有效帳號相容與人工品質分數仍須實測，不以 mock 當成成功呼叫。
-- 每次上限 1,800 output tokens；上游 30 秒、前端 40 秒涵蓋讀取 response body。每 IP 10 次／分鐘，站方 KV 不可用時 fail-closed。每日預留預算預設 US$2，可設 `AI_DAILY_BUDGET_USD`（上限 $10），每次依 UTF-8 bytes 推算保守輸入 token 上界及最大輸出先預留，失敗不退還。**KV get/put 非原子，是盡力預算防線；要硬性帳單上限仍需供應商帳號限制／原子儲存。**
+- 每次上限 1,800 output tokens；上游 30 秒、前端 40 秒涵蓋讀取 response body。每 IP 10 次／分鐘，站方 KV 不可用時 fail-closed。站方額度／KV的等候只限制站方金鑰，改用自帶金鑰可繼續；IP限流仍共同適用。每日預留預算預設 US$2，可設 `AI_DAILY_BUDGET_USD`（上限 $10），每次依 UTF-8 bytes 推算保守輸入 token 上界及最大輸出先預留，失敗不退還。**KV get/put 非原子，是盡力預算防線；要硬性帳單上限仍需供應商帳號限制／原子儲存。**
 - 日誌只有 provider/model/version/time/tokens/latency/錯誤碼，不記表單、提示、回應全文或金鑰。不自動跨供應商重試。前端把同意前顯示的 provider/model 明確寫入請求；站方設定改變時也不默默改送別家。
 
 ## 驗證方法

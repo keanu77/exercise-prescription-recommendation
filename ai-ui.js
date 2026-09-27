@@ -6,6 +6,7 @@ let aiCatalogPromise = null;
 let aiRequestSeq = 0;
 let aiAbortController = null;
 let aiRetryUntil = 0;
+let aiRetryScope = "all";
 let aiRetryTimer = null;
 let lastAIResult = null;
 const aiEl = id => document.getElementById(id);
@@ -49,6 +50,7 @@ function updateAIDestination() {
   const model=settings.provider==='auto'?p?.models.find(m=>!m.requiresKey):p?.models.find(m=>m.id===settings.model);
   aiEl('aiDestination').textContent = p && model ? `本次資料將傳送至 ${p.name} · ${model.name}。${model.requiresKey?'需提供自己的金鑰。':''}` : '目前沒有可用的站方 AI 服務，可在進階設定使用自己的金鑰。';
   aiEl('apiKeyHint').textContent = model?.requiresKey ? '此模型需提供自己的金鑰，並適用該帳號的費用與資料處理條款。' : '可留空使用站方服務；填入時改用您的帳號與額度。';
+  updateRetryButtons();
 }
 function getAISettings() {
   return {provider:aiEl('aiProviderSelect').value,model:aiEl('modelSelect').value||null,customApiKey:aiEl('customApiKey').value.trim()||null};
@@ -75,8 +77,13 @@ function resetAISection() {
   updateRetryButtons();
 }
 function cancelAIRecommendation() { resetAISection(); aiEl('generateAiBtn').focus(); }
+function retrySeconds() {
+  const settings=getAISettings();
+  if(aiRetryScope==='site' && settings.provider!=='auto' && settings.customApiKey) return 0;
+  return Math.max(0,Math.ceil((aiRetryUntil-Date.now())/1000));
+}
 function updateRetryButtons() {
-  const seconds=Math.max(0,Math.ceil((aiRetryUntil-Date.now())/1000));
+  const seconds=retrySeconds();
   for(const id of ['generateAiBtn','refreshAiBtn']) aiEl(id).disabled=seconds>0;
   aiEl('aiRetryStatus').textContent=seconds?`請等候 ${seconds} 秒後再試。`:'';
   clearTimeout(aiRetryTimer);
@@ -113,7 +120,7 @@ function renderAIResult(r) {
   lastAIResult=r;
 }
 async function fetchAIRecommendation() {
-  if(Date.now()<aiRetryUntil) return;
+  if(retrySeconds()>0) return;
   if(!aiCatalog) {await loadAICatalog();return;} // Consent again after destination becomes known.
   const settings=getAISettings();
   // Pin the displayed destination. If server configuration changes, fail instead
@@ -139,7 +146,7 @@ async function fetchAIRecommendation() {
     const raw=response.headers.get('Retry-After');
     if(!response.ok && raw) {
       const seconds=/^\d+$/.test(raw)?Number(raw):Math.ceil((Date.parse(raw)-Date.now())/1000);
-      if(Number.isFinite(seconds)&&seconds>0){aiRetryUntil=Date.now()+Math.min(seconds,86400)*1000;updateRetryButtons();}
+      if(Number.isFinite(seconds)&&seconds>0){aiRetryScope=result.retryScope==='site'?'site':'all';aiRetryUntil=Date.now()+Math.min(seconds,86400)*1000;updateRetryButtons();}
     }
     if(!response.ok || !result.success) throw new Error(result.error||'AI 服務暫時無法使用。');
     if(!validateAIResult(result)) throw new Error('AI 回應未通過完整性檢查，請重新整理頁面後再試。');
@@ -157,9 +164,9 @@ function aiPDFSections() {
   if(!lastAIResult || !aiEl('includeAiInPdf').checked) return [];
   const r=lastAIResult;
   return [
-    {title:'附錄  AI 協助選取的生活行動',kind:'paragraph',newPage:true,items:[r.advice.summary,r.safety,'本附錄不是新處方，也未即時查詢研究。']},
+    {title:'附錄  AI 協助選取的生活行動',kind:'paragraph',newPage:true,appendix:true,items:[r.advice.summary,r.safety,'本附錄不是新處方，也未即時查詢研究。']},
     ...adviceGroups.map((g,i)=>({title:r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i],kind:'list',items:[...r.advice[g]]})),
     {title:'產生紀錄',kind:'paragraph',items:[`${r.meta.model} / ${r.meta.generatedAt} / 處方 ${r.meta.rulesVersion} / 行動卡 ${r.meta.promptVersion}`,'PAR-Q+ 官方問卷與追蹤評估：https://eparmedx.com/']},
   ];
 }
-document.addEventListener('DOMContentLoaded',()=>{loadAICatalog();aiEl('modelSelect').addEventListener('change',updateAIDestination);});
+document.addEventListener('DOMContentLoaded',()=>{loadAICatalog();aiEl('modelSelect').addEventListener('change',updateAIDestination);aiEl('customApiKey').addEventListener('input',updateRetryButtons);});

@@ -106,8 +106,21 @@ function renderPDFReport(report) {
         lines.forEach((part, index) => text(part, left + 5, y + 14 + index * 5.5));
         y += height + 8;
     }
+    let disclaimerDrawn = false;
+    function drawDisclaimer() {
+        currentSection = null;
+        ensure(13 + wrap(report.disclaimer, width, 9).length * 4.7625 + 3);
+        rule(y);
+        y += 5;
+        text('使用提醒', left, y + 4, 10, muted);
+        y += 8;
+        paragraph(report.disclaimer, { size: 9, color: muted });
+        disclaimerDrawn = true;
+    }
     for (const section of report.sections) {
         if (!section.items?.length) continue;
+        // Keep the clinical report disclaimer with its report, before optional appendices.
+        if (section.appendix && !disclaimerDrawn) drawDisclaimer();
         currentSection = null;
         if (section.newPage) nextPage(false);
         // Keep a heading with at least the first item, not alone at the page foot.
@@ -139,13 +152,7 @@ function renderPDFReport(report) {
         }
         y += 5;
     }
-    currentSection = null;
-    ensure(13 + wrap(report.disclaimer, width, 9).length * 4.7625 + 3);
-    rule(y);
-    y += 5;
-    text('使用提醒', left, y + 4, 10, muted);
-    y += 8;
-    paragraph(report.disclaimer, { size: 9, color: muted });
+    if (!disclaimerDrawn) drawDisclaimer();
 
     const total = doc.getNumberOfPages();
     for (let page = 1; page <= total; page++) {

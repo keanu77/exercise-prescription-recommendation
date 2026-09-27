@@ -138,7 +138,7 @@ export async function onRequestPost({ request, env }) {
   // 依實際使用的金鑰來源判斷：auto 永遠使用站方金鑰，即使請求附帶自帶金鑰。
   if (rl.degraded && !usingOwnKey) {
     return json(
-      { success: false, error: "AI 服務暫時無法使用，請稍後再試或使用自己的 API 金鑰" },
+      { success: false, retryScope: "site", error: "AI 服務暫時無法使用，請稍後再試或使用自己的 API 金鑰" },
       503,
       { ...extra, "Retry-After": "60" },
     );
@@ -151,7 +151,7 @@ export async function onRequestPost({ request, env }) {
   if (inputTokenBound > 48000) return json({success:false,error:"本次資料超過 AI 處理上限，請使用標準處方"},400,extra);
   if (!usingOwnKey) {
     const budget = await reserveSiteBudget(env, modelInfo, inputTokenBound);
-    if (!budget.allowed) return json({success:false,error:budget.error},503,{...extra,"Retry-After":String(budget.retryAfter)});
+    if (!budget.allowed) return json({success:false,retryScope:"site",error:budget.error},503,{...extra,"Retry-After":String(budget.retryAfter)});
   }
   const started = Date.now();
   try {

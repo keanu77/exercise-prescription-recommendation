@@ -15,6 +15,15 @@ OUT = Path(os.environ.get('PDF_OUTPUT_DIR', '/private/tmp/exercise-ux-review'))
 OUT.mkdir(parents=True, exist_ok=True)
 BROWSERS = os.environ.get('PDF_BROWSERS', 'chromium').split(',')
 
+ROOT = Path(__file__).resolve().parents[2]
+AI_FIXTURE = json.loads(subprocess.check_output(['node','--input-type=module','-e',"""
+import {readFileSync} from 'node:fs';
+import {validateUserData} from './functions/_lib/ai.js';
+import {buildAdviceContext,presentAdvice,RULES_VERSION,PROMPT_VERSION} from './functions/_lib/advice.js';
+const ctx=buildAdviceContext(validateUserData(JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases[0].data).data);
+console.log(JSON.stringify({...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION}}));
+"""],cwd=ROOT))
+
 
 def compact(value):
     return re.sub(r'\s+', '', str(value))
@@ -142,7 +151,7 @@ with sync_playwright() as p:
                       generateAssessment();
                     }''', {'base': baseline, 'scenario': scenario})
                 else:
-                    page.evaluate('''({base, scenario}) => {
+                    page.evaluate('''({base, scenario, aiFixture}) => {
                       resetAISection();
                       window.lastFormData = JSON.parse(JSON.stringify(base));
                       if (scenario === 'child') Object.assign(window.lastFormData, {age:12, gender:'other'});
@@ -153,14 +162,14 @@ with sync_playwright() as p:
                       });
                       window.lastPrescription = calculateFITTVP(window.lastFormData);
                       if (scenario === 'ai-appendix') {
-                        lastAIResult={advice:{summary:'測試用的生活行動附錄',startToday:['安排方便的時段。','準備需要的用品。'],adaptations:['記下生活中的限制。','和專業人員討論調整。'],checkIn:['記錄自己的感受。','留意健康狀況變化。']},safety:'本附錄不是新處方，請依原處方與醫師建議。',mode:'actions',meta:{model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:ExerciseRules.rulesVersion,promptVersion:'action-cards-2'}};
+                        lastAIResult=aiFixture;
                         document.getElementById('includeAiInPdf').checked=true;
                       }
                       if (scenario === 'long') {
                         window.lastPrescription.progression = '長表格測試：' + '每次活動後記錄感受與恢復狀況。'.repeat(180) + '表格結束。';
                         window.lastPrescription.recommendations.push('長段落測試：' + '依計畫逐步活動並記錄身體反應。'.repeat(200) + '段落結束。');
                       }
-                    }''', {'base': baseline, 'scenario': scenario})
+                    }''', {'base': baseline, 'scenario': scenario, 'aiFixture': AI_FIXTURE})
                 report = page.evaluate('''() => {
                   const report = createPDFReport();
                   report.sections.forEach(s => s.items = s.items.map(i => Array.isArray(i) ? i.map(cleanPDFText) : cleanPDFText(i)));
@@ -178,7 +187,7 @@ with sync_playwright() as p:
                 if scenario == 'mobile':
                     assert count == 2 and text == standard_text, 'Viewport changed report content or pagination'
                 if scenario == 'ai-appendix':
-                    assert count >= 3 and 'AI協助選取的生活行動' in text and 'test-only' in text
+                    assert count == 3 and 'AI協助選取的生活行動' in text and 'test-only' in text
                 if scenario == 'long':
                     assert count >= 4 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'child':
