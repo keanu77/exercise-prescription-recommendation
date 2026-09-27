@@ -514,7 +514,6 @@ async function downloadPDF() {
     if (pdfDownloadInProgress) return;
     pdfDownloadInProgress = true;
     let loadingMsg = null;
-    let pdfContent = null;
     const downloadButton = document.getElementById('downloadPdfButton');
     if (downloadButton) downloadButton.disabled = true;
     try {
@@ -526,50 +525,9 @@ async function downloadPDF() {
         loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#3b82f6;color:white;padding:20px;border-radius:8px;z-index:10000;';
         document.body.appendChild(loadingMsg);
 
-        // 確保 PDF 函式庫已載入
-        if (typeof loadPDFLibraries === 'function') {
-            await loadPDFLibraries();
-        }
-
-        // 創建一個臨時的PDF內容容器
-        pdfContent = createPDFContent();
-        pdfContent.id = 'pdfExportContent';
-        document.body.appendChild(pdfContent);
-
-        // 使用 html2canvas 將內容轉換為圖片
-        const canvas = await html2canvas(pdfContent, {
-            scale: 1.5,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            width: 794,
-            scrollX: 0,
-            scrollY: 0
-        });
-
-        // 創建 PDF
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-
-        // 計算圖片尺寸以適應 A4
-        const imgWidth = 210;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        // 添加第一頁
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= 297;
-
-        // 如果內容超過一頁，添加更多頁面
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= 297;
-        }
+        const report = createPDFReport();
+        await loadPDFLibraries();
+        const pdf = renderPDFReport(report);
 
         // 生成檔案名稱
         const now = new Date();
@@ -583,150 +541,49 @@ async function downloadPDF() {
         alert('PDF 生成失敗，請稍後再試。');
     } finally {
         loadingMsg?.remove();
-        pdfContent?.remove();
         if (downloadButton) downloadButton.disabled = false;
         pdfDownloadInProgress = false;
     }
 }
 
-// 創建PDF內容的HTML結構
-function createPDFContent() {
+// Reuse the visible assessment wording so printed safety advice cannot drift.
+function createPDFReport() {
     const risk = assessParqLevel(parqAnswers);
-    const yesCount = risk.yesCount;
-
-    const container = document.createElement('div');
-    container.style.cssText = `
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        width: 794px;
-        background: white;
-        font-family: 'Noto Sans TC', sans-serif;
-        font-size: 12px;
-        line-height: 1.4;
-        color: #333;
-        padding: 8px 30px;
-        box-sizing: border-box;
-    `;
-
-    container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="font-size: 24px; font-weight: bold; margin: 0 0 10px 0; color: #1e40af;">
-                PAR-Q+ 運動準備問卷評估報告
-            </h1>
-            <p style="font-size: 14px; color: #6b7280; margin: 0;">
-                評估日期：${new Date().toLocaleDateString('zh-TW')}
-            </p>
-        </div>
-
-        <!-- 個人基本資料 -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">
-                個人基本資料
-            </h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-                <div>年齡：${basicInfo.age} 歲</div>
-                <div>性別：${basicInfo.gender === 'male' ? '男' : '女'}</div>
-                <div>身高：${basicInfo.height} 公分</div>
-                <div>體重：${basicInfo.weight} 公斤</div>
-                <div>BMI：${basicInfo.bmi || 'N/A'}</div>
-                <div>BMR：${basicInfo.bmr || 'N/A'} 大卡/天</div>
-                <div>TDEE：${basicInfo.tdee || 'N/A'} 大卡/天</div>
-                <div>活動水平：${getActivityLevelText(basicInfo.activityLevel)}</div>
-            </div>
-        </div>
-
-        <!-- PAR-Q+ 問卷結果 -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">
-                PAR-Q+ 問卷結果
-            </h2>
-            <div style="font-size: 12px;">
-                <p style="margin-bottom: 10px;"><strong>總評分：${yesCount}/7 個「是」</strong></p>
-                ${generateAnswerSummary()}
-            </div>
-        </div>
-
-        <!-- 風險評估 -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">
-                風險評估與建議
-            </h2>
-            <div style="font-size: 12px;">
-                ${generateRiskSummaryForPDF(risk)}
-            </div>
-        </div>
-
-        <!-- 免責聲明 -->
-        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-            <h3 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">免責聲明</h3>
-            <p style="font-size: 10px; color: #6b7280; line-height: 1.4;">
-                PAR-Q+ 問卷僅為初步健康篩檢工具，無法取代完整的醫學檢查。
-                如有任何健康疑慮，請諮詢專業醫療人員。
-            </p>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #6b7280; margin-top: 10px;">
-                <div>製作者：運動醫學科 吳易澄醫師</div>
-                <div>基於 PAR-Q+ 國際標準</div>
-            </div>
-        </div>
-    `;
-
-    return container;
-}
-
-// 生成問答摘要
-function generateAnswerSummary() {
-    const questions = [
-        '醫師是否曾告訴您患有心臟病或高血壓？',
-        '休息、日常生活或身體活動時是否會胸痛？',
-        '過去 12 個月內是否曾因頭暈失去平衡或失去意識？',
-        '是否曾被診斷其他慢性疾病（心臟病與高血壓除外）？',
-        '目前是否正在服用治療慢性疾病的處方藥？',
-        '是否有可能因增加活動而加重的骨骼、關節或軟組織問題？',
-        '醫師是否曾告訴您只能在醫療監督下進行身體活動？'
+    const riskNode = document.getElementById('riskAssessment');
+    const recommendations = [...riskNode.querySelectorAll('.grid > div')].map(el => cleanPDFText(el.textContent));
+    const questions = Array.from({ length: 7 }, (_, i) => [
+        `第 ${i + 1} 題：${parqAnswers[`q${i + 1}`] === 'yes' ? '是' : '否'}`,
+        document.getElementById(`parq-question-${i + 1}`).textContent.trim().replace(/^\d+\.\s*/, '')
+    ]);
+    const sections = [
+        { title: '01  個人概況', kind: 'facts', items: [
+            ['年齡／性別', `${basicInfo.age} 歲／${basicInfo.gender === 'male' ? '男' : '女'}`],
+            ['身高／體重', `${basicInfo.height} cm／${basicInfo.weight} kg`],
+            ['BMI', basicInfo.bmi ?? '待計算'], ['活動水平', getActivityLevelText(basicInfo.activityLevel)],
+            ['基礎代謝 BMR', basicInfo.bmr ? `${basicInfo.bmr} 大卡／天` : '待計算'],
+            ['每日消耗 TDEE', basicInfo.tdee ? `${basicInfo.tdee} 大卡／天` : '待計算'],
+        ] },
+        { title: '02  PAR-Q+ 問卷與回答', kind: 'rows', items: questions },
+        { title: '03  評估後的下一步', kind: 'list', newPage: true, items: recommendations },
     ];
-
-    let summary = '';
-    for (let i = 1; i <= 7; i++) {
-        const answer = parqAnswers[`q${i}`] === 'yes' ? '是' : '否';
-        summary += `<div style="margin-bottom: 5px;">${i}. ${answer}</div>`;
+    // Skip the personal-data card already represented above; keep all subsequent
+    // headings and advice, including high-risk restrictions and expiry reminders.
+    const cards = [...document.querySelectorAll('#exerciseRecommendations > .card')].slice(1);
+    for (const [index, card] of cards.entries()) {
+        const items = [...card.querySelectorAll('h4, li')].map(el => cleanPDFText(el.textContent));
+        sections.push({ title: `${String(index + 4).padStart(2, '0')}  ${cleanPDFText(card.querySelector('h3').textContent)}`, kind: 'list', items });
     }
-    return summary;
-}
-
-// 生成PDF用的風險摘要
-function generateRiskSummaryForPDF(risk) {
-    if (risk.level === 'low') {
-        return `
-            <div style="color: #059669; font-weight: bold;">風險等級：低風險 ✅</div>
-            <div style="margin-top: 10px;">
-                <div>• 一般可從低至中等強度開始逐步增加活動；運動中如有不適請立即停止並就醫</div>
-                <div>• 建議從低強度開始逐步增加</div>
-                <div>• 每週150-300分鐘中等強度有氧運動</div>
-                <div>• 每週至少2次肌力訓練</div>
-            </div>
-        `;
-    } else if (risk.level === 'moderate') {
-        return `
-            <div style="color: #d97706; font-weight: bold;">風險等級：中等風險 ⚠️</div>
-            <div style="margin-top: 10px;">
-                <div>• 建議運動前諮詢醫療專業人員</div>
-                <div>• 選擇低到中等強度運動</div>
-                <div>• 運動時需要密切監控身體反應</div>
-                <div>• 定期追蹤健康狀況</div>
-            </div>
-        `;
-    } else {
-        return `
-            <div style="color: #dc2626; font-weight: bold;">風險等級：高風險 🛑</div>
-            <div style="margin-top: 10px;">
-                <div>• 必須先接受完整醫療評估</div>
-                <div>• 運動計畫需要醫療監督</div>
-                <div>• 取得許可前僅進行低強度身體活動</div>
-                <div>• 在醫師同意前，僅進行日常活動與輕度活動</div>
-            </div>
-        `;
-    }
+    return {
+        title: 'PAR-Q+ 運動準備報告', subtitle: '整理您的回答，掌握開始活動前的下一步。',
+        date: new Date().toLocaleDateString('zh-TW'),
+        notice: {
+            level: risk.level,
+            title: `${cleanPDFText(riskNode.querySelector('h3').textContent)}  /  ${risk.yesCount} 題回答「是」`,
+            body: cleanPDFText(riskNode.querySelector('p').textContent),
+        },
+        sections,
+        disclaimer: 'PAR-Q+ 問卷僅為初步健康篩檢工具，無法取代完整的醫學檢查。如有任何健康疑慮，請諮詢專業醫療人員。',
+    };
 }
 
 // 初始化

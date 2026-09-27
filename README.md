@@ -42,7 +42,7 @@ npx wrangler pages secret put GROQ_API_KEY --project-name exercise-prescription
 npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度檢查）→ wrangler pages deploy dist
 ```
 
-`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright 與 Chromium，並能存取 cdnjs（DOMPurify、實際 PDF 匯出）；可用 `PY`、`PYTHONPATH` 指定環境。
+`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright、Chromium 與 Poppler（PDF 文字／版面檢查使用 `pdftotext`），並能存取 cdnjs（DOMPurify、實際 PDF 匯出）；可用 `PY`、`PYTHONPATH` 指定環境。
 
 `wrangler.toml` 已綁定 `RATE_LIMIT_KV`；`ALLOWED_ORIGINS` 留空代表只允許同站呼叫 `/api`。
 
@@ -87,3 +87,7 @@ MIT License，全文見 [LICENSE](LICENSE)。
 [2026-09-27 運動風格設計](docs/sports-design-2026-09-27.md)：完整頁面設計、主視覺、製作者／追蹤連結與響應式驗證。
 
 [2026-09-27 電腦首頁重新設計](docs/layout-rework-2026-09-27.md)：初次顯示問題、圖文比例重整與 Chromium／WebKit 驗證。
+
+[2026-09-27 PDF 重新設計](docs/pdf-redesign-2026-09-27.md)：原生 A4 文字、完整問卷、段落與表格分頁、桌面／手機一致匯出。
+
+[AI 補充說明改版方案](docs/ai-redesign-plan-2026-09-27.md)：現況問題、官方最新模型查核、費用及分階段實作規劃；尚未切換正式 AI。

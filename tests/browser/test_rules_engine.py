@@ -98,7 +98,7 @@ with sync_playwright() as p:
     pg2.evaluate("() => { parqAnswers={q1:'no',q2:'yes',q3:'no',q4:'no',q5:'no',q6:'no',q7:'no'}; displayRiskAssessment(assessParqLevel(parqAnswers)); displayExerciseRecommendations(assessParqLevel(parqAnswers)); }")
     t = pg2.evaluate("() => document.getElementById('riskAssessment').textContent + document.getElementById('exerciseRecommendations').textContent")
     print("[OK ]" if "高風險" in t and "安全地" not in t else "[FAIL]", "parq page high risk render")
-    pdf = pg2.evaluate("() => generateRiskSummaryForPDF(assessParqLevel(parqAnswers))")
+    pdf = pg2.evaluate("() => JSON.stringify(createPDFReport())")
     print("[OK ]" if "高風險" in pdf else "[FAIL]", "parq pdf summary")
     print("parq page errors:", e2)
     b.close()

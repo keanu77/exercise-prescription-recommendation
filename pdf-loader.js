@@ -2,19 +2,41 @@
 let pdfLibrariesPromise = null;
 const pdfScriptLoads = new Map();
 
+let pdfFontData = null;
+let pdfFontPromise = null;
+
+function loadPDFFont() {
+    if (pdfFontData) return Promise.resolve(pdfFontData);
+    if (pdfFontPromise) return pdfFontPromise;
+    pdfFontPromise = fetch('assets/fonts/ExerciseReportSans-Regular.ttf')
+        .then(response => {
+            if (!response.ok) throw new Error('PDF 字型載入失敗，請稍後再試。');
+            return response.arrayBuffer();
+        })
+        .then(buffer => {
+            const bytes = new Uint8Array(buffer);
+            // TrueType sfnt header. Fail visibly instead of exporting missing text.
+            if (bytes.length < 12 || bytes[0] !== 0 || bytes[1] !== 1 || bytes[2] !== 0 || bytes[3] !== 0) {
+                throw new Error('PDF 字型格式錯誤，請重新載入頁面後再試。');
+            }
+            const chunks = [];
+            for (let i = 0; i < bytes.length; i += 8192) {
+                chunks.push(String.fromCharCode(...bytes.subarray(i, i + 8192)));
+            }
+            pdfFontData = chunks.join('');
+            return pdfFontData;
+        }).finally(() => { pdfFontPromise = null; });
+    return pdfFontPromise;
+}
+
 function loadPDFLibraries() {
-    if (window.jspdf?.jsPDF && typeof window.html2canvas === 'function') {
-        return Promise.resolve();
-    }
+    if (window.jspdf?.jsPDF && pdfFontData) return Promise.resolve();
     if (pdfLibrariesPromise) return pdfLibrariesPromise;
     pdfLibrariesPromise = Promise.all([
         window.jspdf?.jsPDF || loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
                    'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'),
-        window.html2canvas || loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-                   'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H')
-    ]).finally(() => {
-        pdfLibrariesPromise = null;
-    });
+        loadPDFFont()
+    ]).finally(() => { pdfLibrariesPromise = null; });
     return pdfLibrariesPromise;
 }
 

@@ -138,18 +138,15 @@ with sync_playwright() as p:
 
     page.evaluate("""() => {
       window.loadPDFLibraries = async () => {};
-      window.html2canvas = async () => { throw new Error('mock canvas failure'); };
+      window.renderPDFReport = () => { throw new Error('mock render failure'); };
     }""")
     page.get_by_role("button", name="📄 下載評估報告", exact=True).click()
     page.wait_for_function("!pdfDownloadInProgress")
     ok(page.locator("#pdfLoadingStatus, #pdfExportContent").count() == 0 and
-       page.locator("#downloadPdfButton").is_enabled(), "canvas failure cleans up and enables retry")
+       page.locator("#downloadPdfButton").is_enabled(), "render failure cleans up and enables retry")
 
     page.evaluate("""() => {
-      window.html2canvas = async () => ({width: 794, height: 1000, toDataURL: () => 'mock-image'});
-      window.jspdf = {jsPDF: class {
-        addImage() {} addPage() {} save(name) { window.__savedPdf = name; }
-      }};
+      window.renderPDFReport = () => ({ save(name) { window.__savedPdf = name; } });
     }""")
     page.get_by_role("button", name="📄 下載評估報告", exact=True).click()
     page.wait_for_function("!pdfDownloadInProgress")

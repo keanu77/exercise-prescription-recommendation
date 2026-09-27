@@ -85,10 +85,19 @@ with sync_playwright() as p:
     st = pg.evaluate("() => ({bmi: document.getElementById('bmiValue').textContent, bmr: document.getElementById('bmrValue').textContent, tdee: document.getElementById('tdeeValue').textContent, adv: document.getElementById('calorieAdvice').classList.contains('hidden')})")
     ok(st["bmi"] == "待計算" and st["bmr"] == "待計算" and st["tdee"] == "待計算" and st["adv"], "clearing height resets BMI/BMR/TDEE/advice", json.dumps(st))
 
-    # PDF BMR：other → 不適用；createPDFContent 沿用 lastPrescription
+    # PDF BMR：other → 不適用；createPDFReport 沿用 lastPrescription
     st = pg.evaluate("() => ({other: calculateBMRForPDF({age:30,gender:'other',height:170,weight:70}), tdee: calculateTDEEForPDF({age:30,gender:'other',height:170,weight:70}), male: calculateBMRForPDF({age:30,gender:'male',height:170,weight:70})})")
     ok(st["other"] == "不適用" and st["tdee"] == "不適用" and st["male"] == 1618, "PDF BMR consistent with screen", json.dumps(st))
-    ok("window.lastPrescription ||" in pg.evaluate("() => createPDFContent.toString()"), "createPDFContent reuses lastPrescription")
+    st = pg.evaluate("""() => {
+      const previous = window.lastPrescription;
+      try {
+        window.lastPrescription = {frequency:2, time:17, intensity:'light', type:['有氧運動'],
+          volume:119, progression:'沿用已顯示處方', warnings:[], recommendations:[]};
+        return createPDFReport().sections.find(section => section.kind === 'rows').items;
+      } finally { window.lastPrescription = previous; }
+    }""")
+    ok(st[0][1] == '每週 2 次運動' and st[2][1] == '每次運動 17 分鐘' and
+       st[5][1] == '沿用已顯示處方', "PDF reuses displayed prescription values without recalculation")
 
     # debounce：連續 input 後進度更新一次即可（只確認最終值正確）
     pg.fill("#height", "170")

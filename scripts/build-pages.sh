@@ -15,6 +15,9 @@ ASSETS=(
   multi-step-form.js
   parq-script.js
   pdf-loader.js
+  pdf-report.js
+  assets/fonts/ExerciseReportSans-Regular.ttf
+  assets/fonts/OFL.txt
   tailwind.css
   favicon.ico
   favicon.svg
@@ -56,7 +59,7 @@ if ! cmp -s "$ROOT/tailwind.css" "$CSS_CHECK_DIR/tailwind.css"; then
 fi
 
 # 3. 語法檢查
-for f in script.js multi-step-form.js parq-script.js pdf-loader.js; do
+for f in script.js multi-step-form.js parq-script.js pdf-loader.js pdf-report.js; do
   node --check "$ROOT/$f"
 done
 

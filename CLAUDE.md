@@ -17,7 +17,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ```
 
 - **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
-- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十一支腳本包含規則引擎、AI、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。
+- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十一支腳本包含規則引擎、AI、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
 - `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
@@ -32,13 +32,13 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
 - 首頁圖片在 `assets/running-track-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；只用在首頁。原始生成說明與來源見 `docs/sports-design-2026-09-27.md`。圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
-- 本輪 14 個打包資產，`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
+- 目前 17 個打包資產（含 PDF renderer、中文字型與授權），`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
 - 視覺變更不可改動風險分級語意色、醫療提醒、AI 同意流程或處方公式。
 
 ### 表單與輸出流程
 - 主入口先呈現標準處方與下載／修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
-- `pdf-loader.js` 由兩入口共用，依需求載入 jsPDF／html2canvas、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
+- `pdf-loader.js` 由兩入口共用，依需求載入 jsPDF 與本機中文字型、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
 - DOMPurify CDN 固定 3.4.16，搭配 SRI；升級需重新計算 SRI 並跑 AI 與 CSP 瀏覽器測試。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
@@ -78,3 +78,6 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - CSP 的 `script-src` 不允許 `unsafe-inline` 或 `unsafe-eval`，`script-src-attr` 為 `none`。兩入口只載入外部 JS；互動用 `data-action` / `data-page` 與明確的 `addEventListener`，不可新增行內 script 或 onclick。`style-src` 保留 `unsafe-inline` 供既有版面與 PDF 使用。
 - JS/CSS 沒有內容 hash，`_headers` 對 `/*.js` `/*.css` 設 `max-age=0, must-revalidate`，靠 ETag 避免新 HTML 搭舊 JS；不要改回長快取。
 - Zeabur 版 Express server 已於 2026-09-26 移除（git tag `zeabur-final` 可回溯）。本機開發一律 `npm run dev`。
+
+### AI 改版規劃（尚未實作）
+- 使用者要求重新評估 AI 補充說明，方案與 2026-09-27 官方模型／費用查核在 `docs/ai-redesign-plan-2026-09-27.md`。本輪僅規劃，未改 AI 模型、提示詞或 Functions。候選模型尚未用本站帳號作新一輪品質評測。

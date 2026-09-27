@@ -11,7 +11,7 @@ const ROOT = fileURLToPath(new URL("../", import.meta.url));
 async function createFixture(t) {
   const dir = await mkdtemp(path.join(tmpdir(), "exercise-rx-build-test-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  for (const subdir of ["scripts", "src", "dist", "temp", "assets"]) {
+  for (const subdir of ["scripts", "src", "dist", "temp", "assets", "assets/fonts"]) {
     await mkdir(path.join(dir, subdir));
   }
   await copyFile(path.join(ROOT, "scripts/build-pages.sh"), path.join(dir, "scripts/build-pages.sh"));
@@ -21,10 +21,10 @@ async function createFixture(t) {
   await writeFile(path.join(dir, "src/input.css"), "@tailwind utilities;\n");
   await writeFile(path.join(dir, "index.html"), '<div class="text-blue-700">Fixture</div>\n');
   await writeFile(path.join(dir, "parq-form.html"), '<div class="text-green-700">PAR-Q fixture</div>\n');
-  for (const file of ["script.js", "multi-step-form.js", "parq-script.js", "pdf-loader.js"]) {
+  for (const file of ["script.js", "multi-step-form.js", "parq-script.js", "pdf-loader.js", "pdf-report.js"]) {
     await writeFile(path.join(dir, file), "// Fixture script\n");
   }
-  for (const file of ["favicon.ico", "favicon.svg", "apple-touch-icon.png", "og-image.png", "_headers", "assets/running-track-720.webp", "assets/running-track-1440.webp"]) {
+  for (const file of ["favicon.ico", "favicon.svg", "apple-touch-icon.png", "og-image.png", "_headers", "assets/running-track-720.webp", "assets/running-track-1440.webp", "assets/fonts/ExerciseReportSans-Regular.ttf", "assets/fonts/OFL.txt"]) {
     await writeFile(path.join(dir, file), "fixture\n");
   }
   const compiled = spawnSync(path.join(dir, "node_modules/.bin/tailwindcss"), [
