@@ -567,9 +567,9 @@ function saveFormDraft() {
   });
   try {
     sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(data));
-    setDraftStatus("填寫內容已暫存在此分頁。");
+    setDraftStatus("填寫內容已暫存在此分頁");
   } catch (e) {
-    setDraftStatus("此瀏覽器無法暫存，重新整理會失去填寫內容。");
+    setDraftStatus("此瀏覽器無法暫存，重新整理會失去填寫內容");
   }
 }
 
@@ -602,7 +602,7 @@ function restoreFormDraft() {
       el.value = val;
     }
   });
-  setDraftStatus("已還原此分頁上次的填寫內容。");
+  setDraftStatus("已還原此分頁上次的填寫內容");
   // 還原後重算 BMI/BMR/TDEE 與進度
   try {
     if (typeof calculateBMI === "function") calculateBMI();
@@ -670,7 +670,7 @@ function clearAssessment() {
   hideStepError();
   document.getElementById("clearAssessmentDialog").close();
   showPage("formPage");
-  setDraftStatus("已清除填寫內容，可以重新開始。");
+  setDraftStatus("已清除填寫內容，可以重新開始");
   document.getElementById("age").focus({ preventScroll: true });
 }
 
@@ -1379,15 +1379,15 @@ async function savePDFReport(buildReport, filePrefix) {
     document.getElementById('pdfOpenLink').href = pdfDownloadUrl;
     document.getElementById('pdfDownloadLinks').classList.remove('hidden');
     feedback.classList.remove('hidden');
-    message.textContent = `${filename} 已準備好。若未開始下載，請按「儲存 PDF」；手機也可開啟預覽後儲存。`;
+    message.textContent = `${filename} 已準備好；若未開始下載，請按「儲存 PDF」；手機也可開啟預覽後儲存`;
     saveLink.click();
 
   } catch (error) {
     console.error("PDF 生成錯誤:", error);
     if (sequence !== pdfDownloadSequence) return;
     feedback.classList.remove('hidden');
-    message.textContent = 'PDF 尚未產生，請確認網路後再次按下載。報告內容仍保留在本頁。';
-    alert("PDF 生成失敗，請稍後再試。可能是瀏覽器不支援或網路問題。");
+    message.textContent = 'PDF 尚未產生，請確認網路後再次按下載；報告內容仍保留在本頁';
+    alert("PDF 生成失敗，請稍後再試；可能是瀏覽器不支援或網路問題");
   } finally {
     hideLoadingModal();
     pdfDownloadInProgress = false;

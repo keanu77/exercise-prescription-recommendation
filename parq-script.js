@@ -538,7 +538,7 @@ async function downloadPDF() {
 
     } catch (error) {
         console.error('PDF 生成錯誤:', error);
-        alert('PDF 生成失敗，請稍後再試。');
+        alert('PDF 生成失敗，請稍後再試');
     } finally {
         loadingMsg?.remove();
         if (downloadButton) downloadButton.disabled = false;

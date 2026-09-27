@@ -26,7 +26,7 @@ async function loadAICatalog() {
       select.replaceChildren(new Option('使用站方 Groq 服務','auto'), ...aiCatalog.providers.map(p=>new Option('自行設定 Groq 模型與金鑰',p.id)));
       onProviderChange();
     } catch {
-      aiEl('aiDestination').textContent = '暫時無法確認服務。按下「產生我的行動建議」可重新連線；確認服務後需再按一次才會傳送資料。';
+      aiEl('aiDestination').textContent = '暫時無法確認服務；按下「產生我的行動建議」可重新連線；確認服務後需再按一次才會傳送資料';
     } finally { aiEl('generateAiBtn').disabled = false; aiCatalogPromise = null; }
   })();
   return aiCatalogPromise;
@@ -49,8 +49,8 @@ function updateAIDestination() {
   const settings=getAISettings();
   const p=aiCatalog?.providers.find(p=>p.id===(settings.provider==='auto'?aiCatalog.defaultProvider:settings.provider));
   const model=settings.provider==='auto'?p?.models.find(m=>!m.requiresKey):p?.models.find(m=>m.id===settings.model);
-  aiEl('aiDestination').textContent = p && model ? `本次資料將傳送至 ${p.name} · ${model.name}。${model.requiresKey?'需提供自己的金鑰。':''}` : '目前沒有可用的站方 AI 服務，可在進階設定使用自己的金鑰。';
-  aiEl('apiKeyHint').textContent = model?.requiresKey ? '此模型需提供自己的金鑰，並適用該帳號的費用與資料處理條款。' : '可留空使用站方服務；填入時改用您的帳號與額度。';
+  aiEl('aiDestination').textContent = p && model ? `本次資料將傳送至 ${p.name} · ${model.name}${model.requiresKey?'；需提供自己的金鑰':''}` : '目前沒有可用的站方 AI 服務，可在進階設定使用自己的金鑰';
+  aiEl('apiKeyHint').textContent = model?.requiresKey ? '此模型需提供自己的金鑰，並適用該帳號的費用與資料處理條款' : '可留空使用站方服務；填入時改用您的帳號與額度';
   updateRetryButtons();
 }
 function getAISettings() {
@@ -61,7 +61,7 @@ function setAIState(state) {
   aiEl('aiRecommendationSection').setAttribute('aria-busy',String(state==='loading'));
   aiEl('refreshAiBtn').classList.toggle('hidden',state==='idle'||state==='loading');
   aiEl('advancedAISettings').querySelectorAll('input,select').forEach(el=>{el.disabled=state==='loading';});
-  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可直接下載或合併至標準處方。':state==='loading'?'AI 報告產生中；標準處方 PDF 仍可下載。':'先產生下方 AI 建議，即可下載完整 AI 報告。';
+  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可直接下載或合併至標準處方':state==='loading'?'AI 報告產生中；標準處方 PDF 仍可下載':'先產生下方 AI 建議，即可下載完整 AI 報告';
   updatePDFButtons();
 }
 function clearAIResult() {
@@ -89,12 +89,15 @@ function retrySeconds() {
 function updateRetryButtons() {
   const seconds=retrySeconds();
   for(const id of ['generateAiBtn','refreshAiBtn']) aiEl(id).disabled=seconds>0;
-  aiEl('aiRetryStatus').textContent=seconds?`請等候 ${seconds} 秒後再試。`:'';
+  aiEl('aiRetryStatus').textContent=seconds?`請等候 ${seconds} 秒後再試`:'';
   clearTimeout(aiRetryTimer);
   if(seconds) aiRetryTimer=setTimeout(updateRetryButtons,1000);
 }
+function siteCopy(text) {
+  return String(text).replace(/。(?=\s*$)/u,'').replaceAll('。','；');
+}
 function element(tag,text,className) {
-  const el=document.createElement(tag); if(text!==undefined) el.textContent=text;
+  const el=document.createElement(tag); if(text!==undefined) el.textContent=siteCopy(text);
   if(className) el.className=className; return el;
 }
 function validateAIResult(r) {
@@ -136,7 +139,7 @@ function renderAIResult(r) {
   root.append(report);
   const details=element('details',undefined,'action-provenance');details.append(element('summary','依據與限制'));
   details.append(element('p',`${r.meta.model} · ${new Date(r.meta.generatedAt).toLocaleString('zh-TW')} · 處方 ${r.meta.rulesVersion} · 行動卡 ${r.meta.promptVersion}`));
-  details.append(element('p','AI 依個人條件選取行動重點；個人條件解讀、處方與必要提醒由本站依問卷及既有規則整理。尚未執行即時文獻檢索或個別醫療評估。'));
+  details.append(element('p','AI 依個人條件選取行動重點；個人條件解讀、處方與必要提醒由本站依問卷及既有規則整理；尚未執行即時文獻檢索或個別醫療評估'));
   // Source destination is site-controlled, never model-provided.
   const link=element('a','PAR-Q+ 官方問卷與追蹤評估 ↗');link.href='https://eparmedx.com/';link.target='_blank';link.rel='noopener noreferrer';details.append(link);root.append(details);
   aiEl('aiProviderName').textContent=r.meta.model;aiEl('aiProviderBadge').classList.remove('hidden');
@@ -152,32 +155,32 @@ async function fetchAIRecommendation() {
   if(settings.provider==='auto') {
     const shown=aiCatalog.providers.find(p=>p.id===aiCatalog.defaultProvider);
     const shownModel=shown?.models.find(m=>!m.requiresKey);
-    if(!shownModel) {clearAIResult();aiEl('aiErrorMessage').textContent='目前沒有可用的站方 AI 服務，請在進階設定使用自己的金鑰。';setAIState('error');return;}
+    if(!shownModel) {clearAIResult();aiEl('aiErrorMessage').textContent='目前沒有可用的站方 AI 服務，請在進階設定使用自己的金鑰';setAIState('error');return;}
     settings.provider=shown.id;settings.model=shownModel.id;settings.customApiKey=null;
   }
   const selected=aiCatalog.providers.find(p=>p.id===settings.provider)?.models.find(m=>m.id===settings.model);
   if(settings.provider!=='auto' && selected?.requiresKey && !settings.customApiKey) {
-    clearAIResult();aiEl('aiErrorMessage').textContent='此候選模型需要自己的 API 金鑰，請在進階設定填入。';setAIState('error');return;
+    clearAIResult();aiEl('aiErrorMessage').textContent='此候選模型需要自己的 API 金鑰，請在進階設定填入';setAIState('error');return;
   }
   aiAbortController?.abort();const controller=new AbortController();aiAbortController=controller;
   const seq=++aiRequestSeq;clearAIResult();setAIState('loading');
   const timeout=setTimeout(()=>controller.abort(),AI_CLIENT_TIMEOUT_MS);
   try {
-    if(!window.lastFormData || !window.lastPrescription) throw new Error('請先完成評估，再產生行動建議。');
+    if(!window.lastFormData || !window.lastPrescription) throw new Error('請先完成評估，再產生行動建議');
     const response=await fetch(AI_API_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({schemaVersion:2,userData:window.lastFormData,...settings}),signal:controller.signal});
-    const result=await response.json().catch(()=>{throw new Error('伺服器回應異常，請稍後重試。');});
+    const result=await response.json().catch(()=>{throw new Error('伺服器回應異常，請稍後重試');});
     if(seq!==aiRequestSeq)return;
     const raw=response.headers.get('Retry-After');
     if(!response.ok && raw) {
       const seconds=/^\d+$/.test(raw)?Number(raw):Math.ceil((Date.parse(raw)-Date.now())/1000);
       if(Number.isFinite(seconds)&&seconds>0){aiRetryScope=result.retryScope==='site'?'site':'all';aiRetryUntil=Date.now()+Math.min(seconds,86400)*1000;updateRetryButtons();}
     }
-    if(!response.ok || !result.success) throw new Error(result.error||'AI 服務暫時無法使用。');
-    if(!validateAIResult(result)) throw new Error('AI 回應未通過完整性檢查，請重新整理頁面後再試。');
+    if(!response.ok || !result.success) throw new Error(result.error||'AI 服務暫時無法使用');
+    if(!validateAIResult(result)) throw new Error('AI 回應未通過完整性檢查，請重新整理頁面後再試');
     renderAIResult(result);setAIState('content');
   } catch(error) {
     if(seq!==aiRequestSeq)return;
-    aiEl('aiErrorMessage').textContent=error.name==='AbortError'?'等候 AI 回應逾時，請稍後重試。':error.message==='Failed to fetch'?'AI 服務暫時無法連線，請稍後重試。':error.message;
+    aiEl('aiErrorMessage').textContent=error.name==='AbortError'?'等候 AI 回應逾時，請稍後重試':error.message==='Failed to fetch'?'AI 服務暫時無法連線，請稍後重試':siteCopy(error.message);
     setAIState('error');
   } finally {
     clearTimeout(timeout);
