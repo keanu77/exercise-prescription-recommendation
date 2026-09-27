@@ -29,9 +29,9 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
-- 兩入口使用 `.site-app` 共用運動風格：黑／米白／萊姆綠；主表單 desktop 左側步驟欄、mobile 橫向步驟。品牌文字 Noto Sans TC，英文及數字 Barlow Condensed；899px 以下評估頁回到單欄。
+- 兩入口使用 `.site-app` 共用剪紙風格：暖米白紙面、森林綠、陶土橘與淺色紙層；主表單 desktop 左側步驟欄、mobile 橫向步驟。標題 Noto Serif TC、正文 Noto Sans TC、英文及數字 Barlow Condensed；899px 以下評估頁回到單欄。色票、圖片來源與驗證見 `docs/cut-paper-design-2026-09-27.md`。
 - 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
-- 首頁圖片在 `assets/running-track-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；只用在首頁。原始生成說明與來源見 `docs/sports-design-2026-09-27.md`。圖片不承載文字，標語仍是 HTML。
+- 首頁圖片在 `assets/sports-paper-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；使用者選定 D 剪紙拼貼，原圖 `assets/hero-options/d-cut-paper-collage.png`，完整提示詞在同目錄 `d-cut-paper-collage-prompt.md`。兩入口共用，維持無圖片說明文字；圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
 - 目前 19 個打包資產（含 PDF renderer、中文字型與授權），`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
 - 視覺變更不可改動風險分級語意色、醫療提醒、AI 同意流程或處方公式。

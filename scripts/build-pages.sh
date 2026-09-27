@@ -26,8 +26,8 @@ ASSETS=(
   apple-touch-icon.png
   og-image.png
   _headers
-  assets/running-track-720.webp
-  assets/running-track-1440.webp
+  assets/sports-paper-720.webp
+  assets/sports-paper-1440.webp
 )
 
 # 1. 先驗證資產齊全，再動 dist/（避免缺檔時留下半套輸出）
