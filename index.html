@@ -64,7 +64,7 @@
                             <button type="button" data-page="formPage" class="btn-primary hero-start">開始使用 <span aria-hidden="true">↗</span></button>
                             <a href="#how-it-works" class="hero-secondary">了解使用流程 <span aria-hidden="true">↓</span></a>
                         </div>
-                        <p class="hero-note">免註冊 <span aria-hidden="true">／</span> 完成即可查看處方、下載 PDF</p>
+                        <p class="hero-note">免註冊 <span aria-hidden="true">／</span> 完成即可查看處方，AI 報告可下載 PDF</p>
                     </div>
                     <figure class="hero-visual">
                         <img src="/assets/sports-paper-1440.webp" srcset="/assets/sports-paper-720.webp 720w, /assets/sports-paper-1440.webp 1440w" sizes="(max-width: 899px) calc(100vw - 64px), (max-width: 1240px) 44vw, 540px" width="1440" height="960" fetchpriority="high" decoding="async" alt="剪紙拼貼插畫：兒童、青少年、成人與長者參與跑步、自行車、游泳、肌力訓練、足球、羽球、健行與太極">
@@ -661,19 +661,6 @@
                         <button type="button" id="refreshAiBtn" data-action="fetchAIRecommendation" class="hidden action-link">重新產生</button>
                     </div>
                     <p class="action-intro">結合你的條件、處方與 AI 選取的重點，整理執行方式、限制調整及回顧紀錄</p>
-                    <div class="report-download-buttons" role="group" aria-label="下載報告">
-                        <button type="button" id="downloadPrescription" data-action="downloadPDF" class="btn-secondary">下載 PDF</button>
-                        <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary" aria-describedby="aiDownloadHint" disabled>下載 AI 報告 PDF</button>
-                    </div>
-                    <p id="aiDownloadHint" class="action-note" role="status">先產生下方 AI 建議，即可下載完整 AI 報告</p>
-                    <div id="pdfDownloadFeedback" class="hidden pdf-download-feedback" role="status">
-                        <p id="pdfDownloadMessage"></p>
-                        <div id="pdfDownloadLinks" class="hidden">
-                            <a id="pdfSaveLink" download>儲存 PDF</a>
-                            <a id="pdfOpenLink" target="_blank" rel="noopener noreferrer">開啟 PDF 預覽 ↗</a>
-                        </div>
-                    </div>
-                    <label id="aiPdfOption" class="hidden action-pdf"><input type="checkbox" id="includeAiInPdf"> 下載標準處方 PDF 時，也附上完整 AI 報告</label>
                     <p id="aiDestination" class="action-destination" aria-live="polite">正在確認可用的 AI 服務…</p>
                     <div id="aiConsent">
                         <div class="action-preview" aria-hidden="true"><span>01　今天怎麼開始</span><span>02　遇到限制怎麼調整</span><span>03　下次要觀察什麼</span></div>
@@ -750,6 +737,20 @@
                     <p><strong>熱量計算：</strong>消耗熱量(大卡) = MET值 × 體重(公斤) × 運動時間(小時)</p>
                 </div>
             </details>
+
+            <div class="report-download-panel">
+                <div class="report-download-buttons" role="group" aria-label="下載報告">
+                    <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary" aria-describedby="aiDownloadHint" disabled>下載 AI 報告 PDF</button>
+                </div>
+                <p id="aiDownloadHint" class="action-note" role="status">先產生上方 AI 建議，即可下載完整 AI 報告</p>
+                <div id="pdfDownloadFeedback" class="hidden pdf-download-feedback" role="status">
+                    <p id="pdfDownloadMessage"></p>
+                    <div id="pdfDownloadLinks" class="hidden">
+                        <a id="pdfSaveLink" download>儲存 PDF</a>
+                        <a id="pdfOpenLink" target="_blank" rel="noopener noreferrer">開啟 PDF 預覽 ↗</a>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>

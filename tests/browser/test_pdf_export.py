@@ -107,7 +107,10 @@ with sync_playwright() as p:
                   for (let i=1; i<=7; i++) pick(`parq_q${i}`, 'no');
                   generatePrescription(); showPage('resultPage');
                 }''')
-            button = page.locator('#downloadPdfButton' if standalone else '#downloadPrescription')
+            if not standalone:
+                assert page.locator('#downloadPrescription, #includeAiInPdf').count() == 0
+                page.evaluate('r=>{renderAIResult(r);setAIState("content");}', AI_FIXTURE['normal'])
+            button = page.locator('#downloadPdfButton' if standalone else '#downloadAiReport')
             page.evaluate('''() => {
               window.realPDFLoader = loadPDFLibraries; window.loadCount = 0;
               window.loadPDFLibraries = () => {
@@ -138,7 +141,7 @@ with sync_playwright() as p:
             assert len(library_requests) == 3, library_requests  # jsPDF, failed font, successful font
             assert not any('html2canvas' in url for url in library_requests)
 
-            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-appendix', 'ai-report', 'ai-report-mobile', 'ai-consultation']
+            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-report', 'ai-report-mobile', 'ai-consultation']
             baseline = page.evaluate('JSON.parse(JSON.stringify(basicInfo))' if standalone else 'JSON.parse(JSON.stringify(window.lastFormData))')
             standard_text = None
             for scenario in scenarios:
@@ -163,10 +166,6 @@ with sync_playwright() as p:
                         parq_answers: Object.fromEntries(Array.from({length:7},(_,i)=>[`parq_q${i+1}`,'yes']))
                       });
                       window.lastPrescription = calculateFITTVP(window.lastFormData);
-                      if (scenario === 'ai-appendix') {
-                        lastAIResult=aiFixture;
-                        document.getElementById('includeAiInPdf').checked=true;
-                      }
                       if (scenario === 'long') {
                         window.lastPrescription.progression = '長表格測試：' + '每次活動後記錄感受與恢復狀況。'.repeat(180) + '表格結束。';
                         window.lastPrescription.recommendations.push('長段落測試：' + '依計畫逐步活動並記錄身體反應。'.repeat(200) + '段落結束。');
@@ -183,9 +182,9 @@ with sync_playwright() as p:
                     expect(page.locator('#aiContent')).to_be_visible()
                     export_button = page.get_by_role('button', name='下載 AI 報告 PDF', exact=True)
                     expect(export_button).to_be_visible()
-                    expect(page.locator('#includeAiInPdf')).not_to_be_checked()
+                    assert page.locator('#includeAiInPdf').count() == 0
                     if scenario == 'ai-report':
-                        # Both export entry points share a guard and recover after load failure.
+                        # Repeated AI exports share a guard and recover after load failure.
                         page.evaluate('''() => { window.realPDFLoader=loadPDFLibraries; window.loadCount=0;
                           window.loadPDFLibraries=()=>{window.loadCount++;return new Promise((_ok,reject)=>{window.failPDFLoad=reject;});}; }''')
                         export_button.click(); expect(export_button).to_be_disabled(); expect(button).to_be_disabled()
@@ -201,7 +200,11 @@ with sync_playwright() as p:
                   return report;
                 }''', ai_report)
                 with page.expect_download(timeout=60000) as event:
-                    export_button.click()
+                    if standalone or ai_report:
+                        export_button.click()
+                    else:
+                        # Keep renderer stress coverage for the internal standard-report builder.
+                        page.evaluate('downloadPDF()')
                 target = OUT / f'{engine}-{"parq" if standalone else "exercise"}-{scenario}.pdf'
                 event.value.save_as(target)
                 assert event.value.failure() is None
@@ -210,7 +213,7 @@ with sync_playwright() as p:
                     assert event.value.suggested_filename.startswith('AI運動行動報告_')
                     assert 'AI運動行動報告' in text and 'test-only' in text
                     assert '你的條件與本次重點' in text and '可直接使用的回顧紀錄' in text
-                    assert 'FITT-VP運動計畫' not in text, 'Standalone AI report should not depend on appendix checkbox'
+                    assert 'FITT-VP運動計畫' not in text, 'AI report must remain a standalone download'
                     if scenario == 'ai-report':
                         ai_standard_text = text
                         # A fresh user click can save again when automatic downloading is blocked.
@@ -230,15 +233,16 @@ with sync_playwright() as p:
                     standard_text = text
                 if scenario == 'mobile':
                     assert count == 2 and text == standard_text, 'Viewport changed report content or pagination'
-                if scenario == 'ai-appendix':
-                    assert count >= 4 and 'AI協助選取的生活行動' in text and 'test-only' in text
                 if scenario == 'long':
                     assert count >= 4 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'child':
                     assert '未滿18歲' in text and '不適用' in text
                 if scenario == 'high':
                     assert '高風險' in text and '醫師評估' in text
-                expect(button).to_be_enabled()
+                if standalone or ai_report:
+                    expect(button).to_be_enabled()
+                else:
+                    expect(button).to_be_disabled()
                 assert page.locator('#pdfLoadingStatus, #pdfExportContent, #loadingModal.active').count() == 0
                 assert len(library_requests) == 3, 'Exports must reuse the loaded font and jsPDF'
                 print(f'[OK] {target.name}: {count} pages, {target.stat().st_size} bytes; all text present, no overlaps, printable margins')
@@ -251,7 +255,7 @@ with sync_playwright() as p:
                 page.locator('#downloadAiReport').click()
                 expect(page.locator('#downloadAiReport')).to_be_disabled()
                 page.evaluate('resetAISection();window.finishPDFLoad()')
-                expect(button).to_be_enabled()
+                expect(button).to_be_disabled()
                 page.evaluate('window.loadPDFLibraries=window.realPDFLoader')
                 assert not downloads, 'Clearing a report must discard pending PDF work'
                 page.evaluate('resetAISection()')

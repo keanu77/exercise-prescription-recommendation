@@ -763,8 +763,8 @@ body {
 .action-provenance summary { cursor:pointer; min-height:44px; padding:10px 0; font-weight:700; }
 .action-provenance p { margin:8px 0; }
 .action-provenance a { display:inline-block; padding:10px 0; text-decoration:underline; }
-.action-pdf { display:flex; gap:10px; align-items:center; padding:14px 0; font-size:14px; cursor:pointer; }
-.report-download-buttons { display:flex; align-items:stretch; gap:12px; margin-top:20px; }
+.report-download-panel { margin-top:28px; padding:8px 0; text-align:center; }
+.report-download-buttons { display:flex; justify-content:center; }
 .report-download-buttons button { min-width:0; }
 .report-download-buttons button:disabled { opacity:.55; cursor:not-allowed; }
 .pdf-download-feedback { margin:14px 0; padding:14px 16px; border:1px solid var(--line); border-radius:8px; background:var(--paper); font-size:14px; overflow-wrap:anywhere; }
@@ -777,13 +777,11 @@ body {
 .ai-report-section dl { display:grid; gap:12px; }
 .ai-report-section dt { font-weight:700; color:var(--brand); margin-bottom:5px; }
 .ai-report-section dd { line-height:1.9; margin:0; }
-@media(max-width:540px) { .report-download-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .report-download-buttons .btn-primary,.report-download-buttons .btn-secondary { padding:12px 8px; font-size:14px; line-height:1.5; } }
-.action-pdf input { width:18px; height:18px; flex-shrink:0; accent-color:var(--brand); }
+@media(max-width:540px) { .report-download-buttons .btn-primary { width:100%; padding:14px 20px; font-size:16px; } }
 .action-settings { margin-top:20px; border-top:1px solid #d5e1e7; padding-top:12px; }
 .action-settings-fields { margin-top:12px; }
 .action-settings-fields label { display:block; font-size:14px; margin-bottom:8px; }
 .action-settings-fields select,.action-settings-fields input { width:100%; min-height:44px; padding:10px; border:1px solid #95acb9; border-radius:8px; background:white; color:var(--ink); }
 .action-settings-fields > div { margin-bottom:16px; }
-.action-pdf.hidden { display:none; }
 @media(max-width:899px) { .action-grid { grid-template-columns:1fr; gap:12px; } .action-item + .action-item { border-top:1px solid #d5e1e7; padding-top:16px; } }
 @media(max-width:540px) { .action-preview { grid-template-columns:1fr; gap:12px; } .action-heading { align-items:flex-start; } }

@@ -61,7 +61,7 @@ function setAIState(state) {
   aiEl('aiRecommendationSection').setAttribute('aria-busy',String(state==='loading'));
   aiEl('refreshAiBtn').classList.toggle('hidden',state==='idle'||state==='loading');
   aiEl('advancedAISettings').querySelectorAll('input,select').forEach(el=>{el.disabled=state==='loading';});
-  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可直接下載或合併至標準處方':state==='loading'?'AI 報告產生中；標準處方 PDF 仍可下載':'先產生下方 AI 建議，即可下載完整 AI 報告';
+  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可下載保存':state==='loading'?'AI 報告產生中，完成後即可下載':'先產生上方 AI 建議，即可下載完整 AI 報告';
   updatePDFButtons();
 }
 function clearAIResult() {
@@ -69,8 +69,6 @@ function clearAIResult() {
   clearPDFDownload();
   aiEl('aiContent').replaceChildren();
   aiEl('aiProviderBadge').classList.add('hidden');
-  aiEl('aiPdfOption').classList.add('hidden');
-  aiEl('includeAiInPdf').checked=false;
 }
 function resetAISection() {
   aiAbortController?.abort(); aiAbortController=null; aiRequestSeq++;
@@ -143,7 +141,6 @@ function renderAIResult(r) {
   // Source destination is site-controlled, never model-provided.
   const link=element('a','PAR-Q+ 官方問卷與追蹤評估 ↗');link.href='https://eparmedx.com/';link.target='_blank';link.rel='noopener noreferrer';details.append(link);root.append(details);
   aiEl('aiProviderName').textContent=r.meta.model;aiEl('aiProviderBadge').classList.remove('hidden');
-  aiEl('aiPdfOption').classList.remove('hidden');
   lastAIResult=r;
 }
 async function fetchAIRecommendation() {
@@ -192,14 +189,6 @@ function aiActionPDFSections(r) {
     ...adviceGroups.map((g,i)=>({title:r.mode==='consultation'?['就醫前整理','帶去詢問的問題','後續要觀察什麼'][i]:actionTitles[i],kind:'list',items:[...r.advice[g]]})),
     ...r.report.sections.map(s=>({title:s.title,kind:s.kind,items:s.items.map(item=>Array.isArray(item)?[...item]:item)})),
     {title:'產生紀錄',kind:'paragraph',items:[`${r.meta.model} / ${r.meta.generatedAt} / 處方 ${r.meta.rulesVersion} / 行動卡 ${r.meta.promptVersion}`,'PAR-Q+ 官方問卷與追蹤評估：https://eparmedx.com/']},
-  ];
-}
-function aiPDFSections() {
-  if(!lastAIResult || !aiEl('includeAiInPdf').checked) return [];
-  const r=lastAIResult;
-  return [
-    {title:'附錄  AI 協助選取的生活行動',kind:'paragraph',newPage:true,appendix:true,items:[r.advice.summary,r.safety,'本附錄不是新處方，也未即時查詢研究。']},
-    ...aiActionPDFSections(r),
   ];
 }
 function createAIPDFReport() {

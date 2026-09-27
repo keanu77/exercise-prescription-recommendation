@@ -40,7 +40,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 主入口先呈現標準處方與下載／修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入本站 `assets/vendor/jspdf.umd.min.js`（原 pinned 2.5.1 與 SRI）及本機中文字型，20秒逾時、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- AI 不再載入 DOMPurify；模型無法注入 HTML。`aiPDFSections()` 只在使用者勾選時附上當次有效行動卡；`createAIPDFReport()` 可直接下載獨立 AI 報告，不依賴勾選。兩個 PDF 按鈕並排放在 AI 區塊上方，AI 未完成時保留 disabled 入口與狀態說明。產生後保留 Blob 儲存／預覽連結，重設撤銷 URL；非同步匯出以序號防止清除後舊檔回流。兩者共用行動段落、PDF loader 與下載防重複；重設／重新產生停用 AI 下載並清空附錄。獨立 AI PDF 用 compact 留白，字級不縮小，標準處方與 PAR-Q 排版不變。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁僅保留「下載 AI 報告 PDF」，位於所有報告內容與參考說明之後、頁尾之前；AI 未完成時 disabled 並說明原因。一般處方下載按鈕及合併附錄勾選已移除，PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 提供完整 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。獨立 AI PDF 用 compact 留白，字級不縮小。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。

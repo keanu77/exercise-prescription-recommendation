@@ -677,7 +677,7 @@ function clearAssessment() {
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
   // 僅綁定已知操作，不解析或執行 HTML 屬性中的程式碼。
-  const actions = { nextStep, prevStep, downloadPDF, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
+  const actions = { nextStep, prevStep, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
   document.querySelectorAll("[data-page]").forEach((button) => {
     button.addEventListener("click", () => showPage(button.dataset.page));
   });
@@ -1326,7 +1326,6 @@ let pdfDownloadUrl = null;
 let pdfDownloadSequence = 0;
 
 function updatePDFButtons() {
-  document.getElementById('downloadPrescription').disabled = pdfDownloadInProgress;
   document.getElementById('downloadAiReport').disabled = pdfDownloadInProgress || !lastAIResult;
 }
 
@@ -1520,7 +1519,6 @@ function createPDFReport() {
       { title: "04  執行建議", kind: "list", items: [...prescription.recommendations] },
       { title: "05  推薦運動範例", kind: "paragraph", items: [[...examples.content.querySelectorAll("span")].map(el => el.textContent).join("、")] },
       { title: "06  運動安全提醒", kind: "list", items: ["運動前請做適當暖身；循序漸進增加運動強度。", "保持充足水分補充；運動中如感到不適請立即停止。"] },
-      ...aiPDFSections(),
     ],
     disclaimer: "本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。開始運動計畫前，請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。",
   };

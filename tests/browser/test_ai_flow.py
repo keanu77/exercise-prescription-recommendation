@@ -42,22 +42,20 @@ with sync_playwright() as p:
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
    expect(page.locator('#downloadAiReport')).to_be_visible()
    assert page.evaluate('createAIPDFReport().sections[0].items[0]')==fixture['normal']['advice']['summary']
-   assert page.evaluate('aiPDFSections().length')==0
-   page.locator('#includeAiInPdf').check()
-   assert page.evaluate('aiPDFSections().length')==11
+   assert page.locator('#downloadPrescription, #includeAiInPdf, #aiPdfOption').count()==0
    assert page.locator('.ai-report-section').count()==6
-   standard=page.locator('#downloadPrescription').bounding_box(); ai=page.locator('#downloadAiReport').bounding_box()
-   assert abs(standard['y']-ai['y'])<2 and standard['x']+standard['width']<=ai['x']
+   assert page.locator('.result-shell > :last-child').get_attribute('class')=='report-download-panel'
+   ai=page.locator('#downloadAiReport').bounding_box(); reference=page.locator('.reference-panel').last.bounding_box()
+   assert ai['y']>=reference['y']+reference['height']
+   page.locator('.report-download-panel').screenshot(path=str(OUT/f'{engine}-{width}-download.png'))
    expect(page.locator('#downloadAiReport')).to_be_enabled()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
    current['response']=fixture['high'];page.locator('#refreshAiBtn').click()
    expect(page.locator('.action-item h4').first).to_have_text('就醫前整理')
-   expect(page.locator('#includeAiInPdf')).not_to_be_checked()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-consult.png'))
    current['response']={'success':True,'schemaVersion':2,'recommendation':'<script>window.injection=true</script>'}
    page.locator('#refreshAiBtn').click();expect(page.locator('#aiError')).to_be_visible()
    assert page.evaluate('!window.injection && lastAIResult===null')
-   expect(page.locator('#aiPdfOption')).to_be_hidden()
    assert page.evaluate('()=>{try{createAIPDFReport();return false;}catch{return true;}}')
    # Even a hostile same-origin text fixture is rendered as text, never HTML.
    evil=json.loads(json.dumps(fixture['normal']));evil['advice']['summary']='<img src=x onerror="window.injection=true">'
