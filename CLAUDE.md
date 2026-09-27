@@ -33,7 +33,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 首頁版型重整見 `docs/layout-rework-2026-09-27.md`：1184px 共用寬度，3:2 原圖、無進場隱藏。禁止重新加入預設隱藏主內容的動畫；`test_desktop_layout.py` 預設 Chromium，可透過 `LAYOUT_BROWSERS=chromium,webkit` 在 HTTPS 驗證。
 - 首頁圖片在 `assets/sports-paper-{720,1440}.webp`，有 srcset、固定尺寸與優先載入；使用者選定 D 剪紙拼貼，原圖 `assets/hero-options/d-cut-paper-collage.png`，完整提示詞在同目錄 `d-cut-paper-collage-prompt.md`。兩入口共用，維持無圖片說明文字；圖片不承載文字，標語仍是 HTML。
 - 右上製作者及 6 個追蹤目的地依使用者指定的 injury.sportsmedicine.tw；追蹤連結有可讀名稱、44px 點擊區與新分頁保護。
-- 目前 20 個打包資產（含 PDF renderer、中文字型與授權），`build-pages.sh` 明列兩張 WebP 並處理子目錄；測試 fixture 同步。
+- 目前 20 個原始打包資產（含 PDF renderer、中文字型與授權），另產生 8 個內容雜湊 JS/CSS，共 28 檔；`build-pages.sh` 明列兩張 WebP 並處理子目錄，`fingerprint-assets.mjs` 將兩入口 HTML 的 JS/CSS 引用改為 `/assets/app/<name>.<sha256前16碼>.<ext>`。原始路徑保留相容，不作為正式 HTML 的引用；測試 fixture 同步。
 - 視覺變更不可改動風險分級語意色、醫療提醒、AI 同意流程或處方公式。
 
 ### 表單與輸出流程
@@ -77,7 +77,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 部署為 Cloudflare Pages（CLI 上傳，非 git 連結）：`npm run deploy`。Secrets 用 `npx wrangler pages secret put <KEY> --project-name exercise-prescription`；非機密設定在 `wrangler.toml` 的 `[vars]`。
 - **安全標頭與快取全在 `_headers`**（不是程式碼）。新增外部資源時必須同步更新 CSP：cdnjs 的 JS → `script-src`；Google Fonts → `style-src` / `font-src`。瀏覽器不直連 AI 供應商，`connect-src` 只有 `'self'`。
 - CSP 的 `script-src` 不允許 `unsafe-inline` 或 `unsafe-eval`，`script-src-attr` 為 `none`。兩入口只載入外部 JS；互動用 `data-action` / `data-page` 與明確的 `addEventListener`，不可新增行內 script 或 onclick。`style-src` 保留 `unsafe-inline` 供既有版面與 PDF 使用。
-- JS/CSS 沒有內容 hash，`_headers` 對 `/*.js` `/*.css` 設 `max-age=0, must-revalidate`，靠 ETag 避免新 HTML 搭舊 JS；不要改回長快取。
+- `_headers` 對原始 `/*.js` `/*.css` 設 `max-age=0, must-revalidate`，但實測自訂網域會覆寫為四小時瀏覽器快取。正式 HTML 因此使用打包時產生的內容雜湊檔名，避免新頁面搭舊 JS；不要依賴快取標頭或手動更新版本字串。`test_asset_updates.py` 使用真實瀏覽器快取驗證部署更新後仍可一鍵產生 AI 報告。
 - Zeabur 版 Express server 已於 2026-09-26 移除（git tag `zeabur-final` 可回溯）。本機開發一律 `npm run dev`。
 
 ### AI 生活行動卡

@@ -73,4 +73,8 @@ for f in "${ASSETS[@]}"; do
   cp "$ROOT/$f" "$OUT/$f"
 done
 
+# 4. 正式 HTML 引用內容雜湊檔名，避免瀏覽器沿用不相容的舊 JS/CSS。
+# 原始路徑保留供相容用途；新頁面只引用本次輸出的版本。
+node "$ROOT/scripts/fingerprint-assets.mjs" "$OUT"
+
 echo "dist/ ready: $(find "$OUT" -type f | wc -l | tr -d ' ') files"

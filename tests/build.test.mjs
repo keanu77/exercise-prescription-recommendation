@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, copyFile, writeFile, readFile, readdir, rm, symlink, ut
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 
@@ -15,6 +16,7 @@ async function createFixture(t) {
     await mkdir(path.join(dir, subdir));
   }
   await copyFile(path.join(ROOT, "scripts/build-pages.sh"), path.join(dir, "scripts/build-pages.sh"));
+  await copyFile(path.join(ROOT, "scripts/fingerprint-assets.mjs"), path.join(dir, "scripts/fingerprint-assets.mjs"));
   await copyFile(path.join(ROOT, "tailwind.config.js"), path.join(dir, "tailwind.config.js"));
   await symlink(path.join(ROOT, "node_modules"), path.join(dir, "node_modules"), "dir");
   await writeFile(path.join(dir, "package.json"), '{"type":"module"}\n');
@@ -52,6 +54,40 @@ test("build:pages accepts identical CSS despite newer checkout timestamps", asyn
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(path.join(dir, "dist/tailwind.css"), "utf8"), await readFile(path.join(dir, "tailwind.css"), "utf8"));
   assert.deepEqual(await readdir(path.join(dir, "temp")), []);
+});
+
+test("build:pages gives both pages content-addressed scripts and CSS across releases", async (t) => {
+  const dir = await createFixture(t);
+  const markup = '<link rel="stylesheet" href="/tailwind.css"><script src="ai-ui.js"></script><script src="script.js"></script><script src="https://example.com/external.js"></script>';
+  for (const page of ["index.html", "parq-form.html"]) {
+    await writeFile(path.join(dir, page), await readFile(path.join(dir, page), "utf8") + markup);
+  }
+  const assetURL = async (file) => {
+    const bytes = await readFile(path.join(dir, file));
+    const ext = path.extname(file);
+    return `/assets/app/${path.basename(file, ext)}.${createHash("sha256").update(bytes).digest("hex").slice(0, 16)}${ext}`;
+  };
+  const result = build(dir);
+  assert.equal(result.status, 0, result.stderr);
+  const firstAI = await assetURL("ai-ui.js");
+  for (const page of ["index.html", "parq-form.html"]) {
+    const html = await readFile(path.join(dir, "dist", page), "utf8");
+    for (const file of ["ai-ui.js", "script.js", "tailwind.css"]) {
+      const url = await assetURL(file);
+      assert.ok(html.includes(`="${url}"`), `${page} must use a fingerprinted ${file}`);
+      assert.deepEqual(await readFile(path.join(dir, "dist", url.slice(1))), await readFile(path.join(dir, file)));
+    }
+    assert.ok(html.includes('src="https://example.com/external.js"'));
+  }
+  const firstHTML = await readFile(path.join(dir, "dist/index.html"), "utf8");
+  assert.equal(build(dir).status, 0);
+  assert.equal(await readFile(path.join(dir, "dist/index.html"), "utf8"), firstHTML);
+  await writeFile(path.join(dir, "ai-ui.js"), "// Changed AI implementation\n");
+  assert.equal(build(dir).status, 0);
+  const newHTML = await readFile(path.join(dir, "dist/index.html"), "utf8");
+  assert.ok(!newHTML.includes(firstAI), "changed script must not reuse the previous cached URL");
+  assert.ok(newHTML.includes(await assetURL("ai-ui.js")));
+  assert.ok(newHTML.includes(await assetURL("script.js")), "unchanged scripts keep their URL");
 });
 
 test("build:pages rejects new HTML/JS classes and preserves existing dist", async (t) => {
