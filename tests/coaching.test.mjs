@@ -37,6 +37,10 @@ test('schema3 accepts useful generated prose and composes six sections with capp
   assert.match(payload, /home|在家/);
   assert.match(calls[0].body.messages[0].content, /不可信|不受信任/);
   assert.equal(calls[0].body.response_format.json_schema.strict, true);
+  const stringPattern = new RegExp(calls[0].body.response_format.json_schema.schema.properties.summary.pattern, 'u');
+  assert.ok(stringPattern.test('把下班後的短時段用在熟悉的活動'));
+  assert.ok(!stringPattern.test('每天15分鐘') && !stringPattern.test('每天１５分鐘'));
+  assert.ok(stringPattern.test(''), 'The same string schema must allow an empty clinicalReason');
 });
 
 test('invalid coaching data is rejected before KV or provider calls and old version asks refresh', async t => {
