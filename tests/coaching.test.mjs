@@ -34,6 +34,13 @@ test('schema3 accepts useful generated prose and composes six sections with capp
   assert.equal(calls[0].redirect, 'manual');
   const payload = calls[0].body.messages[1].content;
   assert.ok(payload.includes(context.question));
+  const promptData = JSON.parse(payload);
+  assert.equal(promptData.profile.ageGroup, 'adult');
+  assert.equal(promptData.untrustedCoachingContext.timeWindow, 'short');
+  assert.equal(promptData.untrustedCoachingContext.sessionMinutes, undefined);
+  assert.equal(promptData.baseline.time, undefined);
+  assert.equal(promptData.baseline.frequency, undefined);
+  assert.deepEqual(promptData.baseline.type, result.baseline.type);
   assert.match(payload, /home|在家/);
   assert.match(calls[0].body.messages[0].content, /不可信|不受信任/);
   assert.equal(calls[0].body.response_format.json_schema.strict, true);
