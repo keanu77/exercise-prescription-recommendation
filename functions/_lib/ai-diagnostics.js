@@ -14,5 +14,6 @@ export function safeOutputDiagnostic(error) {
   return {
     reason: reasons.includes(error?.reason) ? error.reason : null,
     field: fields.includes(error?.field) ? error.field : null,
+    doseKind: ['duration', 'habitual', 'count'].includes(error?.doseKind) ? error.doseKind : null,
   };
 }

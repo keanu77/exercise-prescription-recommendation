@@ -77,7 +77,7 @@ export function coachingSchema() {
   const properties = { summary: string(500), answer: list(string()), priorities: list(pair(['action', 'reason'])), practicalSteps: list(pair(['action', 'whenWhere'])), barriers: list(pair(['obstacle', 'alternative'])), review: list(string()), nextQuestion: string(300), needsClinicalReview: { type: 'boolean' }, clinicalReason: string(500, 0) };
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
-const invalid = (reason, field) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}) }); };
+const invalid = (reason, field, doseKind) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}), ...(doseKind ? { doseKind } : {}) }); };
 function matchesSchema(value, schema) {
   if (schema.type === 'string') return typeof value === 'string' && value.trim().length >= schema.minLength && value.length <= schema.maxLength;
   if (schema.type === 'boolean') return typeof value === 'boolean';
@@ -86,11 +86,22 @@ function matchesSchema(value, schema) {
 }
 // These catch obvious unsafe/injected content; they do not establish clinical truth.
 // New dose values are never accepted from the model; trusted numbers render separately.
-const forbidden = /[\d<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]|https?:|www\.|javascript:|data:|ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt|[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)|(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)|(?:你|您)(?:已經|已|就是|是|可能)?(?:罹患|患有|得了)/iu;
+const forbidden = /[\d<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]|https?:|www\.|javascript:|data:|ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt|(?:你|您)(?:已經|已|就是|是|可能)?(?:罹患|患有|得了)/iu;
+const quantifiedDuration = /[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)/u;
+const habitualExercise = /(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)/u;
+function maskDosePlanningPhrases(text) {
+  // Only these bounded, non-prescriptive phrases are excluded from count/cadence
+  // detection. Numeric durations and later exercise instructions stay checked.
+  return text
+    .replace(/(?:錯過|取消|漏掉)(?:了)?一(?:次|回)(?:的)?(?:運動|訓練)/gu, '既有安排')
+    .replace(/(?:改到|移到|挪到|換到)另一天/gu, '改期')
+    .replace(/(?:做|完成)一次(?:用品檢查|用品整理|行事曆檢查|裝備檢查)/gu, '準備')
+    .replace(/(?:整理|檢查|盤點|確認|準備|收拾|擺放)(?:跑步|深蹲|重訓|游泳)(?:用品|衣物|裝備|鞋子|路線|場地|紀錄|記錄)/gu, '準備');
+}
 function obviousExerciseDose(text) {
   // Ordinal/review phrases are ordinary prose, not exercise quantities.
-  const prose = text.replace(/(?:下|上|第|這|那)[一二三四五六七八九十兩]+次/gu, '本回');
-  return /(?:做|完成|練|跑|走|游|踩|騎|運動|訓練|深蹲|重訓).{0,5}[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)|[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)(?:的)?(?:運動|訓練|跑步|快走|散步|游泳|深蹲|重訓)/u.test(prose);
+  const prose = maskDosePlanningPhrases(text).replace(/(?:下|上|第|這|那)[一二三四五六七八九十兩]+次/gu, '本回');
+  return prose.split(/[,;!?，。；！？\n]/u).some(clause => /(?:做|完成|練|跑|走|游|踩|騎|運動|訓練|深蹲|重訓).{0,5}[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)|[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)(?:的)?(?:運動|訓練|跑步|快走|散步|游泳|深蹲|重訓)/u.test(clause));
 }
 
 function scopedUnsafeMatch(text, pattern) {
@@ -137,10 +148,11 @@ export function validateCoachingNarrative(content, ctx) {
       if (/[<>]|https?:|www\.|javascript:|data:/iu.test(text)) invalid('forbidden_markup', field);
       if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) invalid('forbidden_control', field);
       if (/ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt/iu.test(text)) invalid('forbidden_instruction', field);
-      if (/[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)|(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)/u.test(text)) invalid('obvious_dose', field);
       invalid('unsafe_advice', field);
     }
-    if (obviousExerciseDose(text)) invalid('obvious_dose', field);
+    if (quantifiedDuration.test(text)) invalid('obvious_dose', field, 'duration');
+    if (scopedUnsafeMatch(maskDosePlanningPhrases(text), habitualExercise)) invalid('obvious_dose', field, 'habitual');
+    if (obviousExerciseDose(text)) invalid('obvious_dose', field, 'count');
     if (scopedUnsafeMatch(text, unsafeAdvice)) invalid('unsafe_advice', field);
     if (authoredCitation.test(text)) invalid('citation', field);
   }

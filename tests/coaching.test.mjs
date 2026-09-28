@@ -289,9 +289,31 @@ test('handler diagnostics never log model content, questions, keys or unknown er
     assert.equal(logs.at(-1).reason, reason);
     assert.equal(logs.at(-1).field, field);
   }
-  globalThis.fetch = async () => { throw Object.assign(new Error('PRIVATE_MESSAGE'), { reason: 'PRIVATE_REASON', field: 'PRIVATE_FIELD' }); };
+  globalThis.fetch = async () => { throw Object.assign(new Error('PRIVATE_MESSAGE'), { reason: 'PRIVATE_REASON', field: 'PRIVATE_FIELD', doseKind: 'PRIVATE_DOSE_KIND' }); };
   assert.equal((await post(requestBody)).status, 502);
   assert.equal(logs.at(-1).reason, null);
   assert.equal(logs.at(-1).field, null);
+  assert.equal(logs.at(-1).doseKind, null);
   assert.doesNotMatch(JSON.stringify(logs), /PRIVATE/);
+});
+
+test('missed sessions, rescheduling and named preparation checks are not new exercise doses', () => {
+  for (const text of ['錯過一次運動', '臨時取消一次運動，不需要加倍補課', '沒完成，也不需要一次補回', '把運動改到另一天', '回家先做一次用品檢查', '完成一次用品整理', '每天先整理跑步用品', '不要每天跑步']) {
+    const value = { ...narrative(), barriers: [{ obstacle: '實際安排有變化', alternative: text }] };
+    assert.doesNotThrow(() => validateCoachingNarrative(JSON.stringify(value)), text);
+  }
+});
+
+test('planning and negative clauses cannot hide subsequent real exercise doses', () => {
+  for (const text of ['先做三組深蹲', '每週安排兩回快走', '每天跑步三十分鐘', '快走兩天', '一週運動三天', '不要每天跑步三十分鐘', '錯過一次運動，明天做三組深蹲', '把運動改到另一天，改做兩回快走', '完成一次用品整理，然後快走兩天', '每天先整理跑步用品再跑步', '不要每天跑步，改成每晚跑步']) {
+    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
+  }
+});
+
+test('dose diagnostics distinguish duration, habitual exercise and count without raw text', () => {
+  for (const [text, doseKind] of [['跑步三十分鐘', 'duration'], ['每天跑步', 'habitual'], ['做三組深蹲', 'count']]) {
+    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { reason: 'obvious_dose', field: 'barriers', doseKind });
+  }
 });
