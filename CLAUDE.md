@@ -17,7 +17,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ```
 
 - **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
-- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十一支腳本包含規則引擎、AI、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
+- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十三支腳本包含規則引擎、AI、生活情境與舊快取更新、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
 - `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
@@ -61,7 +61,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在共用工具供相容測試，個人化端點只接受 Groq。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
 - `ai.js` 管理正規化與 provider 呼叫；`coaching.js` 管理提示詞、schema、明顯違規檢查與報告組裝。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
 - `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；按最大輸入／輸出 token 成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
-- `coaching-limits.js` 共用 5000 output token 上限，adapter、站方預算與 evaluator 一致；上游逾時 45 秒、client 65 秒。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，先預留成本、US$1 上限即停止，保留失敗與旧模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
+- `coaching-limits.js` 共用 5000 output token 上限，adapter、站方預算與 evaluator 一致；上游逾時 45 秒、client 65 秒。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，先預留成本、US$1 上限即停止，保留失敗與舊模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
 
 ### 表單驗證與前端多入口
 - 主表單 `novalidate` 由 `validateCurrentStep(step)` 統一處理 required、min/max、step 與單選；最終送出重新驗證全部步驟，顯示並聚焦第一個錯誤。身高／體重接受一位小數，年齡維持整數。

@@ -65,3 +65,4 @@ evaluation: for (const c of cases) for (let repeat = 0; repeat < repeats; repeat
 const times = report.results.map(r => r.durationMs).sort((a, b) => a - b);
 report.summary = { completed: report.results.length, passed: report.results.filter(r => r.success).length, p95Ms: times[Math.ceil(times.length * .95) - 1] };
 report.finishedAt = new Date().toISOString(); persist(); console.log(JSON.stringify(report.summary));
+if (report.summary.passed !== cases.length * repeats) process.exitCode = 1;
