@@ -34,7 +34,7 @@ export function validateCoachingContext(raw) {
 
 // Conservative routing hints, not a diagnosis or a semantic safety guarantee.
 // The model may additionally raise needsClinicalReview; it can never clear these flags.
-const medicalQuestion = /痛|疼|傷|胸|悸|暈|喘|麻|腫|血|藥|醫|病|術|診|孕|不適|不舒服|無力|昏|噁心|發燒|心跳|呼吸|復健|症狀|抗凝|胰島素|pain|hurt|chest|dizz|breath|medicat|pregnan|surg|diagnos|symptom|injur|heart|faint|numb|swelling/iu;
+const medicalQuestion = /胸(?:悶|痛|口.{0,6}(?:悶|痛|不適))|心悸|心臟|心跳(?:過快|異常|很快|太快|不規律)|頭暈|眩暈|暈倒|昏倒|氣喘|喘不過|呼吸(?:困難|不順)|麻木|發麻|(?:手|腳|腿|臉|肢體)麻|腫脹|紅腫|疼痛|痠痛|酸痛|刺痛|劇痛|絞痛|(?:肩|膝|腰|背|頭|胸|腹|關節|腳|腿|手|脖子|跑步|走路|運動).{0,6}(?:疼|痛)|受傷|傷痛|傷害|傷口|舊傷|外傷|扭傷|拉傷|骨折|血壓|血糖|出血|流血|服藥|用藥|停藥|改藥|減藥|藥物|藥品|降壓藥|降糖藥|止痛藥|類固醇|醫師|醫囑|醫療建議|就醫|看診|回診|診斷|疾病|病史|生病|慢性病|糖尿病|關節炎|癌症|手術|術前|術後|術后|懷孕|孕期|產後|不適|不舒服|無力|噁心|發燒|復健|症狀|抗凝|胰島素|\b(?:pain|painful|hurts?|chest|dizzy|dizziness|breathless|medications?|medicated|pregnant|pregnancy|surgery|surgical|diagnosis|diagnosed|symptoms?|injury|injuries|injured|heart|fainted|fainting|numb|numbness|swelling|asthma|diabetes|hypertension|arthritis)\b/iu;
 export function buildCoachingContext(data, coachingContext = defaults()) {
   const original = buildAdviceContext(data);
   const clinicalContext = medicalQuestion.test(coachingContext.question) || data.limitations.some(x => ['pain', 'injury_history', 'balance', 'palpitation'].includes(x)) || data.exercise_goal === 'rehabilitation';
@@ -80,12 +80,31 @@ function matchesSchema(value, schema) {
 }
 // These catch obvious unsafe/injected content; they do not establish clinical truth.
 // New dose values are never accepted from the model; trusted numbers render separately.
-const forbidden = /[\d<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]|https?:|www\.|javascript:|data:|ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt|[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)|(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)|(?:自行|直接|建議|可以|應該)(?:先)?(?:停藥|改藥|減藥)|(?:你|您)(?:已經|已|就是|是|可能)?(?:罹患|患有|得了)|(?:忍痛|帶痛).{0,6}(?:完成|繼續)|(?:提高|增加).{0,3}(?:運動強度|訓練重量)|(?:保證|一定).{0,5}(?:治癒|改善|安全)|(?:已達標|可以放心)/iu;
+const forbidden = /[\d<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]|https?:|www\.|javascript:|data:|ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt|[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)|(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)|(?:你|您)(?:已經|已|就是|是|可能)?(?:罹患|患有|得了)/iu;
 function obviousExerciseDose(text) {
   // Ordinal/review phrases are ordinary prose, not exercise quantities.
   const prose = text.replace(/(?:下|上|第|這|那)[一二三四五六七八九十兩]+次/gu, '本回');
-  return /(?:做|完成|練|跑|走|游|踩|騎|運動|訓練|深蹲|重訓).{0,5}[一二三四五六七八九十百千兩]+(?:組|次|天|週)|[一二三四五六七八九十百千兩]+(?:組|次|天|週)(?:的)?(?:運動|訓練|跑步|快走|散步|游泳|深蹲|重訓)/u.test(prose);
+  return /(?:做|完成|練|跑|走|游|踩|騎|運動|訓練|深蹲|重訓).{0,5}[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)|[一二三四五六七八九十百千兩]+(?:組|次|回|天|週)(?:的)?(?:運動|訓練|跑步|快走|散步|游泳|深蹲|重訓)/u.test(prose);
 }
+
+function scopedUnsafeMatch(text, pattern) {
+  // Negation and clinician questions must govern this particular action. A word
+  // such as "討論" elsewhere in the sentence cannot clear an exercise directive.
+  const clauses = text.split(/[,;!?，。；！？\n]/u);
+  for (const clause of clauses) {
+    for (const match of clause.matchAll(new RegExp(pattern.source, pattern.flags.replace(/g/g, '') + 'g'))) {
+      const prefix = clause.slice(0, match.index);
+      const negated = /(?:不要|不應該|不應|不宜|不可以|不可|不能|無法|避免|勿|別|不建議|不代表|不等於|無須|不必|不需|不需要|不套用)(?:(?:自行|擅自|隨意|直接|額外|立刻|立即|馬上|繼續|再|先|在家|開始|進行|去|就|做|自己|可以|一定|完全|會|能|把|目前的|目前|降壓|降糖|止痛|套用)){0,6}$/u.test(prefix);
+      const clinicianQuestion = /(?:詢問|問|確認|討論)[^,;!?，。；！？\n]{0,24}(?:是否|能否|何時|可否|能不能|可不可以|適不適合)(?:(?:自己|現在|目前|才|還|再|需要|應該)){0,3}$/u.test(prefix);
+      if (negated || clinicianQuestion) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+const unsafeAdvice = /(?:自行|直接|建議|可以|應該)(?:先)?(?:停藥|改藥|減藥)|(?:停用|停服|加倍|減半|減量|加量).{0,8}(?:藥|胰島素)|(?:藥|胰島素).{0,8}(?:停用|停服|加倍|減半|減量|加量)|(?:忍痛|帶痛).{0,6}(?:完成|繼續)|(?:提高|增加).{0,3}(?:運動強度|訓練重量)|(?:保證|一定).{0,5}(?:治癒|改善|安全)|已達標|可以放心/iu;
+const exerciseDirective = /(?:可以|建議|請|先|就|開始|嘗試|安排|改成|改為|改做|做|進行|維持|持續|保持|去)(?:(?:先|開始|進行|做|在家|居家|戶外|徒手|規律|熟悉的|原本的|繼續|原本熟悉的|低強度|輕度|適量|一些|少量|簡單的|溫和的|自行|短時間|去))*(?:跑步|快走|散步|步行|慢跑|游泳|騎車|騎單車|騎自行車|踩飛輪|重訓|肌力訓練|阻力訓練|深蹲|跳繩|登階|伸展|瑜伽|運動)/u;
 export function validateCoachingNarrative(content, ctx) {
   if (typeof content !== 'string' || content.length > COACHING_MAX_CONTENT_CHARS) invalid();
   let value; try { value = JSON.parse(content); } catch { invalid(); }
@@ -95,14 +114,12 @@ export function validateCoachingNarrative(content, ctx) {
   visit(value);
   // Inspect compatibility-normalized text so full-width numbers/markup cannot bypass checks.
   const checkedProse = prose.map(text => text.normalize('NFKC'));
-  const medicationChange = /(?:停用|停服|加倍|減半|減量|加量).{0,8}(?:藥|胰島素)|(?:藥|胰島素).{0,8}(?:停用|停服|加倍|減半|減量|加量)/u;
   const authoredCitation = /(?:根據|依據).{0,24}(?:研究|指引|指南)|研究(?:顯示|指出|證實)|參考文獻|\b(?:WHO|ACSM|NICE|PubMed|PMID|DOI)\b/iu;
-  if (checkedProse.some(text => forbidden.test(text) || obviousExerciseDose(text) || medicationChange.test(text) || authoredCitation.test(text)) || (value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid();
+  if (checkedProse.some(text => forbidden.test(text) || obviousExerciseDose(text) || scopedUnsafeMatch(text, unsafeAdvice) || authoredCitation.test(text)) || (value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid();
   if (ctx?.consult || value.needsClinicalReview) {
-    const unsafeStart = checkedProse.flatMap(text => text.split(/[,;!?，。；！？\n]/u)).some(clause =>
-      !/詢問|確認是否|討論|暫緩|不要|避免|不宜|不能|不可/u.test(clause) && /(?:請|先|就|可以|建議|開始|嘗試).{0,4}(?:跑步|散步|游泳|騎車|重訓|深蹲|快走|做運動)/u.test(clause));
-    if (unsafeStart) invalid();
+    if (checkedProse.some(text => scopedUnsafeMatch(text, exerciseDirective))) invalid();
   }
+  if (ctx?.minor && checkedProse.some(text => scopedUnsafeMatch(text, /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?/u))) invalid();
   return value;
 }
 

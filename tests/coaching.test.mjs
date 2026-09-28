@@ -163,3 +163,55 @@ test('narrative row labels stay short enough for readable web and PDF layouts', 
   mock(t, value);
   assert.equal((await post({})).status, 502);
 });
+
+test('protective negations remain useful narrative instead of false safety failures', async t => {
+  mock(t, { ...narrative(), answer: ['不要自行停藥', '不要增加運動強度', '不能保證改善'] });
+  const response = await post({ coachingContext: context });
+  assert.equal(response.status, 200);
+  const answer = (await response.json()).report.sections[0].items;
+  assert.deepEqual(answer, ['不要自行停藥', '不要增加運動強度', '不能保證改善']);
+});
+
+test('consultation rejects qualitative exercise prescriptions and discussion-before-exercise loopholes', async t => {
+  const original = globalThis.fetch; t.after(() => { globalThis.fetch = original; });
+  for (const text of ['每週安排兩回快走', '在家做徒手肌力訓練', '和醫師討論前可以先開始跑步']) {
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify({ ...narrative(), answer: [text] }) }, finish_reason: 'stop' }] });
+    const response = await post({ coachingContext: { ...context, question: '胸口悶悶的，能跑步嗎？' } });
+    assert.equal(response.status, 502, text);
+  }
+});
+
+test('consultation keeps non-dose clinician questions and negated exercise instructions', async t => {
+  const answer = ['詢問醫師是否可以快走', '整理要向醫師確認的活動問題，確認何時可以恢復原本熟悉的活動', '不要在家做徒手肌力訓練，先整理影響生活的身體變化'];
+  mock(t, { ...narrative(), answer });
+  const response = await post({ coachingContext: { ...context, question: '胸口悶悶的，能跑步嗎？' } });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).report.sections[0].items, answer);
+});
+
+test('ordinary occupations and preparation words do not fabricate a clinical concern', async t => {
+  mock(t);
+  for (const question of ['我在醫院輪班工作，下班如何安排？', '麻煩幫我減少準備用品的負擔', '我想先熟悉游泳技術，如何安排學習？']) {
+    const response = await post({ coachingContext: { ...context, question } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).mode, 'actions', question);
+  }
+});
+
+test('specific symptoms and medical questions retain conservative consultation routing', async t => {
+  mock(t);
+  for (const question of ['爬樓梯會胸悶，怎麼安排？', '目前服藥中，可以調整運動嗎？', '肩膀會痛，適合用啞鈴嗎？', '走路後膝蓋發麻', '手術後想恢復原本活動']) {
+    const response = await post({ coachingContext: { ...context, question } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).mode, 'consultation', question);
+  }
+});
+
+test('minors reject explicit adult weight-loss instructions while preserving protective negations', async t => {
+  const original = globalThis.fetch; t.after(() => { globalThis.fetch = original; });
+  for (const [text, status] of [['透過節食減重', 502], ['限制熱量攝取', 502], ['不需節食減重', 200], ['不套用成人熱量目標', 200]]) {
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify({ ...narrative(), answer: [text] }) }, finish_reason: 'stop' }] });
+    const response = await post({ userData: { ...adult, age: 12 }, coachingContext: context });
+    assert.equal(response.status, status, text);
+  }
+});
