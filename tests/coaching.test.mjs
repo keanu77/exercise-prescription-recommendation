@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { onRequestPost } from '../functions/api/ai-recommendation.js';
+import { validateCoachingNarrative } from '../functions/_lib/coaching.js';
 
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/ai-cases.json', import.meta.url))).cases;
 const adult = { ...fixtures[0].data, age: 35, health_status: 'healthy', diseases: [], limitations: ['time'], parq_answers: Object.fromEntries(Array.from({ length: 7 }, (_, i) => ['parq_q' + (i + 1), 'no'])) };
@@ -227,4 +228,59 @@ test('provider uses Workers-compatible manual redirects and rejects redirected r
   };
   assert.equal((await post({coachingContext:context})).status,502);
   assert.equal(calls,1); assert.equal(canceled,true);
+});
+
+test('narrative failures expose fixed diagnostic categories and schema field names only', () => {
+  const samples = [
+    ['{PRIVATE_INVALID_JSON', undefined, 'json', undefined],
+    [JSON.stringify({ ...narrative(), answer: [] }), undefined, 'schema', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['PRIVATE 37 分鐘'] }), undefined, 'forbidden_numeric', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['<PRIVATE_MARKUP>'] }), undefined, 'forbidden_markup', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['每週安排兩回快走'] }), undefined, 'obvious_dose', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['建議自行停藥'] }), undefined, 'unsafe_advice', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['根據哈佛研究，可以持續進步'] }), undefined, 'citation', 'answer'],
+    [JSON.stringify({ ...narrative(), needsClinicalReview: true }), undefined, 'clinical_flag', 'clinicalReason'],
+    [JSON.stringify({ ...narrative(), answer: ['在家做徒手肌力訓練'] }), { consult: true }, 'consultation_directive', 'answer'],
+    [JSON.stringify({ ...narrative(), answer: ['透過節食減重'] }), { minor: true }, 'minor_weightloss', 'answer'],
+  ];
+  for (const [content, ctx, reason, field] of samples) {
+    assert.throws(() => validateCoachingNarrative(content, ctx), error => {
+      assert.equal(error.code, 'INVALID_OUTPUT');
+      assert.equal(error.reason, reason);
+      assert.equal(error.field, field);
+      assert.doesNotMatch(error.message, /PRIVATE/);
+      return true;
+    }, reason);
+  }
+});
+
+test('handler diagnostics never log model content, questions, keys or unknown error properties', async t => {
+  const originalFetch = globalThis.fetch, originalWarn = console.warn;
+  const logs = [];
+  t.after(() => { globalThis.fetch = originalFetch; console.warn = originalWarn; });
+  console.warn = value => logs.push(JSON.parse(value));
+  const requestBody = { coachingContext: { ...context, question: 'PRIVATE_QUESTION' }, customApiKey: 'PRIVATE_KEY' };
+  const scenarios = [
+    [{ choices: [{ message: { content: JSON.stringify({ ...narrative(), answer: ['PRIVATE_RAW 37 分鐘'] }) }, finish_reason: 'stop' }] }, 'INVALID_OUTPUT', 'forbidden_numeric', 'answer'],
+    [{ choices: [{ message: { content: 'PRIVATE_RAW' }, finish_reason: 'PRIVATE_FINISH_REASON' }] }, 'INCOMPLETE_OUTPUT', 'finish_reason', null],
+    [{ choices: [{ message: { content: 'PRIVATE_RAW', refusal: 'PRIVATE_REFUSAL' }, finish_reason: 'stop' }] }, 'INCOMPLETE_OUTPUT', 'refusal', null],
+    [{ choices: [{ message: { content: '' }, finish_reason: 'stop' }] }, 'INCOMPLETE_OUTPUT', 'empty', null],
+    [{ choices: [{ message: { content: 'x'.repeat(14001) }, finish_reason: 'stop' }] }, 'INCOMPLETE_OUTPUT', 'oversize', null],
+  ];
+  for (const [upstream, code, reason, field] of scenarios) {
+    globalThis.fetch = async () => Response.json(upstream);
+    const response = await post(requestBody);
+    assert.equal(response.status, 502);
+    const publicError = await response.json();
+    assert.match(publicError.error, /完整性檢查/);
+    assert.equal(publicError.reason, undefined);
+    assert.equal(logs.at(-1).code, code);
+    assert.equal(logs.at(-1).reason, reason);
+    assert.equal(logs.at(-1).field, field);
+  }
+  globalThis.fetch = async () => { throw Object.assign(new Error('PRIVATE_MESSAGE'), { reason: 'PRIVATE_REASON', field: 'PRIVATE_FIELD' }); };
+  assert.equal((await post(requestBody)).status, 502);
+  assert.equal(logs.at(-1).reason, null);
+  assert.equal(logs.at(-1).field, null);
+  assert.doesNotMatch(JSON.stringify(logs), /PRIVATE/);
 });

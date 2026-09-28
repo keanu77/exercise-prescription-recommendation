@@ -71,7 +71,7 @@ export function coachingSchema() {
   const properties = { summary: string(500), answer: list(string()), priorities: list(pair(['action', 'reason'])), practicalSteps: list(pair(['action', 'whenWhere'])), barriers: list(pair(['obstacle', 'alternative'])), review: list(string()), nextQuestion: string(300), needsClinicalReview: { type: 'boolean' }, clinicalReason: string(500, 0) };
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
-const invalid = () => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT' }); };
+const invalid = (reason, field) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}) }); };
 function matchesSchema(value, schema) {
   if (schema.type === 'string') return typeof value === 'string' && value.trim().length >= schema.minLength && value.length <= schema.maxLength;
   if (schema.type === 'boolean') return typeof value === 'boolean';
@@ -106,20 +106,45 @@ function scopedUnsafeMatch(text, pattern) {
 const unsafeAdvice = /(?:自行|直接|建議|可以|應該)(?:先)?(?:停藥|改藥|減藥)|(?:停用|停服|加倍|減半|減量|加量).{0,8}(?:藥|胰島素)|(?:藥|胰島素).{0,8}(?:停用|停服|加倍|減半|減量|加量)|(?:忍痛|帶痛).{0,6}(?:完成|繼續)|(?:提高|增加).{0,3}(?:運動強度|訓練重量)|(?:保證|一定).{0,5}(?:治癒|改善|安全)|已達標|可以放心/iu;
 const exerciseDirective = /(?:可以|建議|請|先|就|開始|嘗試|安排|改成|改為|改做|做|進行|維持|持續|保持|去)(?:(?:先|開始|進行|做|在家|居家|戶外|徒手|規律|熟悉的|原本的|繼續|原本熟悉的|低強度|輕度|適量|一些|少量|簡單的|溫和的|自行|短時間|去))*(?:跑步|快走|散步|步行|慢跑|游泳|騎車|騎單車|騎自行車|踩飛輪|重訓|肌力訓練|阻力訓練|深蹲|跳繩|登階|伸展|瑜伽|運動)/u;
 export function validateCoachingNarrative(content, ctx) {
-  if (typeof content !== 'string' || content.length > COACHING_MAX_CONTENT_CHARS) invalid();
-  let value; try { value = JSON.parse(content); } catch { invalid(); }
-  if (!matchesSchema(value, coachingSchema())) invalid();
+  if (typeof content !== 'string') invalid('json');
+  if (content.length > COACHING_MAX_CONTENT_CHARS) invalid('oversize');
+  let value; try { value = JSON.parse(content); } catch { invalid('json'); }
+  const schema = coachingSchema();
+  if (!matchesSchema(value, schema)) {
+    // Only inspect our schema keys; unexpected model keys never become log fields.
+    const field = object(value) ? schema.required.find(key => !matchesSchema(value[key], schema.properties[key])) : undefined;
+    invalid('schema', field);
+  }
   const prose = [];
-  const visit = item => { if (typeof item === 'string') prose.push(item); else if (Array.isArray(item)) item.forEach(visit); else if (object(item)) Object.values(item).forEach(visit); };
+  const visit = (item, field) => {
+    if (typeof item === 'string') prose.push({ text: item, field });
+    else if (Array.isArray(item)) item.forEach(child => visit(child, field));
+    else if (object(item)) Object.entries(item).forEach(([key, child]) => visit(child, field || key));
+  };
   visit(value);
   // Inspect compatibility-normalized text so full-width numbers/markup cannot bypass checks.
-  const checkedProse = prose.map(text => text.normalize('NFKC'));
+  const checkedProse = prose.map(({ text, field }) => ({ text: text.normalize('NFKC'), field }));
   const authoredCitation = /(?:根據|依據).{0,24}(?:研究|指引|指南)|研究(?:顯示|指出|證實)|參考文獻|\b(?:WHO|ACSM|NICE|PubMed|PMID|DOI)\b/iu;
-  if (checkedProse.some(text => forbidden.test(text) || obviousExerciseDose(text) || scopedUnsafeMatch(text, unsafeAdvice) || authoredCitation.test(text)) || (value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid();
-  if (ctx?.consult || value.needsClinicalReview) {
-    if (checkedProse.some(text => scopedUnsafeMatch(text, exerciseDirective))) invalid();
+  for (const { text, field } of checkedProse) {
+    if (forbidden.test(text)) {
+      if (/\d/u.test(text)) invalid('forbidden_numeric', field);
+      if (/[<>]|https?:|www\.|javascript:|data:/iu.test(text)) invalid('forbidden_markup', field);
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) invalid('forbidden_control', field);
+      if (/ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt/iu.test(text)) invalid('forbidden_instruction', field);
+      if (/[一二三四五六七八九十百千兩半]+\s*(?:分鐘|小時|秒|公里|公尺|公斤|%|％)|(?:每天|每日|每晚|隔天).{0,8}(?:跑步|深蹲|重訓|游泳)/u.test(text)) invalid('obvious_dose', field);
+      invalid('unsafe_advice', field);
+    }
+    if (obviousExerciseDose(text)) invalid('obvious_dose', field);
+    if (scopedUnsafeMatch(text, unsafeAdvice)) invalid('unsafe_advice', field);
+    if (authoredCitation.test(text)) invalid('citation', field);
   }
-  if (ctx?.minor && checkedProse.some(text => scopedUnsafeMatch(text, /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?/u))) invalid();
+  if ((value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid('clinical_flag', 'clinicalReason');
+  if (ctx?.consult || value.needsClinicalReview) {
+    for (const { text, field } of checkedProse) if (scopedUnsafeMatch(text, exerciseDirective)) invalid('consultation_directive', field);
+  }
+  if (ctx?.minor) {
+    for (const { text, field } of checkedProse) if (scopedUnsafeMatch(text, /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?/u)) invalid('minor_weightloss', field);
+  }
   return value;
 }
 

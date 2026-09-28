@@ -7,6 +7,7 @@ import { validateUserData, sanitizeApiKey, callProvider } from "../_lib/ai.js";
 import { MODELS, DEFAULT_MODELS, MODEL_ALLOWLIST, publicCatalog } from "../_lib/models.js";
 import { validateCoachingContext, buildCoachingContext, buildCoachingPrompt, coachingSchema, validateCoachingNarrative, presentCoaching, COACHING_SYSTEM_PROMPT, RULES_VERSION, PROMPT_VERSION } from "../_lib/coaching.js";
 import { COACHING_MAX_OUTPUT_TOKENS, COACHING_MAX_CONTENT_CHARS } from "../_lib/coaching-limits.js";
+import { safeOutputDiagnostic } from "../_lib/ai-diagnostics.js";
 import { reserveSiteBudget } from "../_lib/budget.js";
 import { json, corsHeadersFor, corsPreflight, checkRateLimit } from "../_lib/http.js";
 
@@ -169,7 +170,7 @@ export async function onRequestPost({ request, env }) {
     console.info(JSON.stringify({event:"ai_complete",...meta}));
     return json({success:true,schemaVersion:3,...presentCoaching(selection,context),meta},200,extra);
   } catch (error) {
-    console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",status:error?.upstreamStatus||null,durationMs:Date.now()-started}));
+    console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",...safeOutputDiagnostic(error),status:Number.isInteger(error?.upstreamStatus)&&error.upstreamStatus>=100&&error.upstreamStatus<=599?error.upstreamStatus:null,durationMs:Date.now()-started}));
     const { message, status } = describeUpstreamError(error, usingOwnKey);
     const headers = error?.retryAfter !== null && error?.retryAfter !== undefined ? {...extra,"Retry-After":String(error.retryAfter)} : extra;
     return json({success:false,error:message},status,headers);

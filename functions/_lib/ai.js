@@ -190,15 +190,15 @@ export function parseRetryAfter(raw, now=Date.now()) {
   return Number.isFinite(n)&&n>=0 ? Math.min(Math.ceil(n),86400) : null;
 }
 const MAX_OUTPUT_TOKENS=1800;
+const incompleteOutput = reason => Object.assign(new Error('Incomplete response'), { code: 'INCOMPLETE_OUTPUT', reason });
 async function readProviderEnvelope(response) {
   const maximum = 128 * 1024;
-  const incomplete = () => Object.assign(new Error('Incomplete response'), { code: 'INCOMPLETE_OUTPUT' });
   if (Number(response.headers.get('Content-Length')) > maximum) {
     await response.body?.cancel();
-    throw incomplete();
+    throw incompleteOutput('oversize');
   }
   const reader = response.body?.getReader();
-  if (!reader) throw incomplete();
+  if (!reader) throw incompleteOutput('empty');
   let size = 0, raw = '';
   const decoder = new TextDecoder('utf-8', { fatal: true });
   try {
@@ -206,14 +206,15 @@ async function readProviderEnvelope(response) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > maximum) { await reader.cancel(); throw incomplete(); }
+      if (size > maximum) { await reader.cancel(); throw incompleteOutput('oversize'); }
       raw += decoder.decode(value, { stream: true });
     }
     return JSON.parse(raw + decoder.decode());
   } catch (error) {
     await reader.cancel().catch(() => {});
     if (error?.name === 'AbortError' || error?.name === 'TimeoutError') throw error;
-    throw incomplete();
+    if (error?.code === 'INCOMPLETE_OUTPUT' && error.reason === 'oversize') throw error;
+    throw incompleteOutput('json');
   } finally { reader.releaseLock(); }
 }
 export async function callProvider(provider, summary, apiKey, model, ctx, options = {}) {
@@ -243,22 +244,24 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
     throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
   }
   const result=await readProviderEnvelope(response);
-  let content, complete=false, inputTokens, outputTokens;
+  let content, complete=false, refused=false, inputTokens, outputTokens;
   if(provider==='groq') {
-    const choice=result.choices?.[0];content=choice?.message?.content;complete=choice?.finish_reason==='stop'&&!choice?.message?.refusal;
+    const choice=result.choices?.[0];content=choice?.message?.content;refused=Boolean(choice?.message?.refusal);complete=choice?.finish_reason==='stop'&&!refused;
     inputTokens=result.usage?.prompt_tokens;outputTokens=result.usage?.completion_tokens;
   } else if(provider==='openai') {
     const parts=(result.output||[]).flatMap(x=>x.content||[]);
-    content=parts.filter(p=>p.type==='output_text').map(p=>p.text).join('');complete=result.status==='completed'&&!parts.some(p=>p.type==='refusal');
+    content=parts.filter(p=>p.type==='output_text').map(p=>p.text).join('');refused=parts.some(p=>p.type==='refusal');complete=result.status==='completed'&&!refused;
     inputTokens=result.usage?.input_tokens;outputTokens=result.usage?.output_tokens;
   } else if(provider==='claude') {
-    content=(result.content||[]).filter(p=>p.type==='text').map(p=>p.text).join('');complete=result.stop_reason==='end_turn';
+    content=(result.content||[]).filter(p=>p.type==='text').map(p=>p.text).join('');refused=result.stop_reason==='refusal';complete=result.stop_reason==='end_turn';
     inputTokens=result.usage?.input_tokens;outputTokens=result.usage?.output_tokens;
   } else {
-    const candidate=result.candidates?.[0];content=(candidate?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('');complete=candidate?.finishReason==='STOP'&&!result.promptFeedback?.blockReason;
+    const candidate=result.candidates?.[0];content=(candidate?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('');refused=Boolean(result.promptFeedback?.blockReason)||candidate?.finishReason==='SAFETY';complete=candidate?.finishReason==='STOP'&&!result.promptFeedback?.blockReason;
     inputTokens=result.usageMetadata?.promptTokenCount;outputTokens=(result.usageMetadata?.candidatesTokenCount||0)+(result.usageMetadata?.thoughtsTokenCount||0);
   }
-  if(!complete||typeof content!=='string'||!content.trim()||content.length>(options.maxContentChars || 10000)) throw Object.assign(new Error('Incomplete response'),{code:'INCOMPLETE_OUTPUT'});
+  if (!complete) throw incompleteOutput(refused ? 'refusal' : 'finish_reason');
+  if (typeof content !== 'string' || !content.trim()) throw incompleteOutput('empty');
+  if (content.length > (options.maxContentChars || 10000)) throw incompleteOutput('oversize');
   const count=n=>Number.isSafeInteger(n)&&n>=0?n:null;
   return {content,model,usage:{inputTokens:count(inputTokens),outputTokens:count(outputTokens)}};
 }
