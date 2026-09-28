@@ -69,7 +69,7 @@ function describeUpstreamError(error, usingOwnKey) {
   if (error?.name === "TimeoutError" || error?.name === "AbortError") {
     return { message: "AI 回應逾時，請稍後再試一次", status: 504 };
   }
-  if (["INVALID_OUTPUT", "INCOMPLETE_OUTPUT"].includes(error?.code)) {
+  if (["INVALID_OUTPUT", "INCOMPLETE_OUTPUT"].includes(error?.code) || error?.upstreamCode === "json_validate_failed") {
     return {message:"AI 回應未通過完整性檢查，請繼續參考上方處方，或稍後重試",status:502};
   }
   const upstream = error?.upstreamStatus;
