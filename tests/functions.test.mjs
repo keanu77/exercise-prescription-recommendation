@@ -307,7 +307,9 @@ test('daily site budget reserves before call, caps exhausted days, fails closed 
  assert.equal((await reserveSiteBudget({RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0.006'},MODELS.groq.models[0])).allowed,false);
  for(const env of [{},{RATE_LIMIT_KV:KV_READ_FAIL},{RATE_LIMIT_KV:KV_WRITE_FAIL},{RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'bad'},{RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0'}]) assert.equal((await reserveSiteBudget(env,MODELS.groq.models[0])).allowed,false);
 });
-test('catalog exposes no secrets, candidates cannot consume site keys, old client receives refresh notice',async()=>{
+test('catalog exposes no secrets, candidates cannot consume site keys, old client receives refresh notice',async t=>{
+ const originalFetch=globalThis.fetch;t.after(()=>{globalThis.fetch=originalFetch;});
+ globalThis.fetch=async()=>{assert.fail('Ineligible candidates must not reach the provider');};
  const cat=publicCatalog({GROQ_API_KEY:'secret-fixture',OPENAI_API_KEY:'secret-fixture'});
  assert.equal(cat.defaultProvider,'groq');assert.deepEqual(cat.providers.map(p=>p.id),['groq']);assert.deepEqual(cat.available,{groq:true});
  const noSiteKey=publicCatalog({OPENAI_API_KEY:'secret-fixture'});assert.equal(noSiteKey.defaultProvider,null);assert.deepEqual(noSiteKey.available,{groq:false});assert.ok(noSiteKey.providers[0].models.every(m=>m.requiresKey));assert.doesNotMatch(JSON.stringify(cat),/secret-fixture|envKey/);
