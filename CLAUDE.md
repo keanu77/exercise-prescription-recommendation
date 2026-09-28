@@ -25,7 +25,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ### 兩段式處方：共用規則＋選用個人化 AI 報告
 1. `prescription-rules.js` 包含原樣抽出的 `calculateFITTVP`、PAR-Q 與 safety caps，供瀏覽器及 Pages Function 共用。修改規則時在此檔操作；`script.js` 處理表單與顯示。
 2. `ai-ui.js` 先讀取 `/api/providers` 目錄，使用者同意後送 schemaVersion:3、表單資料與選填 coachingContext（個人問題、時間、場地、器材與偏好）。伺服器嚴格驗證完整問卷、忽略 client 處方並重算可信 baseline。
-3. `functions/_lib/coaching.js` 建立可信處方邊界，要求 AI 真正撰寫問題回答、行動與原因、情境步驟、障礙備案、回顧及追問；伺服器組成 report version 2 的六節報告，保留所有 warnings。模型不得另開數字課表；具體日期與可用時間由伺服器在原處方內安排，缺資料明示未知。有症狀、需諮詢或兒少者不新增數字課表；模型只能提高需諮詢警戒，不能降低原問卷風險。明顯違規文字會拒收，但驗證不代表醫療正確性。前端只用 textContent。`advice.js` / `report.js` 保留作舊模板比較及既有 baseline context，不再使用舊 ID-only 回覆流程。
+3. `functions/_lib/coaching.js` 建立可信處方邊界，要求 AI 真正撰寫問題回答、行動與原因、情境步驟、障礙備案、回顧及追問；伺服器組成 report version 2 的六節報告，保留所有 warnings。模型提示僅取得處方活動類型、強度、年齡層與定性的可用時間，精確劑量留在伺服器呈現；模型不得另開數字課表；具體日期與可用時間由伺服器在原處方內安排，缺資料明示未知。有症狀、需諮詢或兒少者不新增數字課表；模型只能提高需諮詢警戒，不能降低原問卷風險。明顯違規文字會拒收，但驗證不代表醫療正確性。前端只用 textContent。`advice.js` / `report.js` 保留作舊模板比較及既有 baseline context，不再使用舊 ID-only 回覆流程。
 4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
@@ -59,9 +59,9 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ### functions/：Groq 個人化報告與既有 provider adapter
 - `ai-recommendation.js`：CORS、100KiB body、schemaVersion:3、完整問卷與生活情境正規化、10次/IP/分鐘、站方預算、可信規則、Groq strict JSON 與 narrative 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
 - 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在共用工具供相容測試，個人化端點只接受 Groq。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
-- `ai.js` 管理正規化與 provider 呼叫；`coaching.js` 管理提示詞、schema、明顯違規檢查與報告組裝。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
-- `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；按最大輸入／輸出 token 成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
-- `coaching-limits.js` 共用 5000 output token 上限，adapter、站方預算與 evaluator 一致；上游逾時 45 秒、client 65 秒。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，先預留成本、US$1 上限即停止，保留失敗與舊模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
+- `ai.js` 管理正規化與 provider 呼叫；`coaching.js` 管理提示詞、schema、明顯違規檢查與報告組裝；`coaching-runner.js` 管理同一 Groq 的至多一次修正。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
+- `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；在上游呼叫前，按兩次最大輸入／輸出 token 與固定修正提示成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
+- `coaching-limits.js` 共用每次 5000 output token、最多兩次、整體 45 秒期限，adapter、站方預算與 evaluator 一致；client 65 秒。只有內容驗證或 Groq 已知生成格式錯誤可同供應商修正一次，逾時、拒答、截斷、429、認證或網路錯誤不自動重試，修正提示不含被拒原文。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，預設案例間隔 65 秒以降低 token 限流，先預留兩次可能成本、US$1 上限即停止，保留失敗與舊模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
 
 ### 表單驗證與前端多入口
 - 主表單 `novalidate` 由 `validateCurrentStep(step)` 統一處理 required、min/max、step 與單選；最終送出重新驗證全部步驟，顯示並聚焦第一個錯誤。身高／體重接受一位小數，年齡維持整數。
