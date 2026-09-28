@@ -317,3 +317,17 @@ test('dose diagnostics distinguish duration, habitual exercise and count without
     assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { reason: 'obvious_dose', field: 'barriers', doseKind });
   }
 });
+
+test('exercise doses retain their scope across punctuation and preparation clauses', () => {
+  for (const text of ['先做深蹲，三組', '跑步，一週三天', '每天先整理跑步用品，再跑步']) {
+    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
+  }
+});
+
+test('vague numeric duration and set instructions are not accepted as qualitative coaching', () => {
+  for (const text of ['縮短為幾分鐘，等感覺恢復再延長', '先走數分鐘', '先做幾組深蹲', '改做數組肌力訓練']) {
+    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
+  }
+});
