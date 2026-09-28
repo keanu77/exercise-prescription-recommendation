@@ -17,6 +17,7 @@ schemaVersion:3；providers仍沿用schemaVersion:2目錄
 AI 真正撰寫繁體中文個人化解讀、優先順序理由、情境行動、替代方案與問題回答，不再只選固定段落
 伺服器先正規化問卷與新欄位，重算原baseline，建立可信安排邊界，使用Groq strict JSON schema，驗證後再組報告
 保留取消、序號隔離、Retry-After、BYOK、預算、無跨供應商fallback、完整性檢查與textContent
+清單項目違反內容規則時可整項省略後重新驗證，不能拆開成對內容、移除臨床旗標或讓必要章節留白。摘要、臨床原因與追問也不得省略。網頁及 PDF 同步說明省略情形；至多一次同模型修正、共用整體時限與預算預留，不對限流或網路錯誤自動重試
 回應：{success:true,schemaVersion:3,report:{version:2,summary,sections},mode:actions|consultation,risk:low|moderate|high,safety,baseline,sources,meta}
 sections固定六節依序：answer「先回答你的問題」、priorities「最值得先做的事」、plan「依你的生活安排」、barriers「遇到阻礙時的替代方案」、review「如何回顧與下一步」、safety「需要留意的事」
 每節 {id,title,kind:list|rows,items:string[]|[string,string][]}；每節1..30項，每段上限2000字，summary上限500字

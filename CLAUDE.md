@@ -60,6 +60,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - `ai-recommendation.js`：CORS、100KiB body、schemaVersion:3、完整問卷與生活情境正規化、10次/IP/分鐘、站方預算、可信規則、Groq strict JSON 與 narrative 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
 - 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在共用工具供相容測試，個人化端點只接受 Groq。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
 - `ai.js` 管理正規化與 provider 呼叫；`coaching.js` 管理提示詞、schema、明顯違規檢查與報告組裝；`coaching-runner.js` 管理同一 Groq 的至多一次修正。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
+- 單一清單項目不符內容規則時，先整項省略並重新驗證；成對標題與說明不能拆開，必要章節至少保留一項。摘要、臨床旗標與原因、追問、結構錯誤不能以省略修復。回應 `meta.omittedItems` 只含數量，網頁及 PDF 同步提示，不能把部分刪減冒稱完整保留模型原稿。全部必要內容無法保留時才進入受限修正流程。
 - `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；在上游呼叫前，按兩次最大輸入／輸出 token 與固定修正提示成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
 - `coaching-limits.js` 共用每次 5000 output token、最多兩次、整體 45 秒期限，adapter、站方預算與 evaluator 一致；client 65 秒。只有內容驗證或 Groq 已知生成格式錯誤可同供應商修正一次，逾時、拒答、截斷、429、認證或網路錯誤不自動重試，修正提示不含被拒原文。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，預設案例間隔 65 秒以降低 token 限流，先預留兩次可能成本、US$1 上限即停止，保留失敗與舊模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
 

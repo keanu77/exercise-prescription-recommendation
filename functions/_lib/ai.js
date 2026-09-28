@@ -191,6 +191,22 @@ export function parseRetryAfter(raw, now=Date.now()) {
 }
 const MAX_OUTPUT_TOKENS=1800;
 const incompleteOutput = reason => Object.assign(new Error('Incomplete response'), { code: 'INCOMPLETE_OUTPUT', reason });
+function groqRateLimitDiagnostic(envelope) {
+  const message = envelope?.error?.message;
+  if (typeof message !== 'string') return { rateLimitScope: null, rateLimitKind: null };
+  const scopes = [
+    ['tpm', /\b(?:TPM|tokens\s+per\s+minute)\b/i],
+    ['tpd', /\b(?:TPD|tokens\s+per\s+day)\b/i],
+    ['rpm', /\b(?:RPM|requests\s+per\s+minute)\b/i],
+    ['rpd', /\b(?:RPD|requests\s+per\s+day)\b/i],
+  ].filter(([, pattern]) => pattern.test(message));
+  // Retain only an unambiguous quota label, never any upstream text or values.
+  return {
+    rateLimitScope: scopes.length === 1 ? scopes[0][0] : null,
+    rateLimitKind: /^\s*Request too large\b/i.test(message) ? 'request_too_large' :
+      /^\s*Rate limit reached\b/i.test(message) ? 'exhausted' : null,
+  };
+}
 async function readProviderEnvelope(response) {
   const maximum = 128 * 1024;
   if (Number(response.headers.get('Content-Length')) > maximum) {
@@ -241,15 +257,18 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
   // without forwarding provider credentials to a redirected destination
   const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(options.timeoutMs || 30000),redirect:'manual'});
   if(!response.ok) {
-    let upstreamCode = null;
-    if (response.status === 400) {
+    let upstreamCode = null, rateLimitScope = null, rateLimitKind = null;
+    if (response.status === 400 || (provider === 'groq' && response.status === 429)) {
       try {
         const envelope = await readProviderEnvelope(response);
-        const allowed = ['json_validate_failed', 'json_schema_invalid', 'invalid_request_error', 'context_length_exceeded'];
-        if (allowed.includes(envelope.error?.code)) upstreamCode = envelope.error.code;
+        if (response.status === 429) ({ rateLimitScope, rateLimitKind } = groqRateLimitDiagnostic(envelope));
+        else {
+          const allowed = ['json_validate_failed', 'json_schema_invalid', 'invalid_request_error', 'context_length_exceeded'];
+          if (allowed.includes(envelope?.error?.code)) upstreamCode = envelope.error.code;
+        }
       } catch { /* Never log the upstream message, failed generation or unknown codes */ }
     } else await response.body?.cancel();
-    throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,upstreamCode,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
+    throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,upstreamCode,rateLimitScope,rateLimitKind,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
   }
   const result=await readProviderEnvelope(response);
   let content, complete=false, refused=false, inputTokens, outputTokens;
