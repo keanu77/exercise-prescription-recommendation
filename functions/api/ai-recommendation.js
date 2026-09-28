@@ -159,7 +159,7 @@ export async function onRequestPost({ request, env }) {
   }
   const started = Date.now();
   try {
-    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context, {systemPrompt:COACHING_SYSTEM_PROMPT,schema:coachingSchema(),schemaName:'personal_coaching',maxOutputTokens:COACHING_MAX_OUTPUT_TOKENS,maxContentChars:COACHING_MAX_CONTENT_CHARS,timeoutMs:45000});
+    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context, {systemPrompt:COACHING_SYSTEM_PROMPT,schema:coachingSchema(),schemaName:'personal_coaching',maxOutputTokens:COACHING_MAX_OUTPUT_TOKENS,maxContentChars:COACHING_MAX_CONTENT_CHARS,reasoningEffort:'medium',timeoutMs:45000});
     const selection = validateCoachingNarrative(result.content, context);
     const usage = result.usage;
     const estimatedCostUSD = usage.inputTokens === null || usage.outputTokens === null ? null :
@@ -170,7 +170,7 @@ export async function onRequestPost({ request, env }) {
     console.info(JSON.stringify({event:"ai_complete",...meta}));
     return json({success:true,schemaVersion:3,...presentCoaching(selection,context),meta},200,extra);
   } catch (error) {
-    console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",...safeOutputDiagnostic(error),status:Number.isInteger(error?.upstreamStatus)&&error.upstreamStatus>=100&&error.upstreamStatus<=599?error.upstreamStatus:null,durationMs:Date.now()-started}));
+    console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",...safeOutputDiagnostic(error),upstreamCode:['json_validate_failed','json_schema_invalid','invalid_request_error','context_length_exceeded'].includes(error?.upstreamCode)?error.upstreamCode:null,status:Number.isInteger(error?.upstreamStatus)&&error.upstreamStatus>=100&&error.upstreamStatus<=599?error.upstreamStatus:null,durationMs:Date.now()-started}));
     const { message, status } = describeUpstreamError(error, usingOwnKey);
     const headers = error?.retryAfter !== null && error?.retryAfter !== undefined ? {...extra,"Retry-After":String(error.retryAfter)} : extra;
     return json({success:false,error:message},status,headers);

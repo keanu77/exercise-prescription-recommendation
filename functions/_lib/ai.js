@@ -225,7 +225,7 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
   let url, headers, body;
   if(provider==='groq') {
     url='https://api.groq.com/openai/v1/chat/completions'; headers={Authorization:`Bearer ${apiKey}`};
-    body={model,messages,max_completion_tokens:maxOutputTokens,reasoning_effort:'low',response_format:{type:'json_schema',json_schema:{name:schemaName,strict:true,schema}}};
+    body={model,messages,max_completion_tokens:maxOutputTokens,reasoning_effort:options.reasoningEffort || 'low',response_format:{type:'json_schema',json_schema:{name:schemaName,strict:true,schema}}};
   } else if(provider==='openai') {
     url='https://api.openai.com/v1/responses';headers={Authorization:`Bearer ${apiKey}`};
     body={model,input:messages,store:false,max_output_tokens:maxOutputTokens,reasoning:{effort:'low'},text:{format:{type:'json_schema',name:schemaName,strict:true,schema}}};
@@ -240,8 +240,15 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
   // without forwarding provider credentials to a redirected destination
   const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(options.timeoutMs || 30000),redirect:'manual'});
   if(!response.ok) {
-    await response.body?.cancel();
-    throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
+    let upstreamCode = null;
+    if (response.status === 400) {
+      try {
+        const envelope = await readProviderEnvelope(response);
+        const allowed = ['json_validate_failed', 'json_schema_invalid', 'invalid_request_error', 'context_length_exceeded'];
+        if (allowed.includes(envelope.error?.code)) upstreamCode = envelope.error.code;
+      } catch { /* Never log the upstream message, failed generation or unknown codes */ }
+    } else await response.body?.cancel();
+    throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,upstreamCode,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
   }
   const result=await readProviderEnvelope(response);
   let content, complete=false, refused=false, inputTokens, outputTokens;
