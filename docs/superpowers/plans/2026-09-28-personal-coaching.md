@@ -3,7 +3,7 @@
 > **For agentic workers:** Use subagent-driven-development with a backend implementer and separate spec/quality reviews; root handles UI and integration
 
 **Goal:** Produce useful scenario-specific answers, reasons, execution plans and alternatives from Groq, synchronized to PDF
-**Architecture:** Validated optional context → server-owned prescription constraints → structured model narrative → six-section report shared by UI/PDF
+**Architecture:** Validated optional context → server-owned prescription and contextual decisions → model answers and indexed explanations → six-section report shared by UI/PDF
 **Tech Stack:** Vanilla JavaScript, Cloudflare Pages Functions, Groq strict JSON, Node tests and Python Playwright
 
 - [x] Backend: add coaching context/contract module and semantic checks; preserve original rule file; integrate request schemaVersion 3 in functions/api/ai-recommendation.js; parameterize provider prompt/schema/output bound and budget reservation together
@@ -20,7 +20,7 @@ Contract and exact enum strings: ../specs/2026-09-28-personal-coaching-design.md
 Readiness gate: a person can identify what to do next, why it suits their stated constraint, what alternative to use and what to review, without receiving a duplicated generic template
 
 ## Local evidence before deployment
-- 44/44 Node tests and build:pages (28 files) passed on acb8dad
+- Decision-frame architecture: 84/84 Node tests and build:pages (28 files) passed on b121c2f; subsequent focused changes require their own verification
 - All 13 browser suites passed; Chromium/WebKit PDF checks covered 30 exports, including combined prescriptions, minors, consultation, long text and actual downloads
 - Context lifecycle tests passed on both engines: explicit consent, validation, none-equipment exclusion, cancel retains fields, edits abort stale responses/PDF and clear removes context
 - Spec review initially found negation false positives, consultation-directive escapes and occupation-word false positives; a1af1e9 resolves the reproduced cases (41 backend/report tests plus reviewer 27 targeted assertions)
@@ -28,4 +28,6 @@ Readiness gate: a person can identify what to do next, why it suits their stated
 - No dependency/environment/migration changes; plain JavaScript has no TypeScript project, syntax checks are part of the production build
 - Production secret presence confirmed by name only; preview has no Groq key, so real-model validation must follow a reviewed candidate release, with 8d2f27f rollback snapshot available
 - Mock/synthetic checks and pattern validation do not establish clinical correctness; actual-model usefulness still pending
+- The fixed v11 GPT-OSS batch returned four reports, then stopped on a diagnosed daily token limit; it failed the minor content gate because the answer endorsed a weight-loss goal. These results are retained in the local audit and do not count as a six-case pass
+- Decision-frame UI and PDF integration passed Chromium/WebKit at 320/390/1280 widths and 30 actual PDF exports after the contract change
 - Final code quality review found no critical/important blockers; evaluator failed/incomplete runs now exit nonzero, verified with success/failure mocks (0/1)
