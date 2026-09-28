@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { COACHING_MAX_OUTPUT_TOKENS } from '../functions/_lib/coaching-limits.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { onRequestPost } from '../functions/api/ai-recommendation.js';
@@ -135,7 +136,7 @@ test('site reservation uses exactly adapter output ceiling and unsupported provi
   const sent = calls[0].body;
   const input = new TextEncoder().encode(sent.messages.map(m => m.content).join('') + JSON.stringify(sent.response_format.json_schema.schema)).byteLength + 1000;
   assert.equal(reserved, ((input * 2 + 1000) * 0.15 + sent.max_completion_tokens * 2 * 0.6) / 1e6);
-  assert.ok(sent.max_completion_tokens >= 4096);
+  assert.equal(sent.max_completion_tokens, COACHING_MAX_OUTPUT_TOKENS);
   assert.equal((await post({ provider: 'openai' })).status, 400);
   assert.equal(calls.length, 1);
 });
