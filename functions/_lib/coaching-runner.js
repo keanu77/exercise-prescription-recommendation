@@ -1,5 +1,5 @@
 import { callProvider } from './ai.js';
-import { coachingSchema, validateCoachingNarrative, COACHING_SYSTEM_PROMPT } from './coaching.js';
+import { coachingSchema, validateCoachingReport, COACHING_SYSTEM_PROMPT } from './coaching.js';
 import { safeOutputDiagnostic } from './ai-diagnostics.js';
 import { COACHING_MAX_OUTPUT_TOKENS, COACHING_MAX_CONTENT_CHARS, COACHING_MAX_ATTEMPTS, COACHING_TOTAL_TIMEOUT_MS, COACHING_REPAIR_MAX_BYTES } from './coaching-limits.js';
 
@@ -32,8 +32,8 @@ export async function runCoaching({ provider, summary, apiKey, model, context })
         usage[key] = usage[key] === null || !Number.isSafeInteger(count) || count < 0 ? null : usage[key] + count;
       }
       if (Date.now() >= deadline) throw timeout();
-      const selection = validateCoachingNarrative(result.content, context);
-      return { selection, usage, attempts: attempt };
+      const { selection, omittedItems } = validateCoachingReport(result.content, context);
+      return { selection, omittedItems, usage, attempts: attempt };
     } catch (error) {
       // A provider validation error may still incur charges without returning usage.
       // Keep the full reservation and do not report partial usage as a total.

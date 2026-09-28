@@ -104,7 +104,7 @@ export function coachingSchema() {
   properties.barriers.description = '具體調整場地、交通、提示或改期；不以新動作替代，不刪減處方種類，不加減量';
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
-const invalid = (reason, field, doseKind) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}), ...(doseKind ? { doseKind } : {}) }); };
+const invalid = (reason, field, doseKind, itemIndex) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}), ...(doseKind ? { doseKind } : {}), ...(Number.isInteger(itemIndex) && itemIndex >= 0 ? { itemIndex } : {}) }); };
 function matchesSchema(value, schema) {
   if (schema.type === 'string') return typeof value === 'string' && value.trim().length >= schema.minLength && value.length <= schema.maxLength;
   if (schema.type === 'boolean') return typeof value === 'boolean';
@@ -176,44 +176,69 @@ export function validateCoachingNarrative(content, ctx) {
     invalid('schema', field);
   }
   const prose = [];
-  const visit = (item, field) => {
-    if (typeof item === 'string') prose.push({ text: item, field });
-    else if (Array.isArray(item)) item.forEach(child => visit(child, field));
-    else if (object(item)) Object.entries(item).forEach(([key, child]) => visit(child, field || key));
+  const visit = (item, field, itemIndex) => {
+    if (typeof item === 'string') prose.push({ text: item, field, itemIndex });
+    else if (Array.isArray(item)) item.forEach((child, index) => visit(child, field, index));
+    else if (object(item)) Object.entries(item).forEach(([key, child]) => visit(child, field || key, itemIndex));
   };
   visit(value);
   // Inspect compatibility-normalized text so full-width numbers/markup cannot bypass checks.
-  const checkedProse = prose.map(({ text, field }) => ({ text: text.normalize('NFKC'), field }));
+  const checkedProse = prose.map(({ text, field, itemIndex }) => ({ text: text.normalize('NFKC'), field, itemIndex }));
   const authoredCitation = /(?:根據|依據).{0,24}(?:研究|指引|指南)|研究(?:顯示|指出|證實)|參考文獻|\b(?:WHO|ACSM|NICE|PubMed|PMID|DOI)\b/iu;
-  for (const { text, field } of checkedProse) {
+  for (const { text, field, itemIndex } of checkedProse) {
+    const reject = (reason, doseKind) => invalid(reason, field, doseKind, itemIndex);
     if (forbidden.test(text)) {
-      if (/\d/u.test(text)) invalid('forbidden_numeric', field);
-      if (/[<>]|https?:|www\.|javascript:|data:/iu.test(text)) invalid('forbidden_markup', field);
-      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) invalid('forbidden_control', field);
-      if (/ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt/iu.test(text)) invalid('forbidden_instruction', field);
-      invalid('unsafe_advice', field);
+      if (/\d/u.test(text)) reject('forbidden_numeric');
+      if (/[<>]|https?:|www\.|javascript:|data:/iu.test(text)) reject('forbidden_markup');
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) reject('forbidden_control');
+      if (/ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions|system\s+prompt/iu.test(text)) reject('forbidden_instruction');
+      reject('unsafe_advice');
     }
-    if (quantifiedDuration.test(text)) invalid('obvious_dose', field, 'duration');
-    if (obviousHabitualExercise(text)) invalid('obvious_dose', field, 'habitual');
-    if (obviousExerciseDose(text)) invalid('obvious_dose', field, 'count');
-    if (scopedUnsafeMatch(text, unsafeAdvice)) invalid('unsafe_advice', field);
+    if (quantifiedDuration.test(text)) reject('obvious_dose', 'duration');
+    if (obviousHabitualExercise(text)) reject('obvious_dose', 'habitual');
+    if (obviousExerciseDose(text)) reject('obvious_dose', 'count');
+    if (scopedUnsafeMatch(text, unsafeAdvice)) reject('unsafe_advice');
     // Reproduced model errors: new movement routines, unsuitable footwear,
     // omitted prescription components and claims of completing both targets.
     // This is a targeted guard, not comprehensive clinical semantic validation.
-    if (scopedUnsafeMatch(text, /(?:做|進行|加入|改為|改成|轉為|開始|練習)(?:(?:簡短的|簡易的|站立式|徒手|一些|原地|自體重|幾個|熟悉的)){0,3}(?:伸展|抬腿|抬膝|踏步|深蹲|俯臥撐|伏地挺身|牆壁俯身)|(?:省去|省略|刪除|取消)(?:有氧|腳踏車|肌力)(?:環節|訓練|項目)?/u)) invalid('unsafe_advice', field);
-    if (scopedUnsafeMatch(text, /(?:完成|達成|達到)(?:既有的|原有的|原訂的|完整的|所有的)?(?:有氧與肌力|肌力與有氧|全部訓練)(?:目標|需求)/u, /(?:尚未|還未|還沒|未能|尚未能|不代表(?:已經|已)?|不能保證|不保證)$/u)) invalid('unsafe_advice', field);
-    if (scopedUnsafeMatch(text, /(?:穿|換上)(?:舒適的)?(?:襪子或)?拖鞋|(?:只穿|僅穿|光穿)(?:一雙)?襪子/u)) invalid('unsafe_advice', field);
-    if (authoredCitation.test(text)) invalid('citation', field);
-    if (text.trim() && !/\p{Script=Han}/u.test(text)) invalid('language', field);
+    if (scopedUnsafeMatch(text, /(?:做|進行|加入|改為|改成|轉為|開始|練習)(?:(?:簡短的|簡易的|站立式|徒手|一些|原地|自體重|幾個|熟悉的)){0,3}(?:伸展|抬腿|抬膝|踏步|深蹲|俯臥撐|伏地挺身|牆壁俯身)|(?:省去|省略|刪除|取消)(?:有氧|腳踏車|肌力)(?:環節|訓練|項目)?/u)) reject('unsafe_advice');
+    if (scopedUnsafeMatch(text, /(?:完成|達成|達到)(?:既有的|原有的|原訂的|完整的|所有的)?(?:有氧與肌力|肌力與有氧|全部訓練)(?:目標|需求)/u, /(?:尚未|還未|還沒|未能|尚未能|不代表(?:已經|已)?|不能保證|不保證)$/u)) reject('unsafe_advice');
+    if (scopedUnsafeMatch(text, /(?:穿|換上)(?:舒適的)?(?:襪子或)?拖鞋|(?:只穿|僅穿|光穿)(?:一雙)?襪子/u)) reject('unsafe_advice');
+    if (authoredCitation.test(text)) reject('citation');
+    if (text.trim() && !/\p{Script=Han}/u.test(text)) reject('language');
   }
   if ((value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid('clinical_flag', 'clinicalReason');
   if (ctx?.consult || value.needsClinicalReview) {
-    for (const { text, field } of checkedProse) if (scopedUnsafeMatch(text, exerciseDirective)) invalid('consultation_directive', field);
+    for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, exerciseDirective)) invalid('consultation_directive', field, undefined, itemIndex);
   }
   if (ctx?.minor) {
-    for (const { text, field } of checkedProse) if (scopedUnsafeMatch(text, /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?/u)) invalid('minor_weightloss', field);
+    for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?/u)) invalid('minor_weightloss', field, undefined, itemIndex);
   }
   return value;
+}
+
+const recoverableItemReasons = new Set(['forbidden_numeric', 'forbidden_markup', 'forbidden_control', 'forbidden_instruction', 'obvious_dose', 'unsafe_advice', 'citation', 'consultation_directive', 'minor_weightloss', 'language']);
+const recoverableArrays = new Set(['answer', 'priorities', 'practicalSteps', 'barriers', 'review']);
+const MAX_ITEM_OMISSIONS = 18;
+
+export function validateCoachingReport(content, ctx) {
+  let candidate = content, value, omittedItems = 0;
+  while (true) {
+    try {
+      // Every remaining item and all scalar/clinical fields must still pass the
+      // original strict validator. No fallback text or weaker validation is used.
+      return { selection: validateCoachingNarrative(candidate, ctx), omittedItems };
+    } catch (error) {
+      if (error?.code !== 'INVALID_OUTPUT' || !recoverableItemReasons.has(error.reason) || !recoverableArrays.has(error.field) || !Number.isInteger(error.itemIndex) || error.itemIndex < 0 || omittedItems >= MAX_ITEM_OMISSIONS) throw error;
+      // Content guards run only after JSON and the complete schema have passed.
+      value ||= JSON.parse(candidate);
+      const items = value[error.field];
+      if (!Array.isArray(items) || items.length <= 1 || error.itemIndex >= items.length) throw error;
+      items.splice(error.itemIndex, 1); // Drop a whole pair, never leave a partial item.
+      omittedItems++;
+      candidate = JSON.stringify(value);
+    }
+  }
 }
 
 function trustedPlan(ctx, consult) {

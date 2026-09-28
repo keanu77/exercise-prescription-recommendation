@@ -26,5 +26,5 @@ export function createCoachingResponse(data, coachingContext = {}) {
   if (!profile.valid || !context.valid) throw new Error('Invalid synthetic fixture input');
   const ctx = buildCoachingContext(profile.data, context.data);
   const selection = validateCoachingNarrative(JSON.stringify(createCoachingSelection(ctx)), ctx);
-  return { success: true, schemaVersion: 3, ...presentCoaching(selection, ctx), meta: { provider: 'groq', model: 'openai/gpt-oss-120b', promptVersion: 'synthetic-fixture-1', rulesVersion: RULES_VERSION, generatedAt: '2026-09-28T00:00:00.000Z', durationMs: 1, usage: { inputTokens: 100, outputTokens: 300 }, estimatedCostUSD: 0.000195 } };
+  return { success: true, schemaVersion: 3, ...presentCoaching(selection, ctx), meta: { provider: 'groq', model: 'openai/gpt-oss-120b', promptVersion: 'synthetic-fixture-1', rulesVersion: RULES_VERSION, generatedAt: '2026-09-28T00:00:00.000Z', durationMs: 1, usage: { inputTokens: 100, outputTokens: 300 }, estimatedCostUSD: 0.000195, omittedItems: 0 } };
 }

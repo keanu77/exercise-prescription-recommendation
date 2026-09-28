@@ -161,11 +161,11 @@ export async function onRequestPost({ request, env }) {
   }
   const started = Date.now();
   try {
-    const { selection, usage, attempts } = await runCoaching({provider:chosen,summary:userSummary,apiKey,model:chosenModel,context});
+    const { selection, omittedItems, usage, attempts } = await runCoaching({provider:chosen,summary:userSummary,apiKey,model:chosenModel,context});
     const estimatedCostUSD = usage.inputTokens === null || usage.outputTokens === null ? null :
       (usage.inputTokens * modelInfo.inputUSD + usage.outputTokens * modelInfo.outputUSD) / 1e6;
     const meta = {provider:chosen,model:chosenModel,promptVersion:PROMPT_VERSION,rulesVersion:RULES_VERSION,
-      generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD,attempts};
+      generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD,attempts,omittedItems};
     // Deliberately omit profile, prompt, selected actions, raw response and API key from logs.
     console.info(JSON.stringify({event:"ai_complete",...meta}));
     return json({success:true,schemaVersion:3,...presentCoaching(selection,context),meta},200,extra);
