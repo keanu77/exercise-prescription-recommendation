@@ -37,14 +37,22 @@ test('protective target and footwear statements remain accepted', async () => {
   }
 });
 
-test('Qwen structured output uses instruct mode and never returns reasoning as content', async t => {
+test('Qwen structured output uses bounded reasoning and never returns reasoning as content', async t => {
   const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
   globalThis.fetch=async (_url,init)=>{
     const sent=JSON.parse(init.body);
-    assert.equal(sent.reasoning_effort,'none');assert.equal(sent.reasoning_format,'hidden');
+    assert.equal(sent.reasoning_effort,'medium');assert.equal(sent.reasoning_format,'hidden');
     assert.equal(sent.response_format.json_schema.strict,true);
     return Response.json({choices:[{message:{content:'{}',reasoning:'PRIVATE_THOUGHTS'},finish_reason:'stop'}]});
   };
   const r=await callProvider('groq','synthetic','synthetic-key','qwen/qwen3.8-27b',{}, {schema:{}});
   assert.equal(r.content,'{}');assert.doesNotMatch(JSON.stringify(r),/PRIVATE_THOUGHTS/);
+});
+
+test('English placeholders cannot pass as a completed Traditional Chinese report', async () => {
+ const {validateCoachingNarrative}=await import('../functions/_lib/coaching.js');
+ const {createCoachingSelection}=await import('./helpers/coaching-fixture.mjs');
+ const value=createCoachingSelection({consult:false,coachingContext:{setting:'home',equipment:[],availableDays:[],question:'',timeOfDay:'flexible'}});
+ value.priorities[0].reason='Do not mention this field.';
+ assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)),{code:'INVALID_OUTPUT',reason:'language',field:'priorities'});
 });

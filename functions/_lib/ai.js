@@ -226,7 +226,7 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
   if(provider==='groq') {
     url='https://api.groq.com/openai/v1/chat/completions'; headers={Authorization:`Bearer ${apiKey}`};
     body={model,messages,max_completion_tokens:maxOutputTokens,reasoning_effort:options.reasoningEffort || 'low',response_format:{type:'json_schema',json_schema:{name:schemaName,strict:true,schema}}};
-    if (model === 'qwen/qwen3.8-27b') { body.reasoning_effort = 'none'; body.reasoning_format = 'hidden'; }
+    if (model === 'qwen/qwen3.8-27b') { body.reasoning_effort = 'medium'; body.reasoning_format = 'hidden'; }
   } else if(provider==='openai') {
     url='https://api.openai.com/v1/responses';headers={Authorization:`Bearer ${apiKey}`};
     body={model,input:messages,store:false,max_output_tokens:maxOutputTokens,reasoning:{effort:'low'},text:{format:{type:'json_schema',name:schemaName,strict:true,schema}}};

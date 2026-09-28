@@ -8,7 +8,7 @@ const timeout = () => Object.assign(new Error('Coaching deadline exceeded'), { n
 
 function repairFeedback(error) {
   const diagnostic = error?.code === 'INVALID_OUTPUT' ? safeOutputDiagnostic(error) : { reason: 'schema', field: null, doseKind: null };
-  const feedback = `\n\nTrusted validation feedback: ${JSON.stringify(diagnostic)}\nRegenerate the complete JSON response using the original inputs and constraints. Do not repeat the rejected content. No numeric or vague exercise doses, new exercise movements, diagnoses, medication changes, sources, or claims that exercise targets are complete. Use useful qualitative choices and reasons. Preserve consultation and minor restrictions. All required fields must match the schema. Only the server supplies exercise quantities.`;
+  const feedback = `\n\nTrusted validation feedback: ${JSON.stringify(diagnostic)}\nRegenerate the complete JSON response using the original inputs and constraints. Do not repeat the rejected content. No numeric or vague exercise doses, new exercise movements, diagnoses, medication changes, sources, or claims that exercise targets are complete. Every text field must be complete Traditional Chinese, never English sentences or placeholders. Use useful qualitative choices and reasons. Preserve consultation and minor restrictions. All required fields must match the schema. Only the server supplies exercise quantities.`;
   // The budget reserves this same maximum; never include an error message or draft.
   if (new TextEncoder().encode(feedback).byteLength > COACHING_REPAIR_MAX_BYTES) throw new Error('Repair feedback exceeds budget');
   return feedback;
