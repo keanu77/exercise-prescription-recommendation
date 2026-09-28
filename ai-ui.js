@@ -165,7 +165,7 @@ function renderAIResult(r) {
   root.append(report);
   const details=element('details',undefined,'action-provenance');details.append(element('summary','依據與限制'));
   details.append(element('p',`${r.meta.model} · ${new Date(r.meta.generatedAt).toLocaleString('zh-TW')} · 處方 ${r.meta.rulesVersion} · 報告 ${r.meta.promptVersion}`));
-  details.append(element('p','AI 依你提供的問題與生活情境撰寫分析及備案；安排中的運動量以本站核對後的處方為依據；未即時查詢文獻，也未完成個別醫療評估'));
+  details.append(element('p','行動與備案依你填寫的條件整理，AI 回答個人問題並說明選擇理由；運動量沿用原處方；未即時查詢文獻，也未完成個別醫療評估'));
   // Source destination is site-controlled, never model-provided.
   const link=element('a','PAR-Q+ 官方問卷與追蹤評估 ↗');link.href='https://eparmedx.com/';link.target='_blank';link.rel='noopener noreferrer';details.append(link);root.append(details);
   aiEl('aiProviderName').textContent=r.meta.model;aiEl('aiProviderBadge').classList.remove('hidden');
@@ -243,7 +243,7 @@ function createAIPDFReport() {
       // The renderer keeps the prescription disclaimer before this new-page supplement.
       {title:'07  AI 行動建議',kind:'paragraph',newPage:true,appendix:true,items:[r.report.summary,r.safety,...(aiOmissionNotice(r)?[aiOmissionNotice(r)]:[])]},
       ...aiActionPDFSections(r),
-      {title:'AI 說明與限制',kind:'paragraph',items:['AI 依填寫的問題與生活情境撰寫分析和備案，安排中的運動量以本站核對後的處方為依據；未即時查詢研究，亦未完成個別醫療評估；請搭配本報告前段的運動處方與安全提醒使用，不能取代個別醫療建議']},
+      {title:'AI 說明與限制',kind:'paragraph',items:['行動與備案依填寫的條件整理，AI 回答個人問題並說明選擇理由，運動量沿用原處方；未即時查詢研究，亦未完成個別醫療評估；請搭配本報告前段的運動處方與安全提醒使用，不能取代個別醫療建議']},
     ],
   };
 }

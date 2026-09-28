@@ -8,7 +8,7 @@ import { validateCoachingNarrative } from '../functions/_lib/coaching.js';
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/ai-cases.json', import.meta.url))).cases;
 const adult = { ...fixtures[0].data, age: 35, health_status: 'healthy', diseases: [], limitations: ['time'], parq_answers: Object.fromEntries(Array.from({ length: 7 }, (_, i) => ['parq_q' + (i + 1), 'no'])) };
 const context = { question: '下班後很累，只想在家開始，如何減少準備？', availableDays: ['mon', 'wed'], sessionMinutes: 15, timeOfDay: 'evening', setting: 'home', equipment: ['none'], preferences: ['walking'] };
-const narrative = () => ({ summary: '把下班後的準備減到最少，先找出能固定開始的生活提示', answer: ['你問的是下班後如何減少準備，可以把用品放在回家會經過的位置，先確認家中動線是否適合原處方'], priorities: [{ action: '把活動用品放在門邊', reason: '你在家安排且可用時間短，先減少找用品與切換活動的阻力' }], practicalSteps: [{ action: '檢查家中動線並把用品放妥', whenWhere: '若下班回家後容易忘記，可把準備接在換衣服之後' }], barriers: [{ obstacle: '臨時加班錯過原訂時段', alternative: '保留用品準備，重新挑選可行時段，不加倍補做' }], review: ['記下最容易被打斷的環節，調整用品擺放或開始提示'], nextQuestion: '回家後最常是哪件事打斷你的安排？', needsClinicalReview: false, clinicalReason: '' });
+const narrative = () => ({ answer: ['你問的是下班後如何減少準備，先確認家中是否有適合熟悉活動的空間，能減少準備後重新安排的負擔'], actionReasons: ['你選擇在家安排，先確認空間與熟悉程度能避免準備後才發現不適用', '把準備接到已存在的生活提示，可以減少反覆決定何時開始的負擔'], barrierReasons: ['場地限制需要先被看見，才能判斷原有選擇是否合適', '可用窗口包含準備和整理，釐清卡住的環節才能改善安排'], nextQuestion: '家中是否有適合熟悉活動的空間？', needsClinicalReview: false, clinicalReason: '' });
 const request = body => new Request('https://example.com/api/ai-recommendation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ schemaVersion: 3, userData: adult, provider: 'groq', customApiKey: 'synthetic-key', ...body }) });
 const post = (body, env = {}) => onRequestPost({ request: request(body), env });
 function mock(t, value = narrative()) {
@@ -48,7 +48,7 @@ test('schema3 accepts useful generated prose and composes six sections with capp
   assert.match(calls[0].body.messages[0].content, /不可信|不受信任/);
   assert.equal(calls[0].body.response_format.json_schema.strict, true);
   // Narrative character rules are checked by our validator, not a provider regex grammar
-  assert.equal(calls[0].body.response_format.json_schema.schema.properties.summary.pattern, undefined);
+  assert.equal(calls[0].body.response_format.json_schema.schema.properties.answer.items.pattern, undefined);
 });
 
 test('invalid coaching data is rejected before KV or provider calls and old version asks refresh', async t => {
@@ -144,11 +144,11 @@ test('site reservation uses exactly adapter output ceiling and unsupported provi
 });
 
 test('ordinary planning language is not mistaken for a new exercise dose', async t => {
-  const value = { ...narrative(), review: ['下一次回顧可以看第一次準備卡在哪裡，這一次先找週末一天整理用品'] };
+  const value = { ...narrative(), answer: ['下一次回顧可以看第一次準備卡在哪裡，這一次先找週末一天整理用品'] };
   mock(t, value);
   const response = await post({ coachingContext: context });
   assert.equal(response.status, 200);
-  assert.ok(JSON.stringify((await response.json()).report).includes(value.review[0]));
+  assert.ok(JSON.stringify((await response.json()).report).includes(value.answer[0]));
 });
 
 test('consultation narrative cannot tell someone with symptoms to start exercise', async t => {
@@ -170,19 +170,19 @@ test('oversized upstream envelope is canceled before loading it into memory', as
   assert.ok(chunks <= 3);
 });
 
-test('narrative row labels stay short enough for readable web and PDF layouts', async t => {
+test('model cannot replace trusted row labels with its own headings', async t => {
   const value = narrative();
-  value.priorities[0].action = '準備'.repeat(51);
+  value.priorities = [{ action: '準備'.repeat(51), reason: '不可信小標' }];
   mock(t, value);
   assert.equal((await post({})).status, 502);
 });
 
 test('protective negations remain useful narrative instead of false safety failures', async t => {
-  mock(t, { ...narrative(), answer: ['不要自行停藥', '不要增加運動強度', '不能保證改善'] });
+  mock(t, { ...narrative(), answer: ['不要自行停藥，不要增加運動強度', '不能保證改善'] });
   const response = await post({ coachingContext: context });
   assert.equal(response.status, 200);
   const answer = (await response.json()).report.sections[0].items;
-  assert.deepEqual(answer, ['不要自行停藥', '不要增加運動強度', '不能保證改善']);
+  assert.deepEqual(answer, ['不要自行停藥，不要增加運動強度', '不能保證改善']);
 });
 
 test('consultation rejects qualitative exercise prescriptions and discussion-before-exercise loopholes', async t => {
@@ -195,7 +195,7 @@ test('consultation rejects qualitative exercise prescriptions and discussion-bef
 });
 
 test('consultation keeps non-dose clinician questions and negated exercise instructions', async t => {
-  const answer = ['詢問醫師是否可以快走', '整理要向醫師確認的活動問題，確認何時可以恢復原本熟悉的活動', '不要在家做徒手肌力訓練，先整理影響生活的身體變化'];
+  const answer = ['詢問醫師是否可以快走，整理要向醫師確認的活動問題，確認何時可以恢復原本熟悉的活動', '不要在家做徒手肌力訓練，先整理影響生活的身體變化'];
   mock(t, { ...narrative(), answer });
   const response = await post({ coachingContext: { ...context, question: '胸口悶悶的，能跑步嗎？' } });
   assert.equal(response.status, 200);
@@ -300,35 +300,35 @@ test('handler diagnostics never log model content, questions, keys or unknown er
 
 test('missed sessions, rescheduling and named preparation checks are not new exercise doses', () => {
   for (const text of ['錯過一次運動', '臨時取消一次運動，不需要加倍補課', '沒完成，也不需要一次補回', '把運動改到另一天', '回家先做一次用品檢查', '完成一次用品整理', '每天先整理跑步用品', '不要每天跑步']) {
-    const value = { ...narrative(), barriers: [{ obstacle: '實際安排有變化', alternative: text }] };
+    const value = { ...narrative(), barrierReasons: [text, narrative().barrierReasons[1]] };
     assert.doesNotThrow(() => validateCoachingNarrative(JSON.stringify(value)), text);
   }
 });
 
 test('planning and negative clauses cannot hide subsequent real exercise doses', () => {
   for (const text of ['先做三組深蹲', '每週安排兩回快走', '每天跑步三十分鐘', '快走兩天', '一週運動三天', '不要每天跑步三十分鐘', '錯過一次運動，明天做三組深蹲', '把運動改到另一天，改做兩回快走', '完成一次用品整理，然後快走兩天', '每天先整理跑步用品再跑步', '不要每天跑步，改成每晚跑步']) {
-    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    const value = { ...narrative(), barrierReasons: [text, narrative().barrierReasons[1]] };
     assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
   }
 });
 
 test('dose diagnostics distinguish duration, habitual exercise and count without raw text', () => {
   for (const [text, doseKind] of [['跑步三十分鐘', 'duration'], ['每天跑步', 'habitual'], ['做三組深蹲', 'count']]) {
-    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
-    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { reason: 'obvious_dose', field: 'barriers', doseKind });
+    const value = { ...narrative(), barrierReasons: [text, narrative().barrierReasons[1]] };
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { reason: 'obvious_dose', field: 'barrierReasons', doseKind });
   }
 });
 
 test('exercise doses retain their scope across punctuation and preparation clauses', () => {
   for (const text of ['先做深蹲，三組', '跑步，一週三天', '每天先整理跑步用品，再跑步']) {
-    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    const value = { ...narrative(), barrierReasons: [text, narrative().barrierReasons[1]] };
     assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
   }
 });
 
 test('vague numeric duration and set instructions are not accepted as qualitative coaching', () => {
   for (const text of ['縮短為幾分鐘，等感覺恢復再延長', '先走數分鐘', '先做幾組深蹲', '改做數組肌力訓練']) {
-    const value = { ...narrative(), barriers: [{ obstacle: '安排調整', alternative: text }] };
+    const value = { ...narrative(), barrierReasons: [text, narrative().barrierReasons[1]] };
     assert.throws(() => validateCoachingNarrative(JSON.stringify(value)), { code: 'INVALID_OUTPUT', reason: 'obvious_dose' }, text);
   }
 });

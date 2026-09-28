@@ -53,8 +53,8 @@ test('English placeholders cannot pass as a completed Traditional Chinese report
  const {validateCoachingNarrative}=await import('../functions/_lib/coaching.js');
  const {createCoachingSelection}=await import('./helpers/coaching-fixture.mjs');
  const value=createCoachingSelection({consult:false,coachingContext:{setting:'home',equipment:[],availableDays:[],question:'',timeOfDay:'flexible'}});
- value.priorities[0].reason='Do not mention this field.';
- assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)),{code:'INVALID_OUTPUT',reason:'language',field:'priorities'});
+ value.actionReasons[0]='Do not mention this field.';
+ assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)),{code:'INVALID_OUTPUT',reason:'language',field:'actionReasons'});
 });
 
 test('vague preparation/rest time is distinct from a new exercise duration', async () => {

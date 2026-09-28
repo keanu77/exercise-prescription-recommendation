@@ -6,7 +6,7 @@ const reasons = Object.freeze([
   'finish_reason', 'refusal', 'empty', 'oversize',
 ]);
 const fields = Object.freeze([
-  'summary', 'answer', 'priorities', 'practicalSteps', 'barriers', 'review',
+  'answer', 'actionReasons', 'barrierReasons',
   'nextQuestion', 'needsClinicalReview', 'clinicalReason',
 ]);
 
