@@ -51,6 +51,10 @@ with sync_playwright() as p:
    page.locator('.report-download-panel').screenshot(path=str(OUT/f'{engine}-{width}-download.png'))
    expect(page.locator('#downloadAiReport')).to_be_enabled()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
+   partial=json.loads(json.dumps(fixture['normal']));partial['meta']['omittedItems']=1
+   current['response']=partial;page.locator('#refreshAiBtn').click()
+   expect(page.locator('[data-ai-omission-notice]')).to_contain_text('部分 AI 建議未能完整整理')
+   assert page.evaluate("createAIPDFReport().sections.find(s=>s.appendix).items.some(v=>v.includes('部分 AI 建議未能完整整理'))")
    current['response']=fixture['high'];page.locator('#refreshAiBtn').click()
    expect(page.locator('.action-safety')).to_be_visible()
    expect(page.locator('[data-report-section=plan]')).to_contain_text('諮詢')

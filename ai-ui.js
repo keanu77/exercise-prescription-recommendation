@@ -130,6 +130,7 @@ function validateAIResult(r) {
   return r?.success===true && r.schemaVersion===3 && ['actions','consultation'].includes(r.mode) &&
     ['low','moderate','high'].includes(r.risk) && r.meta?.rulesVersion===ExerciseRules.rulesVersion &&
     str(r.meta.model,100) && str(r.meta.provider,30) && str(r.meta.promptVersion,60) &&
+    (r.meta.omittedItems===undefined || Number.isInteger(r.meta.omittedItems) && r.meta.omittedItems>=0 && r.meta.omittedItems<=18) &&
     Number.isFinite(Date.parse(r.meta.generatedAt)) && str(r.safety,500) && validateDetailedReport(r.report);
 }
 function validateDetailedReport(report) {
@@ -138,10 +139,15 @@ function validateDetailedReport(report) {
     report.sections.every((s,i)=>s?.id===reportSectionIds[i] && text(s.title) && ['list','rows'].includes(s.kind) && Array.isArray(s.items) && s.items.length>0 && s.items.length<=30 &&
       s.items.every(item=>s.kind==='rows'?Array.isArray(item)&&item.length===2&&item.every(text):text(item)));
 }
+function aiOmissionNotice(r) {
+  return Number.isInteger(r.meta.omittedItems) && r.meta.omittedItems>0 ? '部分 AI 建議未能完整整理，已省略；以下保留可供參考的內容，請搭配原處方與安全提醒使用' : '';
+}
 function renderAIResult(r) {
   const root=aiEl('aiContent');root.replaceChildren();
   aiEl('aiContextPanel').open=false;
   root.append(element('p',r.report.summary,'action-summary'));
+  const omissionNotice=aiOmissionNotice(r);
+  if(omissionNotice) {const note=element('p',omissionNotice,'action-note');note.dataset.aiOmissionNotice='true';root.append(note);}
   if(r.mode==='consultation') root.append(element('p',r.safety,'action-safety'));
   const report=element('div',undefined,'ai-report-details');
   for(const section of r.report.sections) {
@@ -235,7 +241,7 @@ function createAIPDFReport() {
     sections:[
       ...prescriptionReport.sections,
       // The renderer keeps the prescription disclaimer before this new-page supplement.
-      {title:'07  AI 行動建議',kind:'paragraph',newPage:true,appendix:true,items:[r.report.summary,r.safety]},
+      {title:'07  AI 行動建議',kind:'paragraph',newPage:true,appendix:true,items:[r.report.summary,r.safety,...(aiOmissionNotice(r)?[aiOmissionNotice(r)]:[])]},
       ...aiActionPDFSections(r),
       {title:'AI 說明與限制',kind:'paragraph',items:['AI 依填寫的問題與生活情境撰寫分析和備案，安排中的運動量以本站核對後的處方為依據；未即時查詢研究，亦未完成個別醫療評估；請搭配本報告前段的運動處方與安全提醒使用，不能取代個別醫療建議']},
     ],
