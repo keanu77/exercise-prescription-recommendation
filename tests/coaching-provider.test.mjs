@@ -36,3 +36,15 @@ test('protective target and footwear statements remain accepted', async () => {
     assert.deepEqual(validateCoachingNarrative(JSON.stringify(value)).answer,[text]);
   }
 });
+
+test('Qwen structured output uses instruct mode and never returns reasoning as content', async t => {
+  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  globalThis.fetch=async (_url,init)=>{
+    const sent=JSON.parse(init.body);
+    assert.equal(sent.reasoning_effort,'none');assert.equal(sent.reasoning_format,'hidden');
+    assert.equal(sent.response_format.json_schema.strict,true);
+    return Response.json({choices:[{message:{content:'{}',reasoning:'PRIVATE_THOUGHTS'},finish_reason:'stop'}]});
+  };
+  const r=await callProvider('groq','synthetic','synthetic-key','qwen/qwen3.8-27b',{}, {schema:{}});
+  assert.equal(r.content,'{}');assert.doesNotMatch(JSON.stringify(r),/PRIVATE_THOUGHTS/);
+});
