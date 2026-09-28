@@ -1,5 +1,5 @@
 // Keep provider, budget reservation and synthetic evaluation on the same ceiling.
-export const COACHING_MAX_OUTPUT_TOKENS = 3500;
+export const COACHING_MAX_OUTPUT_TOKENS = 2800;
 export const COACHING_MAX_CONTENT_CHARS = 14000;
 export const COACHING_MAX_ATTEMPTS = 2;
 export const COACHING_TOTAL_TIMEOUT_MS = 45000;
