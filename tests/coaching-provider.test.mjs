@@ -56,3 +56,21 @@ test('English placeholders cannot pass as a completed Traditional Chinese report
  value.priorities[0].reason='Do not mention this field.';
  assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)),{code:'INVALID_OUTPUT',reason:'language',field:'priorities'});
 });
+
+test('vague preparation/rest time is distinct from a new exercise duration', async () => {
+ const {validateCoachingNarrative}=await import('../functions/_lib/coaching.js');
+ const {createCoachingSelection}=await import('./helpers/coaching-fixture.mjs');
+ const value=createCoachingSelection({consult:false,coachingContext:{setting:'home',equipment:[],availableDays:[],question:'',timeOfDay:'flexible'}});
+ for (const text of ['先休息幾分鐘，再確認原本安排是否可行','花幾分鐘整理用品','記錄胸悶持續幾分鐘']) {
+  value.answer=[text];assert.deepEqual(validateCoachingNarrative(JSON.stringify(value)).answer,[text]);
+ }
+ for (const text of ['先走幾分鐘','準備跑步幾分鐘','準備幾分鐘快走','準備幾分鐘的輕度快走','準備幾分鐘慢跑','準備幾分鐘的有氧運動','準備幾分鐘 快走','休息幾分鐘的慢跑','先花幾分鐘整理用品，然後走數分鐘','縮短為幾分鐘，等感覺恢復再延長']) {
+  value.answer=[text];assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)),{reason:'obvious_dose'});
+ }
+ for (const text of ['休息幾分鐘再跑步','休息幾分鐘，然後快走','休息幾分鐘後恢復運動','和醫師討論前可以先開始跑步']) {
+  value.answer=[text];assert.throws(()=>validateCoachingNarrative(JSON.stringify(value),{consult:true}),{reason:'consultation_directive'});
+ }
+ for (const text of ['休息幾分鐘，不要再跑步','詢問醫師能否恢復運動','詢問醫師是否可以恢復運動','確認何時可以恢復運動']) {
+  value.answer=[text];assert.deepEqual(validateCoachingNarrative(JSON.stringify(value),{consult:true}).answer,[text]);
+ }
+});
