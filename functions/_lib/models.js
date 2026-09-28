@@ -2,7 +2,7 @@
 export const MODELS = {
   groq: { name: 'Groq', envKey: 'GROQ_API_KEY', models: [
     { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B', siteEnabled: true, inputUSD: 0.15, outputUSD: 0.60 },
-    { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', siteEnabled: true, inputUSD: 0.80, outputUSD: 4.00 },
+    { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', siteEnabled: false, inputUSD: 0.80, outputUSD: 4.00 },
     { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B', siteEnabled: false, inputUSD: 0.075, outputUSD: 0.30 },
   ] },
   openai: { name: 'OpenAI', envKey: 'OPENAI_API_KEY', models: [
