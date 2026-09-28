@@ -22,7 +22,7 @@ import {validateUserData} from './functions/_lib/ai.js';
 import {buildAdviceContext,presentAdvice,RULES_VERSION,PROMPT_VERSION} from './functions/_lib/advice.js';
 const cases=JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases;
 const result=i=>{const ctx=buildAdviceContext(validateUserData(cases[i].data).data);return {success:true,schemaVersion:2,...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{provider:'groq',model:'test-only',generatedAt:'2026-09-27T00:00:00Z',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION}}};
-console.log(JSON.stringify({normal:result(0),high:result(9)}));
+console.log(JSON.stringify({normal:result(0),high:result(9),child:result(3),normalData:cases[0].data,highData:cases[9].data,childData:cases[3].data}));
 """],cwd=ROOT))
 
 
@@ -50,7 +50,10 @@ def verify_pdf(path, report):
         flow = flow.replace(compact(section['title'] + '（續）'), '')
         if section['kind'] == 'rows':
             for label, _value in section['items']:
-                flow = flow.replace(compact(label), '')
+                # Only long rows repeat their label inside a value. Removing every
+                # label would also erase real prose such as the tracking label 身體反應.
+                if len(str(_value)) > 1000:
+                    flow = flow.replace(compact(label), '')
     flow = re.sub(r'\d+/\d+', '', flow)
     for text in expected:
         # Values were sanitized with cleanPDFText in the browser before returning.
@@ -141,7 +144,7 @@ with sync_playwright() as p:
             assert len(library_requests) == 3, library_requests  # jsPDF, failed font, successful font
             assert not any('html2canvas' in url for url in library_requests)
 
-            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-report', 'ai-report-mobile', 'ai-consultation']
+            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-report', 'ai-report-mobile', 'ai-report-child', 'ai-report-long', 'ai-consultation']
             baseline = page.evaluate('JSON.parse(JSON.stringify(basicInfo))' if standalone else 'JSON.parse(JSON.stringify(window.lastFormData))')
             standard_text = None
             for scenario in scenarios:
@@ -174,7 +177,15 @@ with sync_playwright() as p:
                 ai_report = scenario.startswith('ai-report') or scenario == 'ai-consultation'
                 export_button = button
                 if ai_report:
-                    response = AI_FIXTURE['high' if scenario == 'ai-consultation' else 'normal']
+                    profile = 'high' if scenario == 'ai-consultation' else 'child' if scenario == 'ai-report-child' else 'normal'
+                    response = AI_FIXTURE[profile]
+                    page.evaluate('''({data, long}) => {
+                      window.lastFormData=data; window.lastPrescription=calculateFITTVP(data);
+                      if(long) {
+                        window.lastPrescription.progression='長表格測試：'+'每次活動後記錄感受與恢復狀況。'.repeat(180)+'表格結束。';
+                        window.lastPrescription.recommendations.push('長段落測試：'+'依計畫逐步活動並記錄身體反應。'.repeat(200)+'段落結束。');
+                      }
+                    }''', {'data': AI_FIXTURE[profile+'Data'], 'long': scenario == 'ai-report-long'})
                     page.route('**/api/providers', lambda route: route.fulfill(json={'schemaVersion':2,'providers':[{'id':'groq','name':'Groq','models':[{'id':'openai/gpt-oss-120b','name':'GPT-OSS 120B','requiresKey':False,'status':'本站基準'}]}],'defaultProvider':'groq'}))
                     page.route('**/api/ai-recommendation', lambda route: route.fulfill(json=response))
                     page.evaluate('loadAICatalog()')
@@ -196,6 +207,12 @@ with sync_playwright() as p:
                         assert len(alerts) == 2
                 report = page.evaluate('''aiReport => {
                   const report = aiReport ? createAIPDFReport() : createPDFReport();
+                  if(aiReport) {
+                    const core=createPDFReport();
+                    if(JSON.stringify(report.sections.slice(0,core.sections.length))!==JSON.stringify(core.sections) ||
+                       JSON.stringify(report.notice)!==JSON.stringify(core.notice) || report.disclaimer!==core.disclaimer)
+                      throw new Error('Combined PDF must retain the complete prescription and its safety notices');
+                  }
                   report.sections.forEach(s => s.items = s.items.map(i => Array.isArray(i) ? i.map(cleanPDFText) : cleanPDFText(i)));
                   return report;
                 }''', ai_report)
@@ -211,9 +228,13 @@ with sync_playwright() as p:
                 count, text = verify_pdf(target, report)
                 if ai_report:
                     assert event.value.suggested_filename.startswith('AI運動行動報告_')
-                    assert 'AI運動行動報告' in text and 'test-only' in text
+                    assert '運動處方與AI行動報告' in text and 'test-only' in text
                     assert '你的條件與本次重點' in text and '可直接使用的回顧紀錄' in text
-                    assert 'FITT-VP運動計畫' not in text, 'AI report must remain a standalone download'
+                    assert 'FITT-VP運動計畫' in text and '推薦運動範例' in text
+                    assert text.index('FITT-VP運動計畫') < text.index(compact(report['disclaimer'])) < text.index('07AI行動建議')
+                    pdf_pages = subprocess.check_output(['pdftotext', '-layout', str(target), '-'], text=True).split('\f')
+                    ai_start = next(i for i, value in enumerate(pdf_pages) if '07AI行動建議' in compact(value))
+                    assert ai_start >= 2 and '使用提醒' not in pdf_pages[ai_start], 'AI supplement starts on a separate page after clinical reminders'
                     if scenario == 'ai-report':
                         ai_standard_text = text
                         # A fresh user click can save again when automatic downloading is blocked.
@@ -226,8 +247,13 @@ with sync_playwright() as p:
                         assert page.locator('#pdfOpenLink').get_attribute('href').startswith('blob:')
                     elif scenario == 'ai-report-mobile':
                         assert text == ai_standard_text, 'Viewport changed AI report content'
-                    else:
+                    elif scenario == 'ai-consultation':
                         assert '就醫前整理' in text and '帶去詢問的問題' in text
+                        assert '高風險' in text and '心率區間' not in text
+                    elif scenario == 'ai-report-child':
+                        assert '未滿18歲' in text and '每日身體活動' in text
+                    elif scenario == 'ai-report-long':
+                        assert count >= 6 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'standard':
                     assert count == 2, count
                     standard_text = text

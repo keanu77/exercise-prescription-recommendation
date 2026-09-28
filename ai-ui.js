@@ -61,7 +61,7 @@ function setAIState(state) {
   aiEl('aiRecommendationSection').setAttribute('aria-busy',String(state==='loading'));
   aiEl('refreshAiBtn').classList.toggle('hidden',state==='idle'||state==='loading');
   aiEl('advancedAISettings').querySelectorAll('input,select').forEach(el=>{el.disabled=state==='loading';});
-  aiEl('aiDownloadHint').textContent=state==='content'?'完整 AI 報告已準備好，可下載保存':state==='loading'?'AI 報告產生中，完成後即可下載':'先產生上方 AI 建議，即可下載完整 AI 報告';
+  aiEl('aiDownloadHint').textContent=state==='content'?'PDF 將包含完整運動處方、安全提醒與 AI 行動建議':state==='loading'?'AI 報告產生中，完成後可連同運動處方一起下載':'先產生上方 AI 建議，即可下載包含運動處方的完整報告';
   updatePDFButtons();
 }
 function clearAIResult() {
@@ -193,15 +193,23 @@ function aiActionPDFSections(r) {
 }
 function createAIPDFReport() {
   if(!lastAIResult) throw new Error('請先產生 AI 行動建議。');
+  if(!window.lastFormData || !window.lastPrescription) throw new Error('請先完成評估，產生運動處方。');
   const r=lastAIResult;
+  // Reuse the complete displayed prescription; snapshot both parts before loading PDF assets.
+  const prescriptionReport=createPDFReport();
   return {
-    title:'AI 運動行動報告',
+    ...prescriptionReport,
+    title:'運動處方與 AI 行動報告',
     compact:true,
-    subtitle:r.mode==='consultation'?'你的條件、諮詢準備、重要提醒與回顧紀錄。':'你的條件、處方解讀、執行重點與回顧紀錄。',
+    subtitle:'完整運動處方、安全提醒、AI 行動建議與回顧紀錄。',
     date:new Date(r.meta.generatedAt).toLocaleDateString('zh-TW'),
-    notice:{level:r.risk,title:r.mode==='consultation'?'先完成醫療評估與諮詢':'依照目前處方安排活動',body:r.safety},
-    sections:[{title:'行動摘要',kind:'paragraph',items:[r.advice.summary]},...aiActionPDFSections(r)],
-    disclaimer:'AI 選取行動重點，個人條件解讀與安全提醒由本站依問卷及既有規則整理，不另開處方，也未即時查詢研究。請搭配標準運動處方與安全提醒使用；內容僅供參考，不能取代個別醫療建議。',
+    sections:[
+      ...prescriptionReport.sections,
+      // The renderer keeps the prescription disclaimer before this new-page supplement.
+      {title:'07  AI 行動建議',kind:'paragraph',newPage:true,appendix:true,items:[r.advice.summary,r.safety]},
+      ...aiActionPDFSections(r),
+      {title:'AI 說明與限制',kind:'paragraph',items:['AI 選取行動重點，個人條件解讀與安全提醒由本站依問卷及既有規則整理，不另開處方，也未即時查詢研究。請搭配本報告前段的運動處方與安全提醒使用；內容僅供參考，不能取代個別醫療建議。']},
+    ],
   };
 }
 document.addEventListener('DOMContentLoaded',()=>{loadAICatalog();aiEl('modelSelect').addEventListener('change',updateAIDestination);aiEl('customApiKey').addEventListener('input',updateRetryButtons);});

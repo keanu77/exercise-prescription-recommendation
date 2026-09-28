@@ -41,7 +41,9 @@ with sync_playwright() as p:
    assert page.locator('.action-item').count()==3
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
    expect(page.locator('#downloadAiReport')).to_be_visible()
-   assert page.evaluate('createAIPDFReport().sections[0].items[0]')==fixture['normal']['advice']['summary']
+   assert page.evaluate('createAIPDFReport().sections.find(s=>s.appendix).items[0]')==fixture['normal']['advice']['summary']
+   assert page.evaluate('JSON.stringify(createAIPDFReport().sections.slice(0,6))===JSON.stringify(createPDFReport().sections)')
+   expect(page.locator('#aiDownloadHint')).to_contain_text('完整運動處方')
    assert page.locator('#downloadPrescription, #includeAiInPdf, #aiPdfOption').count()==0
    assert page.locator('.ai-report-section').count()==6
    assert page.locator('.result-shell > :last-child').get_attribute('class')=='report-download-panel'
