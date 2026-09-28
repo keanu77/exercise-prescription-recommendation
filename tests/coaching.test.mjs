@@ -39,6 +39,8 @@ test('schema3 accepts useful generated prose and composes six sections with capp
   assert.equal(promptData.profile.ageGroup, 'adult');
   assert.equal(promptData.untrustedCoachingContext.timeWindow, 'short');
   assert.equal(promptData.untrustedCoachingContext.sessionMinutes, undefined);
+  assert.equal(promptData.untrustedCoachingContext.availableDays, undefined);
+  assert.equal(promptData.untrustedCoachingContext.datesProvided, true);
   assert.equal(promptData.baseline.time, undefined);
   assert.equal(promptData.baseline.frequency, undefined);
   assert.deepEqual(promptData.baseline.type, result.baseline.type);
