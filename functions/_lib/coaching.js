@@ -1,7 +1,7 @@
 import { buildAdviceContext, RULES_VERSION, SOURCE } from './advice.js';
 import { COACHING_MAX_CONTENT_CHARS } from './coaching-limits.js';
 export { RULES_VERSION };
-export const PROMPT_VERSION = 'personal-coaching-4';
+export const PROMPT_VERSION = 'personal-coaching-5';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const dayLabels = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -69,6 +69,12 @@ Return ONLY the JSON schema, with natural Traditional Chinese strings, no senten
 - nextQuestion: ask only the most useful missing information, never repeat something already supplied
 - action/obstacle labels: short headings; explanations belong in the paired text
 - needsClinicalReview: true if medical uncertainty is introduced; clinicalReason must then name the concrete question to resolve. Otherwise false and an empty clinicalReason
+REFERENCE EXAMPLES OF USEFUL DECISIONS (adapt to this person, do not assume these circumstances)
+居家、步行、下班很累：「先確認家中是否有適合熟悉步行的動線；有的話，把開始提示接在原本就會做的生活事件後。這樣省去交通與臨時選項，但不代表短時段就完成整份處方。若沒有合適空間，先找容易到達的熟悉場地，不另外換成未學過的動作」
+健身房、肌力與騎車、怕臨時決定：「出門前列出原處方中你已學過的項目，向場館確認熟悉器材是否可用。啞鈴操作是否熟悉仍未提供；若不熟悉，先預約操作指導，不在報告中安排動作。器材排隊時先詢問可用時段或改期，維持原處方的活動種類」
+有胸悶且想照處方跑步：「目前最需要釐清的是胸悶出現的情境，這份問卷不能回答是否能照原處方活動。把發生前在做什麼、伴隨感受及停止活動後的變化記下，帶著原處方向專業人員確認活動許可與限制」
+缺少情境：「目前還不知道你能安排的時段與偏好，先選出原處方內你已熟悉且容易到達場地的活動，再確認哪個生活事件能當開始提示」
+Use this decision-focused depth for ALL sections. Do not recommend slippers, socks-only walking, barefoot exercise, substitute movements, or cutting out a prescription component. Missing space/equipment/familiarity must be explicit rather than assumed
 Before responding, check every section against these boundaries, especially invented movements, vague quantities, target-completion claims and missing-context assumptions`;
 
 
@@ -89,6 +95,9 @@ const list = items => ({ type: 'array', minItems: 1, maxItems: 3, items });
 const pair = keys => ({ type: 'object', additionalProperties: false, required: keys, properties: Object.fromEntries(keys.map(key => [key, string(['action', 'obstacle'].includes(key) ? 100 : 600)])) });
 export function coachingSchema() {
   const properties = { summary: string(500), answer: list(string()), priorities: list(pair(['action', 'reason'])), practicalSteps: list(pair(['action', 'whenWhere'])), barriers: list(pair(['obstacle', 'alternative'])), review: list(string()), nextQuestion: string(300), needsClinicalReview: { type: 'boolean' }, clinicalReason: string(500, 0) };
+  properties.answer.description = '直接回答個人問題，缺資料用條件句，限既有處方與熟悉偏好的實作決策，不新增動作或份量';
+  properties.practicalSteps.description = '說明原處方活動選擇、場地使用、開始提示或指導需求；不得自行設計動作組合或課表';
+  properties.barriers.description = '具體調整場地、交通、提示或改期；不以新動作替代，不刪減處方種類，不加減量';
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 const invalid = (reason, field, doseKind) => { throw Object.assign(new Error('Invalid coaching output'), { code: 'INVALID_OUTPUT', reason, ...(field ? { field } : {}), ...(doseKind ? { doseKind } : {}) }); };
@@ -184,6 +193,10 @@ export function validateCoachingNarrative(content, ctx) {
     if (obviousHabitualExercise(text)) invalid('obvious_dose', field, 'habitual');
     if (obviousExerciseDose(text)) invalid('obvious_dose', field, 'count');
     if (scopedUnsafeMatch(text, unsafeAdvice)) invalid('unsafe_advice', field);
+    // Reproduced model errors: new movement routines, unsuitable footwear,
+    // omitted prescription components and claims of completing both targets.
+    // This is a targeted guard, not comprehensive clinical semantic validation.
+    if (scopedUnsafeMatch(text, /(?:做|進行|加入|改為|改成|轉為|開始|練習)(?:(?:簡短的|簡易的|站立式|徒手|一些|原地|自體重|幾個|熟悉的)){0,3}(?:伸展|抬腿|抬膝|踏步|深蹲|俯臥撐|伏地挺身|牆壁俯身)|(?:穿|換上)(?:舒適的)?(?:襪子|拖鞋)|(?:完成|達成|達到)(?:既有的|原有的|原訂的|完整的|所有的)?(?:有氧與肌力|肌力與有氧|全部訓練)(?:目標|需求)|(?:省去|省略|刪除|取消)(?:有氧|腳踏車|肌力)(?:環節|訓練|項目)?/u)) invalid('unsafe_advice', field);
     if (authoredCitation.test(text)) invalid('citation', field);
   }
   if ((value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid('clinical_flag', 'clinicalReason');
