@@ -30,7 +30,7 @@ test('schema3 accepts useful generated prose and composes six sections with capp
   assert.match(JSON.stringify(result.report.sections[2]), /15 分鐘/);
   assert.match(JSON.stringify(result.report.sections[2]), /不代表|不足|未達|差距/);
   assert.equal(calls[0].url, 'https://api.groq.com/openai/v1/chat/completions');
-  assert.equal(calls[0].redirect, 'error');
+  assert.equal(calls[0].redirect, 'manual');
   const payload = calls[0].body.messages[1].content;
   assert.ok(payload.includes(context.question));
   assert.match(payload, /home|在家/);
@@ -214,4 +214,17 @@ test('minors reject explicit adult weight-loss instructions while preserving pro
     const response = await post({ userData: { ...adult, age: 12 }, coachingContext: context });
     assert.equal(response.status, status, text);
   }
+});
+
+// Workers rejects redirect:error even though Node implements it
+// Manual mode must reject redirects without forwarding provider credentials
+test('provider uses Workers-compatible manual redirects and rejects redirected responses', async t => {
+  const original=globalThis.fetch; t.after(()=>{globalThis.fetch=original;});
+  let calls=0, canceled=false;
+  globalThis.fetch=async (_url,init)=>{
+    calls++; assert.equal(init.redirect,'manual');
+    return new Response(new ReadableStream({cancel(){canceled=true;}}),{status:302,headers:{Location:'https://untrusted.invalid'}});
+  };
+  assert.equal((await post({coachingContext:context})).status,502);
+  assert.equal(calls,1); assert.equal(canceled,true);
 });

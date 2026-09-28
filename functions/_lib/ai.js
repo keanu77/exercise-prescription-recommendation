@@ -235,7 +235,9 @@ export async function callProvider(provider, summary, apiKey, model, ctx, option
     url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;headers={'x-goog-api-key':apiKey};
     body={systemInstruction:{parts:[{text:systemPrompt}]},contents:[{role:'user',parts:[{text:summary}]}],generationConfig:{maxOutputTokens:maxOutputTokens,thinkingConfig:{thinkingLevel:'low'},responseMimeType:'application/json',responseJsonSchema:schema}};
   }
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(options.timeoutMs || 30000),redirect:'error'});
+  // Workers supports manual/follow; manual returns 3xx for rejection below,
+  // without forwarding provider credentials to a redirected destination
+  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(options.timeoutMs || 30000),redirect:'manual'});
   if(!response.ok) {
     await response.body?.cancel();
     throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
