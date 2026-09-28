@@ -33,7 +33,7 @@ with sync_playwright() as p:
         inlineStyle: document.querySelectorAll('style').length,
         purifyDefer: purify && purify.defer && !!purify.integrity && purify.crossOrigin === 'anonymous',
         purifyLoaded: typeof window.DOMPurify !== 'undefined',
-        fontWeights: document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis"]').href.includes('wght@400;500;700'),
+        fontWeights: document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis"]').href.includes('wght@400;500;600;700'),
         preconnectCdn: !!document.querySelector('link[rel="preconnect"][href*="cdnjs"]'),
         iconPos: cs('#ageIcon').position,
         wrapperPos: cs('.input-wrapper').position,
@@ -48,7 +48,7 @@ with sync_playwright() as p:
     }""")
     ok(st["inlineStyle"] == 0, "no inline <style> in index.html")
     ok(not st["purifyDefer"] and not st["purifyLoaded"], "structured cards require no external HTML sanitizer")
-    ok(st["fontWeights"] and st["preconnectCdn"], "font weights 400/500/700 + cdnjs preconnect")
+    ok(st["fontWeights"] and st["preconnectCdn"], "font weights 400/500/600/700 + cdnjs preconnect")
     ok(st["iconPos"] == "absolute" and st["wrapperPos"] == "relative", "validation icon/wrapper styles migrated", json.dumps({"icon": st["iconPos"], "wrap": st["wrapperPos"]}))
     ok(st["loadingModal"] == "none" and st["loadingModalActive"] == "flex" and st["spinnerAnim"] == "spin", "loading modal styles migrated", json.dumps({"m": st["loadingModal"], "a": st["loadingModalActive"], "s": st["spinnerAnim"]}))
     ok(st["inactiveStepOpacity"] == "1", "inactive step remains fully opaque")
@@ -114,7 +114,7 @@ with sync_playwright() as p:
     # PAR-Q 頁
     pg2 = b.new_page(); e2 = []; pg2.on("pageerror", lambda e: e2.append(str(e)))
     pg2.goto(BASE + "/parq-form.html"); pg2.wait_for_load_state("load")
-    st = pg2.evaluate("() => ({font: !!document.querySelector('link[href*=\"fonts.googleapis\"][href*=\"wght@400;500;700\"]'), importLeft: [...document.querySelectorAll('style')].some(s => s.textContent.includes('@import')), arity: loadScript.length})")
+    st = pg2.evaluate("() => ({font: !!document.querySelector('link[href*=\"fonts.googleapis\"][href*=\"wght@400;500;600;700\"]'), importLeft: [...document.querySelectorAll('style')].some(s => s.textContent.includes('@import')), arity: loadScript.length})")
     ok(st["font"] and not st["importLeft"] and st["arity"] == 2, "parq: font via link, no @import, loadScript integrity", json.dumps(st))
     pg2.evaluate("() => { window.alert = (m) => { window.__alert = m; }; document.getElementById('age').value = 200; document.getElementById('gender').value='male'; document.getElementById('height').value=170; document.getElementById('weight').value=70; proceedToPARQ(); }")
     st = pg2.evaluate("() => ({alert: window.__alert || '', active: document.activeElement.id})")
