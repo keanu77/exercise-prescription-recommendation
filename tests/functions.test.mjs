@@ -312,8 +312,10 @@ test('catalog exposes no secrets, candidates cannot consume site keys, old clien
  globalThis.fetch=async()=>{assert.fail('Ineligible candidates must not reach the provider');};
  const cat=publicCatalog({GROQ_API_KEY:'secret-fixture',OPENAI_API_KEY:'secret-fixture'});
  assert.equal(cat.defaultProvider,'groq');assert.deepEqual(cat.providers.map(p=>p.id),['groq']);assert.deepEqual(cat.available,{groq:true});
- assert.equal(cat.providers[0].models.find(m=>m.id==='qwen/qwen3.8-27b').requiresKey,true);
- assert.equal((await post({userData:GOOD,provider:'groq',model:'qwen/qwen3.8-27b'},{GROQ_API_KEY:'secret-fixture',RATE_LIMIT_KV:KV_OK})).status,400);
+ for (const model of ['qwen/qwen3.8-27b','openai/gpt-oss-20b']) {
+  assert.equal(cat.providers[0].models.find(m=>m.id===model).requiresKey,true);
+  assert.equal((await post({userData:GOOD,provider:'groq',model},{GROQ_API_KEY:'secret-fixture',RATE_LIMIT_KV:KV_OK})).status,400);
+ }
  const noSiteKey=publicCatalog({OPENAI_API_KEY:'secret-fixture'});assert.equal(noSiteKey.defaultProvider,null);assert.deepEqual(noSiteKey.available,{groq:false});assert.ok(noSiteKey.providers[0].models.every(m=>m.requiresKey));assert.doesNotMatch(JSON.stringify(cat),/secret-fixture|envKey/);
  let r=await post({userData:GOOD,provider:'openai'},{OPENAI_API_KEY:'key',RATE_LIMIT_KV:KV_OK});assert.equal(r.status,400);
  r=await post({schemaVersion:1,userData:GOOD},{});assert.equal(r.status,409);

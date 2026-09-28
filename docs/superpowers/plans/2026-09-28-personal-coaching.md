@@ -20,7 +20,7 @@ Contract and exact enum strings: ../specs/2026-09-28-personal-coaching-design.md
 Readiness gate: a person can identify what to do next, why it suits their stated constraint, what alternative to use and what to review, without receiving a duplicated generic template
 
 ## Local evidence before deployment
-- Decision-frame architecture: 84/84 Node tests and build:pages (28 files) passed on b121c2f; subsequent focused changes require their own verification
+- v12 decision-frame architecture: 88/88 Node tests and build:pages (28 files) passed; the final catalog disables both unevaluated candidates for site-key use
 - All 13 browser suites passed; Chromium/WebKit PDF checks covered 30 exports, including combined prescriptions, minors, consultation, long text and actual downloads
 - Context lifecycle tests passed on both engines: explicit consent, validation, none-equipment exclusion, cancel retains fields, edits abort stale responses/PDF and clear removes context
 - Spec review initially found negation false positives, consultation-directive escapes and occupation-word false positives; a1af1e9 resolves the reproduced cases (41 backend/report tests plus reviewer 27 targeted assertions)
@@ -31,3 +31,12 @@ Readiness gate: a person can identify what to do next, why it suits their stated
 - The fixed v11 GPT-OSS batch returned four reports, then stopped on a diagnosed daily token limit; it failed the minor content gate because the answer endorsed a weight-loss goal. These results are retained in the local audit and do not count as a six-case pass
 - Decision-frame UI and PDF integration passed Chromium/WebKit at 320/390/1280 widths and 30 actual PDF exports after the contract change
 - Final code quality review found no critical/important blockers; evaluator failed/incomplete runs now exit nonzero, verified with success/failure mocks (0/1)
+
+## Release gate status on 2026-09-28
+- v12 projects minor goals to enjoyable familiar activities and rejects the observed weight-loss endorsement without changing clinical inputs or prescription rules
+- v12 GPT-OSS 120B: home-short returned a reviewed acceptable answer; gym-long hit HTTP 429 / Retry-After 796 seconds, and the remaining four cases were not run
+- Qwen was not adopted: its first attempt failed a duration guard and the repair encountered a diagnosed TPM limit
+- GPT-OSS 20B was not adopted: its home answer claimed the short window could ensure completion of the target; the batch was stopped on this content failure
+- Keep GPT-OSS 120B as the default; retain both candidates as BYOK only
+- Source work can be saved and pushed, but production remains verified baseline 8d2f27f until the remaining fixed v12 cases and real UI/PDF release checks pass
+- Resume only gym-long, unknown-context, minor, symptom-question and consultation after provider capacity recovers; preserve home-short and all failures, do not reroll already reviewed answers
