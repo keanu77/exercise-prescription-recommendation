@@ -20,7 +20,7 @@ AI_FIXTURE = json.loads(subprocess.check_output(['node','--input-type=module','-
 import {readFileSync} from 'node:fs';
 import {createCoachingResponse} from './tests/helpers/coaching-fixture.mjs';
 const cases=JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases;
-const result=i=>{const response=createCoachingResponse(cases[i].data);response.meta.model='test-only';return response;};
+const result=i=>{const response=createCoachingResponse(cases[i].data);response.meta.model='test-only';response.meta.omittedItems=i===0?1:0;return response;};
 console.log(JSON.stringify({normal:result(0),high:result(9),child:result(3),normalData:cases[0].data,highData:cases[9].data,childData:cases[3].data}));
 """],cwd=ROOT))
 
