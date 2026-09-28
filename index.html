@@ -657,25 +657,70 @@
             <section id="aiRecommendationSection" class="mb-8" aria-labelledby="aiHeading">
                 <div class="card ai-card">
                     <div class="action-heading">
-                        <div><p class="action-kicker">下一步 · AI 協助整理</p><h3 id="aiHeading">把運動計畫帶進生活</h3></div>
+                        <div><p class="action-kicker">下一步 · AI 個人化規劃</p><h3 id="aiHeading">把你的問題，變成可執行的安排</h3></div>
                         <button type="button" id="refreshAiBtn" data-action="fetchAIRecommendation" class="hidden action-link">重新產生</button>
                     </div>
-                    <p class="action-intro">結合你的條件、處方與 AI 選取的重點，整理執行方式、限制調整及回顧紀錄</p>
+                    <p class="action-intro">告訴我們你想解決的問題與生活條件，取得適合自己的做法、選擇理由及遇到阻礙時的備案</p>
+                    <details id="aiContextPanel" class="coaching-context" open>
+                        <summary>補充你的時間與偏好 <span>選填</span></summary>
+                        <p class="action-note">不確定的項目可以留白，報告會說明還需要確認什麼；修改答案後，請重新產生報告</p>
+                        <div id="aiContextFields">
+                            <label for="aiQuestion" class="coaching-label">你最想解決的問題</label>
+                            <textarea id="aiQuestion" rows="3" maxlength="400" aria-describedby="aiQuestionHint" placeholder="例如：下班常被加班打斷，家裡只有彈力帶，想開始肌力訓練，怎麼安排比較能持續？"></textarea>
+                            <p id="aiQuestionHint" class="action-note">可寫最常卡住的情境、試過的做法，或想比較的選擇，最多 400 字；請勿填寫姓名、聯絡方式或其他可辨識個人的資料</p>
+                            <div class="coaching-fields-grid">
+                                <fieldset><legend>哪些日子通常有空</legend><div class="coaching-choices">
+                                    <label><input type="checkbox" name="aiDays" value="mon"><span>週一</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="tue"><span>週二</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="wed"><span>週三</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="thu"><span>週四</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="fri"><span>週五</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="sat"><span>週六</span></label>
+                                    <label><input type="checkbox" name="aiDays" value="sun"><span>週日</span></label>
+                                </div></fieldset>
+                                <div class="coaching-time-fields">
+                                    <div><label for="aiSessionMinutes" class="coaching-label">每次可空出的時間</label><select id="aiSessionMinutes"><option value="">還不確定</option value="10">10 分鐘</option><option value="15">15 分鐘</option><option value="20">20 分鐘</option><option value="30">30 分鐘</option><option value="45">45 分鐘</option><option value="60">60 分鐘</option><option value="90">90 分鐘</option></select></div>
+                                    <div><label for="aiTimeOfDay" class="coaching-label">方便的時段</label><select id="aiTimeOfDay"><option value="flexible">尚未固定</option value="morning">早上</option><option value="lunch">午間</option><option value="evening">傍晚或晚上</option></select></div>
+                                </div>
+                                <div><label for="aiSetting" class="coaching-label">主要活動場地</label><select id="aiSetting"><option value="flexible">還不確定</option><option value="home">家裡</option><option value="outdoors">戶外或公園</option><option value="gym">健身房或運動中心</option><option value="pool">游泳池</option></select></div>
+                                <fieldset><legend>目前可用的器材</legend><div class="coaching-choices">
+                                    <label><input type="checkbox" name="aiEquipment" value="none"><span>沒有器材</span></label>
+                                    <label><input type="checkbox" name="aiEquipment" value="mat"><span>瑜珈墊</span></label>
+                                    <label><input type="checkbox" name="aiEquipment" value="bands"><span>彈力帶</span></label>
+                                    <label><input type="checkbox" name="aiEquipment" value="dumbbells"><span>啞鈴</span></label>
+                                    <label><input type="checkbox" name="aiEquipment" value="machines"><span>訓練器械</span></label>
+                                    <label><input type="checkbox" name="aiEquipment" value="bike"><span>自行車</span></label>
+                                </div></fieldset>
+                            </div>
+                            <fieldset><legend>想做或喜歡的活動 <span class="action-note">最多選 3 項</span></legend><div class="coaching-choices">
+                                <label><input type="checkbox" name="aiPreferences" value="walking"><span>健走</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="running"><span>跑步</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="cycling"><span>騎車</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="swimming"><span>游泳</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="strength"><span>肌力訓練</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="dance"><span>跳舞</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="ball"><span>球類</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="mindbody"><span>伸展或身心活動</span></label>
+                                <label><input type="checkbox" name="aiPreferences" value="play"><span>遊戲與親子活動</span></label>
+                            </div></fieldset>
+                        </div>
+                        <p id="aiContextError" class="hidden action-error" role="alert"></p>
+                    </details>
                     <p id="aiDestination" class="action-destination" aria-live="polite">正在確認可用的 AI 服務…</p>
                     <div id="aiConsent">
-                        <div class="action-preview" aria-hidden="true"><span>01　今天怎麼開始</span><span>02　遇到限制怎麼調整</span><span>03　下次要觀察什麼</span></div>
-                        <p class="action-privacy">按下按鈕後，年齡、性別、身高體重、健康狀況、運動習慣、目標、限制及 PAR-Q 回答會經本站處理，將個人概況與核對後的處方傳給上述服務；內容不含姓名或聯絡方式；資料處理依各服務商條款；不使用 AI，標準處方仍完整可用</p>
+                        <div class="action-preview" aria-hidden="true"><span>01　回答你的問題</span><span>02　安排與選擇理由</span><span>03　備案與回顧</span></div>
+                        <p class="action-privacy">按下按鈕後，健康問卷、個人概況、核對後的處方，以及上方填寫的問題、時間與偏好會傳給上述服務；請勿填入可辨識個人的資料；資料處理依服務商條款；不使用 AI，標準處方仍完整可用</p>
                         <button type="button" id="generateAiBtn" data-action="fetchAIRecommendation" class="btn-primary" disabled>產生我的行動建議</button>
                     </div>
                     <div id="aiLoading" class="hidden action-loading" role="status" aria-live="polite">
-                        <p>正在依你的處方整理行動重點，請稍候…</p>
+                        <p>正在對照你的問題、生活條件與處方，整理安排和替代方案，請稍候…</p>
                         <button type="button" data-action="cancelAIRecommendation" class="action-link">取消等待</button>
                     </div>
                     <div id="aiContent" class="hidden" aria-live="polite"></div>
                     <div id="aiError" class="hidden action-error" role="alert"><p>行動建議暫時無法使用</p><p id="aiErrorMessage"></p><p>你仍可使用上方的標準處方</p></div>
                     <p id="aiRetryStatus" role="status" class="action-note"></p>
-                    <div id="aiProviderBadge" class="hidden action-note">由 <span id="aiProviderName">AI</span> 協助選取行動重點，處方與安全提醒由本站規則提供</div>
-                    <p class="action-note">AI 依個人條件選取行動重點，處方解讀與安全提醒由本站依填寫資料整理，不另開處方，也未即時查詢研究；內容僅供參考，不能取代個別醫療建議</p>
+                    <div id="aiProviderBadge" class="hidden action-note">由 <span id="aiProviderName">AI</span> 依你的情境撰寫，運動量與必要提醒以本站處方為依據</div>
+                    <p class="action-note">AI 建議是依填寫內容整理的執行參考，不能代替個別醫療評估；健康狀況改變時，請先確認原處方是否仍適用</p>
                     <div class="action-settings">
                         <button type="button" id="toggleAdvancedAI" aria-expanded="false" aria-controls="advancedAISettings" data-action="toggleAdvancedAISettings" class="action-link"><span id="advancedAIIcon" aria-hidden="true">⌄</span> 進階設定：Groq 模型與金鑰</button>
                         <div id="advancedAISettings" class="hidden action-settings-fields">
@@ -742,7 +787,7 @@
                 <div class="report-download-buttons" role="group" aria-label="下載報告">
                     <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary" aria-describedby="aiDownloadHint" disabled>下載 AI 報告 PDF</button>
                 </div>
-                <p id="aiDownloadHint" class="action-note" role="status">先產生上方 AI 建議，即可下載完整 AI 報告</p>
+                <p id="aiDownloadHint" class="action-note" role="status">先產生上方 AI 建議，即可下載包含運動處方的完整報告</p>
                 <div id="pdfDownloadFeedback" class="hidden pdf-download-feedback" role="status">
                     <p id="pdfDownloadMessage"></p>
                     <div id="pdfDownloadLinks" class="hidden">

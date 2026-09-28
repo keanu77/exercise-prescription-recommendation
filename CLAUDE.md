@@ -22,10 +22,10 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
 
-### 兩段式處方：共用規則＋選用 AI 行動卡
+### 兩段式處方：共用規則＋選用個人化 AI 報告
 1. `prescription-rules.js` 包含原樣抽出的 `calculateFITTVP`、PAR-Q 與 safety caps，供瀏覽器及 Pages Function 共用。修改規則時在此檔操作；`script.js` 處理表單與顯示。
-2. `ai-ui.js` 先讀取 `/api/providers` 目錄，使用者同意後送 schemaVersion:2 與表單資料。伺服器嚴格驗證完整問卷、忽略 client 處方並重算可信 baseline。
-3. `functions/_lib/report.js` 依經伺服器驗證的資料與原 baseline 建立六節詳細報告（個人條件、處方解讀、限制、流程、安全、回顧表）；需要諮詢者不新增運動劑量，所有原 warnings 保留。`functions/_lib/advice.js` 依條件建立行動項目；AI 只回適用 ID，伺服器驗證後轉成三張固定卡片。高風險／需追蹤者只提供諮詢準備。文字用 DOM textContent 顯示，沒有模型 HTML。
+2. `ai-ui.js` 先讀取 `/api/providers` 目錄，使用者同意後送 schemaVersion:3、表單資料與選填 coachingContext（個人問題、時間、場地、器材與偏好）。伺服器嚴格驗證完整問卷、忽略 client 處方並重算可信 baseline。
+3. `functions/_lib/coaching.js` 建立可信處方邊界，要求 AI 真正撰寫問題回答、行動與原因、情境步驟、障礙備案、回顧及追問；伺服器組成 report version 2 的六節報告，保留所有 warnings。模型不得另開數字課表；具體日期與可用時間由伺服器在原處方內安排，缺資料明示未知。有症狀、需諮詢或兒少者不新增數字課表；模型只能提高需諮詢警戒，不能降低原問卷風險。明顯違規文字會拒收，但驗證不代表醫療正確性。前端只用 textContent。`advice.js` / `report.js` 保留作舊模板比較及既有 baseline context，不再使用舊 ID-only 回覆流程。
 4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
@@ -37,10 +37,10 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - 視覺變更不可改動風險分級語意色、醫療提醒、AI 同意流程或處方公式。
 
 ### 表單與輸出流程
-- 主入口先呈現標準處方與下載／修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
-- 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
+- 主入口先呈現標準處方與修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
+- 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／生活情境／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入本站 `assets/vendor/jspdf.umd.min.js`（原 pinned 2.5.1 與 SRI）及本機中文字型，20秒逾時、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁僅保留「下載 AI 報告 PDF」，位於所有報告內容與參考說明之後、頁尾之前；AI 未完成時 disabled 並說明原因。一般處方下載按鈕及合併附錄勾選已移除，PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 提供完整 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。獨立 AI PDF 用 compact 留白，字級不縮小。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁僅保留「下載 AI 報告 PDF」，位於所有報告內容與參考說明之後、頁尾之前；AI 未完成時 disabled 並說明原因。一般處方下載按鈕及合併附錄勾選已移除，PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 沿用 `createPDFReport()` 的完整處方、風險提醒與免責說明，再另頁附上六節個人化 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。合併 PDF 用 compact 留白，字級不縮小。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。
@@ -56,12 +56,12 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - q1 心臟病／高血壓、q5 服用處方藥 → `hrZoneUnsafe`，不給心率區間改用 RPE（ACSM）。
 - 改規則要共用引擎與獨立問卷一起核對，並更新 README 的說明。
 
-### functions/：四家 provider 的結構化 proxy
-- `ai-recommendation.js`：CORS、100KiB body、schemaVersion:2、完整正規化、10次/IP/分鐘、站方預算、可信規則、provider adapter、選取 ID 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
-- 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在後端供相容用途，不顯示在網站。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
-- `ai.js` 只取正規化資料；`advice.js` 控制文案、適用性、schema、來源。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
+### functions/：Groq 個人化報告與既有 provider adapter
+- `ai-recommendation.js`：CORS、100KiB body、schemaVersion:3、完整問卷與生活情境正規化、10次/IP/分鐘、站方預算、可信規則、Groq strict JSON 與 narrative 驗證。舊版本回409要求重整，截斷／拒答不呈现為完整結果。
+- 模型單一目錄在 `functions/_lib/models.js`；前端不可硬編碼模型。公開 `/api/providers` 及進階設定只顯示 Groq；其他 adapter 留在共用工具供相容測試，個人化端點只接受 Groq。候選模型僅 BYOK，可用站方模型由 `siteEnabled` 控制；目前基準為 Groq GPT-OSS120B。沒有跨供應商自動重試。
+- `ai.js` 管理正規化與 provider 呼叫；`coaching.js` 管理提示詞、schema、明顯違規檢查與報告組裝。禁止把自由輸入或 upstream 錯誤正文寫到 logs。
 - `budget.js` 預設每日 US$2，`AI_DAILY_BUDGET_USD` 可調、最高10；按最大輸入／輸出 token 成本預留。KV 非原子，這是盡力防線，非帳單硬上限。站方 KV 故障 fail-closed；自帶金鑰由使用者帳號付費。
-- `scripts/evaluate-ai.mjs`：30合成案例×3次，先預留成本、$10上限即停止。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
+- `coaching-limits.js` 共用 5000 output token 上限，adapter、站方預算與 evaluator 一致；上游逾時 45 秒、client 65 秒。`scripts/evaluate-ai.mjs` 預設六個合成情境各一次，可先用 AI_EVAL_CASES 小量檢查，先預留成本、US$1 上限即停止，保留失敗與旧模板對照。不要對真實健康資料跑評測；人工醫療評分不可由腳本代填。
 
 ### 表單驗證與前端多入口
 - 主表單 `novalidate` 由 `validateCurrentStep(step)` 統一處理 required、min/max、step 與單選；最終送出重新驗證全部步驟，顯示並聚焦第一個錯誤。身高／體重接受一位小數，年齡維持整數。
@@ -80,5 +80,6 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - `_headers` 對原始 `/*.js` `/*.css` 設 `max-age=0, must-revalidate`，但實測自訂網域會覆寫為四小時瀏覽器快取。正式 HTML 因此使用打包時產生的內容雜湊檔名，避免新頁面搭舊 JS；不要依賴快取標頭或手動更新版本字串。`test_asset_updates.py` 使用真實瀏覽器快取驗證部署更新後仍可一鍵產生 AI 報告。
 - Zeabur 版 Express server 已於 2026-09-26 移除（git tag `zeabur-final` 可回溯）。本機開發一律 `npm run dev`。
 
-### AI 生活行動卡
-- 規劃 `docs/ai-redesign-plan-2026-09-27.md`；本轮實作、可執行驗證與限制見 `docs/ai-redesign-implementation-2026-09-27.md`。其他候選模型與人工評分仍待有效帳號實測，不能以 mock 推論醫療品質。
+### AI 個人化報告
+- 最新設計與執行計畫：`docs/superpowers/specs/2026-09-28-personal-coaching-design.md`、`docs/superpowers/plans/2026-09-28-personal-coaching.md`。補充欄位只留目前頁面記憶體，不寫草稿；編輯時中止請求、使報告與 PDF 失效，取消保留輸入，清除評估清空輸入
+- 舊版規劃 `docs/ai-redesign-plan-2026-09-27.md`；本轮實作、可執行驗證與限制見 `docs/ai-redesign-implementation-2026-09-27.md`。其他候選模型與人工評分仍待有效帳號實測，不能以 mock 推論醫療品質。

@@ -659,6 +659,7 @@ function clearAssessment() {
   for (const id of ["prescriptionSummary", "fittpDetails", "exerciseGuidelines"]) {
     document.getElementById(id).replaceChildren();
   }
+  clearCoachingContext();
   resetAISection();
   document.getElementById("customApiKey").value = "";
   document.getElementById("aiProviderSelect").value = "auto";

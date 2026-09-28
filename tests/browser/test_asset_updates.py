@@ -12,12 +12,10 @@ if 'BUILT_SITE_DIR' not in os.environ:
     subprocess.run(['npm', 'run', 'build:pages'], cwd=ROOT, check=True, capture_output=True)
 fixture = json.loads(subprocess.check_output(['node', '--input-type=module', '-e', """
 import {readFileSync} from 'node:fs';
-import {validateUserData} from './functions/_lib/ai.js';
-import {buildAdviceContext,presentAdvice,RULES_VERSION,PROMPT_VERSION} from './functions/_lib/advice.js';
+import {createCoachingResponse} from './tests/helpers/coaching-fixture.mjs';
 import {publicCatalog} from './functions/_lib/models.js';
 const data=JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases[0].data;
-const ctx=buildAdviceContext(validateUserData(data).data);
-const report={success:true,schemaVersion:2,...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{provider:'groq',model:'openai/gpt-oss-120b',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION,generatedAt:new Date().toISOString()}};
+const report=createCoachingResponse(data);
 console.log(JSON.stringify({data,report,catalog:publicCatalog({GROQ_API_KEY:'fixture'})}));
 """], cwd=ROOT))
 CSP = next(line.split(':',1)[1].strip() for line in (ROOT/'_headers').read_text().splitlines() if line.strip().startswith('Content-Security-Policy:'))
@@ -46,7 +44,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         assert self.path == '/api/ai-recommendation'
         payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        assert payload['schemaVersion']==2 and payload['provider']=='groq'
+        assert payload['schemaVersion']==3 and payload['provider']=='groq'
         Handler.ai_requests += 1
         self.reply(json.dumps(fixture['report']), 'application/json')
     def end_headers(self):

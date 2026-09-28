@@ -1,4 +1,4 @@
-"""Structured action cards: consent, safe text, cancellation, retries, PDF and mobile."""
+"""Personal coaching reports: consent, safe text, cancellation, retries, PDF and mobile."""
 import os,json,subprocess
 from pathlib import Path
 from playwright.sync_api import sync_playwright,expect
@@ -8,11 +8,10 @@ OUT=Path(os.environ.get('AI_OUTPUT_DIR',str(ROOT/'.claude/audit/ai-report-v2-202
 OUT.mkdir(parents=True,exist_ok=True)
 fixture=json.loads(subprocess.check_output(['node','--input-type=module','-e',"""
 import {readFileSync} from 'node:fs';
-import {validateUserData} from './functions/_lib/ai.js';
-import {buildAdviceContext,presentAdvice,RULES_VERSION,PROMPT_VERSION} from './functions/_lib/advice.js';
+import {createCoachingResponse} from './tests/helpers/coaching-fixture.mjs';
 import {publicCatalog} from './functions/_lib/models.js';
 const cases=JSON.parse(readFileSync('tests/fixtures/ai-cases.json')).cases;
-const result=i=>{const ctx=buildAdviceContext(validateUserData(cases[i].data).data);return {success:true,schemaVersion:2,...presentAdvice(Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)])),ctx),meta:{provider:'groq',model:'openai/gpt-oss-120b',rulesVersion:RULES_VERSION,promptVersion:PROMPT_VERSION,generatedAt:new Date().toISOString()}}};
+const result=i=>createCoachingResponse(cases[i].data);
 console.log(JSON.stringify({catalog:publicCatalog({GROQ_API_KEY:'fixture'}),normal:result(0),high:result(9),data:cases[0].data}));
 """],cwd=ROOT))
 with sync_playwright() as p:
@@ -36,12 +35,14 @@ with sync_playwright() as p:
    expect(page.locator('#aiDestination')).to_contain_text('Groq')
    page.locator('#generateAiBtn').click()
    expect(page.locator('#aiContent')).to_be_visible()
-   assert len(calls)==1 and calls[0]['schemaVersion']==2 and 'prescription' not in calls[0]['userData']
+   assert len(calls)==1 and calls[0]['schemaVersion']==3 and 'prescription' not in calls[0]['userData']
    assert calls[0]['provider']=='groq' and calls[0]['model']=='openai/gpt-oss-120b', 'Pin the provider shown before consent'
-   assert page.locator('.action-item').count()==3
+   assert page.locator('[data-report-section]').count()==6
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
    expect(page.locator('#downloadAiReport')).to_be_visible()
-   assert page.evaluate('createAIPDFReport().sections[0].items[0]')==fixture['normal']['advice']['summary']
+   assert page.evaluate('createAIPDFReport().sections.find(s=>s.appendix).items[0]')==fixture['normal']['report']['summary']
+   assert page.evaluate('JSON.stringify(createAIPDFReport().sections.slice(0,6))===JSON.stringify(createPDFReport().sections)')
+   expect(page.locator('#aiDownloadHint')).to_contain_text('完整運動處方')
    assert page.locator('#downloadPrescription, #includeAiInPdf, #aiPdfOption').count()==0
    assert page.locator('.ai-report-section').count()==6
    assert page.locator('.result-shell > :last-child').get_attribute('class')=='report-download-panel'
@@ -51,14 +52,15 @@ with sync_playwright() as p:
    expect(page.locator('#downloadAiReport')).to_be_enabled()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
    current['response']=fixture['high'];page.locator('#refreshAiBtn').click()
-   expect(page.locator('.action-item h4').first).to_have_text('就醫前整理')
+   expect(page.locator('.action-safety')).to_be_visible()
+   expect(page.locator('[data-report-section=plan]')).to_contain_text('諮詢')
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-consult.png'))
-   current['response']={'success':True,'schemaVersion':2,'recommendation':'<script>window.injection=true</script>'}
+   current['response']={'success':True,'schemaVersion':3,'recommendation':'<script>window.injection=true</script>'}
    page.locator('#refreshAiBtn').click();expect(page.locator('#aiError')).to_be_visible()
    assert page.evaluate('!window.injection && lastAIResult===null')
    assert page.evaluate('()=>{try{createAIPDFReport();return false;}catch{return true;}}')
    # Even a hostile same-origin text fixture is rendered as text, never HTML.
-   evil=json.loads(json.dumps(fixture['normal']));evil['advice']['summary']='<img src=x onerror="window.injection=true">'
+   evil=json.loads(json.dumps(fixture['normal']));evil['report']['summary']='<img src=x onerror="window.injection=true">'
    current['response']=evil;page.locator('#refreshAiBtn').click()
    expect(page.locator('#aiContent')).to_contain_text('<img src=x')
    assert page.locator('#aiContent img').count()==0
@@ -95,6 +97,6 @@ with sync_playwright() as p:
    page.locator('#refreshAiBtn').click();expect(page.locator('#aiContent')).to_be_visible()
    assert calls[-1]['customApiKey']=='fixture-own-key'
    assert not errors,errors
-   print(f'[OK] {engine}/{width}: consent, cards, consultation, PDF selection, malformed output, XSS, 429, cancel/stale, catalog')
+   print(f'[OK] {engine}/{width}: consent, six report sections, consultation, PDF selection, malformed output, XSS, 429, cancel/stale, catalog')
    page.close()
   browser.close()
