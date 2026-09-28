@@ -27,8 +27,8 @@ export function validateCoachingContext(raw) {
   checkArray('preferences', ['walking', 'running', 'cycling', 'swimming', 'strength', 'dance', 'ball', 'mindbody', 'play'], 3);
   if (Array.isArray(data.equipment) && data.equipment.includes('none') && data.equipment.length > 1) errors.push('無器材不可與其他器材同選');
   if (![null, 10, 15, 20, 30, 45, 60, 90].includes(data.sessionMinutes)) errors.push('可用時間選項無效');
-  if (!Object.hasOwn(timeLabels, data.timeOfDay)) errors.push('時段選項無效');
-  if (!Object.hasOwn(settingLabels, data.setting)) errors.push('場地選項無效');
+  if (typeof data.timeOfDay !== 'string' || !Object.hasOwn(timeLabels, data.timeOfDay)) errors.push('時段選項無效');
+  if (typeof data.setting !== 'string' || !Object.hasOwn(settingLabels, data.setting)) errors.push('場地選項無效');
   return { valid: errors.length === 0, errors, data: errors.length ? null : data };
 }
 

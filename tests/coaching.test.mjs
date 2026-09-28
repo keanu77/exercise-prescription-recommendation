@@ -48,6 +48,23 @@ test('invalid coaching data is rejected before KV or provider calls and old vers
   assert.equal((await post({ schemaVersion: 2 })).status, 409);
 });
 
+test('coaching time and setting reject non-string JSON values before KV or upstream', async t => {
+  const calls = mock(t); let kvCalls = 0;
+  const env = { GROQ_API_KEY: 'fixture', RATE_LIMIT_KV: { get: async () => { kvCalls++; return '0'; }, put: async () => { kvCalls++; } } };
+  for (const key of ['timeOfDay', 'setting']) {
+    for (const value of [0, null, [], ['flexible'], {}, { toString: 1 }]) {
+      const response = await post({ coachingContext: { [key]: value }, customApiKey: null }, env);
+      assert.equal(response.status, 400, JSON.stringify({ [key]: value }));
+      assert.equal((await response.json()).success, false);
+    }
+  }
+  for (const key of ['__proto__', 'constructor', 'toString']) {
+    const response = await post({ coachingContext: JSON.parse(`{"${key}":"unexpected"}`), customApiKey: null }, env);
+    assert.equal(response.status, 400, key);
+  }
+  assert.equal(kvCalls, 0); assert.equal(calls.length, 0);
+});
+
 test('unknown availability remains unknown and profile contrasts reach upstream intact', async t => {
   const calls = mock(t);
   let response = await post({});
