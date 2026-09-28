@@ -19,6 +19,8 @@ import { reserveSiteBudget } from "../functions/_lib/budget.js";
 import { readFileSync } from "node:fs";
 import { corsHeadersFor } from "../functions/_lib/http.js";
 import { onRequestPost } from "../functions/api/ai-recommendation.js";
+import { buildCoachingContext, validateCoachingContext } from '../functions/_lib/coaching.js';
+import { createCoachingSelection } from './helpers/coaching-fixture.mjs';
 
 const GOOD = {
   age: 35,
@@ -36,6 +38,7 @@ const GOOD = {
 };
 
 const validChoice = Object.fromEntries(Object.entries(buildAdviceContext(validateUserData(GOOD).data).catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)]));
+const validNarrative = createCoachingSelection(buildCoachingContext(validateUserData(GOOD).data, validateCoachingContext().data));
 const KV_OK = { get: async () => "0", put: async () => {} };
 const KV_FULL = { get: async () => "10", put: async () => {} };
 const KV_READ_FAIL = { get: async () => { throw new Error("unavailable"); }, put: async () => {} };
@@ -45,7 +48,7 @@ function post(body, env) {
   const request = new Request("https://example.com/api/ai-recommendation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({schemaVersion:2,...body}),
+    body: JSON.stringify({schemaVersion:3,...body}),
   });
   return onRequestPost({ request, env });
 }
@@ -94,7 +97,7 @@ test("corsHeadersFor: 比對完整 origin（含 scheme）", () => {
 test("handler: 驗證與白名單在限流之前", async () => {
   let rateLimitCalls = 0;
   const kv = { get: async () => { rateLimitCalls++; return "0"; }, put: async () => {} };
-  let r = await asJson(await post({ userData: GOOD, provider: "claude", model: "claude-3-opus-20240229" }, { ANTHROPIC_API_KEY: "k", RATE_LIMIT_KV: kv }));
+  let r = await asJson(await post({ userData: GOOD, provider: "groq", model: "not-allowed-model" }, { GROQ_API_KEY: "k", RATE_LIMIT_KV: kv }));
   assert.equal(r.status, 400);
   assert.match(r.body.error, /允許清單/);
   assert.equal(rateLimitCalls, 0);
@@ -126,7 +129,7 @@ test("handler: auto 附帶任意金鑰不能繞過 KV 缺失、讀取或寫入�
   let upstreamCalls = 0;
   globalThis.fetch = async () => {
     upstreamCalls++;
-    return Response.json({ choices: [{ message: { content: JSON.stringify(validChoice) }, finish_reason: "stop" }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify(validNarrative) }, finish_reason: "stop" }] });
   };
   t.after(() => { globalThis.fetch = originalFetch; });
 
@@ -143,17 +146,16 @@ test("handler: auto 附帶任意金鑰不能繞過 KV 缺失、讀取或寫入�
 
 test("handler: structured result, rejects truncation, hides upstream bodies and respects retry-after", async t=>{
  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
- const ctx=buildAdviceContext(validateUserData(GOOD).data);
- const selection=Object.fromEntries(Object.entries(ctx.catalog).map(([k,v])=>[k,Object.keys(v).slice(0,2)]));
+ const selection=validNarrative;
  globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify(selection)},finish_reason:'stop'}],usage:{prompt_tokens:100,completion_tokens:50}});
  let r=await asJson(await post({userData:GOOD},{GROQ_API_KEY:'k',RATE_LIMIT_KV:KV_OK}));
- assert.equal(r.status,200);assert.equal(r.body.mode,'consultation');assert.equal(r.body.schemaVersion,2);
- assert.equal(r.body.advice.startToday.length,2);assert.equal(r.body.baseline.intensity,'light');
+ assert.equal(r.status,200);assert.equal(r.body.mode,'consultation');assert.equal(r.body.schemaVersion,3);
+ assert.equal(r.body.report.sections.length,6);assert.equal(r.body.baseline.intensity,'light');
  globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify(selection)},finish_reason:'length'}]});
  r=await asJson(await post({userData:GOOD,provider:'groq',customApiKey:'k'},{}));
  assert.equal(r.status,502);assert.match(r.body.error,/完整性/);assert.equal(r.body.advice,undefined);
  globalThis.fetch=async()=>new Response('private medical content',{status:401});
- r=await asJson(await post({userData:GOOD,provider:'claude',customApiKey:'k'},{}));
+ r=await asJson(await post({userData:GOOD,provider:'groq',customApiKey:'k'},{}));
  assert.equal(r.status,400);assert.match(r.body.error,/金鑰無效/);assert.doesNotMatch(JSON.stringify(r),/private/);
  globalThis.fetch=async()=>new Response('secret',{status:429,headers:{'Retry-After':'27'}});
  const res=await post({userData:GOOD,provider:'groq',customApiKey:'k'},{});
@@ -208,11 +210,11 @@ test("handler: 串流正確還原跨 chunk 的 UTF-8，且接受恰好 100KiB", 
   let upstreamSummary;
   globalThis.fetch = async (_url, init) => {
     upstreamSummary = JSON.parse(init.body).messages[1].content;
-    return Response.json({ choices: [{ message: { content: JSON.stringify(validChoice) }, finish_reason: "stop" }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify(validNarrative) }, finish_reason: "stop" }] });
   };
   t.after(() => { globalThis.fetch = originalFetch; });
   const encoder = new TextEncoder();
-  const jsonText = JSON.stringify({ schemaVersion:2, userData: GOOD, provider: "groq", customApiKey: "own-key-fixture" });
+  const jsonText = JSON.stringify({ schemaVersion:3, userData: GOOD, provider: "groq", customApiKey: "own-key-fixture" });
   const bytes = encoder.encode(jsonText + " ".repeat(100 * 1024 - encoder.encode(jsonText).length));
   const split = encoder.encode(jsonText.slice(0, jsonText.indexOf("有氧運動"))).length + 1;
   const stream = new ReadableStream({
@@ -301,8 +303,8 @@ test('refusal and incomplete output never pass adapters',async t=>{
 });
 test('daily site budget reserves before call, caps exhausted days, fails closed on corrupt/unavailable KV',async()=>{
  let balance='0';const kv={get:async()=>balance,put:async(k,v)=>{balance=v;}};
- assert.equal((await reserveSiteBudget({RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0.004'},MODELS.groq.models[0])).allowed,true);
- assert.equal((await reserveSiteBudget({RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0.004'},MODELS.groq.models[0])).allowed,false);
+ assert.equal((await reserveSiteBudget({RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0.006'},MODELS.groq.models[0])).allowed,true);
+ assert.equal((await reserveSiteBudget({RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0.006'},MODELS.groq.models[0])).allowed,false);
  for(const env of [{},{RATE_LIMIT_KV:KV_READ_FAIL},{RATE_LIMIT_KV:KV_WRITE_FAIL},{RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'bad'},{RATE_LIMIT_KV:kv,AI_DAILY_BUDGET_USD:'0'}]) assert.equal((await reserveSiteBudget(env,MODELS.groq.models[0])).allowed,false);
 });
 test('catalog exposes no secrets, candidates cannot consume site keys, old client receives refresh notice',async()=>{

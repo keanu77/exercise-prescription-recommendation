@@ -1,6 +1,7 @@
 // KV is eventually consistent: this is a conservative daily spending guard,
 // NOT an atomic hard billing cap. Also set provider account limits for a hard cap.
 // Reserve maximum input/output cost before calling; failed requests retain reservation.
+import { COACHING_MAX_OUTPUT_TOKENS } from './coaching-limits.js';
 export async function reserveSiteBudget(env, model, inputTokenBound = 12000) {
   const kv=env.RATE_LIMIT_KV;
   const raw=env.AI_DAILY_BUDGET_USD ?? '2';
@@ -9,7 +10,7 @@ export async function reserveSiteBudget(env, model, inputTokenBound = 12000) {
   const today=new Date().toISOString().slice(0,10);
   const retryAfter=Math.ceil((Date.parse(today+'T00:00:00Z')+86400000-Date.now())/1000);
   const key='ai-budget:'+today;
-  const reservation=(inputTokenBound*model.inputUSD+1800*model.outputUSD)/1e6;
+  const reservation=(inputTokenBound*model.inputUSD+COACHING_MAX_OUTPUT_TOKENS*model.outputUSD)/1e6;
   try {
     const spent=Number(await kv.get(key)||0);
     if(!Number.isFinite(spent)||spent<0) throw new Error('budget unavailable');

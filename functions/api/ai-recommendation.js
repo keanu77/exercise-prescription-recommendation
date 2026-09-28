@@ -3,14 +3,15 @@
  * 流程：CORS → 讀 body → 驗證並正規化 → 限流 → 依 provider 呼叫 AI → 統一 JSON 回應。
  * 金鑰來自 Pages 專案的 Secrets（GROQ_API_KEY 等），使用者也可自帶 customApiKey。
  */
-import { validateUserData, sanitizeApiKey, buildUserSummary, callProvider, SYSTEM_PROMPT } from "../_lib/ai.js";
+import { validateUserData, sanitizeApiKey, callProvider } from "../_lib/ai.js";
 import { MODELS, DEFAULT_MODELS, MODEL_ALLOWLIST, publicCatalog } from "../_lib/models.js";
-import { buildAdviceContext, validateSelection, presentAdvice, adviceSchema, RULES_VERSION, PROMPT_VERSION } from "../_lib/advice.js";
+import { validateCoachingContext, buildCoachingContext, buildCoachingPrompt, coachingSchema, validateCoachingNarrative, presentCoaching, COACHING_SYSTEM_PROMPT, RULES_VERSION, PROMPT_VERSION } from "../_lib/coaching.js";
+import { COACHING_MAX_OUTPUT_TOKENS, COACHING_MAX_CONTENT_CHARS } from "../_lib/coaching-limits.js";
 import { reserveSiteBudget } from "../_lib/budget.js";
 import { json, corsHeadersFor, corsPreflight, checkRateLimit } from "../_lib/http.js";
 
 const MAX_BODY_BYTES = 100 * 1024;
-const VALID_PROVIDERS = ["auto", "groq", "claude", "gemini", "openai"];
+const VALID_PROVIDERS = ["auto", "groq"];
 const RATE_LIMIT = { scope: "ai", limit: 10, windowSeconds: 60 };
 
 export const onRequestOptions = corsPreflight;
@@ -95,9 +96,9 @@ export async function onRequestPost({ request, env }) {
   const body = await readJsonBody(request);
   if (body.error) return json({ success: false, error: body.error }, body.status, extra);
 
-  const { schemaVersion, userData, provider = "auto", model = null, customApiKey = null } = body.payload || {};
+  const { schemaVersion, userData, coachingContext, provider = "auto", model = null, customApiKey = null } = body.payload || {};
 
-  if (schemaVersion !== 2) return json({success:false,error:"網站已更新，請重新整理頁面後再產生建議"},409,extra);
+  if (schemaVersion !== 3) return json({success:false,error:"網站已更新，請重新整理頁面後再產生建議"},409,extra);
   if (!userData) {
     return json({ success: false, error: "缺少用戶資料" }, 400, extra);
   }
@@ -109,6 +110,8 @@ export async function onRequestPost({ request, env }) {
       extra,
     );
   }
+  const coachingValidation = validateCoachingContext(coachingContext);
+  if (!coachingValidation.valid) return json({success:false,error:`生活情境驗證失敗: ${coachingValidation.errors.join(', ')}`},400,extra);
   if (!VALID_PROVIDERS.includes(provider)) {
     return json({ success: false, error: "AI 提供商選項無效" }, 400, extra);
   }
@@ -144,10 +147,10 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
-  const context = buildAdviceContext(validation.data);
-  const userSummary = buildUserSummary(validation.data, context);
+  const context = buildCoachingContext(validation.data, coachingValidation.data);
+  const userSummary = buildCoachingPrompt(context);
   // UTF-8 bytes conservatively bound token count, plus protocol overhead.
-  const inputTokenBound = new TextEncoder().encode(SYSTEM_PROMPT + userSummary + JSON.stringify(adviceSchema(context))).byteLength + 1000;
+  const inputTokenBound = new TextEncoder().encode(COACHING_SYSTEM_PROMPT + userSummary + JSON.stringify(coachingSchema())).byteLength + 1000;
   if (inputTokenBound > 48000) return json({success:false,error:"本次資料超過 AI 處理上限，請使用標準處方"},400,extra);
   if (!usingOwnKey) {
     const budget = await reserveSiteBudget(env, modelInfo, inputTokenBound);
@@ -155,8 +158,8 @@ export async function onRequestPost({ request, env }) {
   }
   const started = Date.now();
   try {
-    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context);
-    const selection = validateSelection(result.content, context);
+    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context, {systemPrompt:COACHING_SYSTEM_PROMPT,schema:coachingSchema(),schemaName:'personal_coaching',maxOutputTokens:COACHING_MAX_OUTPUT_TOKENS,maxContentChars:COACHING_MAX_CONTENT_CHARS,timeoutMs:45000});
+    const selection = validateCoachingNarrative(result.content, context);
     const usage = result.usage;
     const estimatedCostUSD = usage.inputTokens === null || usage.outputTokens === null ? null :
       (usage.inputTokens * modelInfo.inputUSD + usage.outputTokens * modelInfo.outputUSD) / 1e6;
@@ -164,7 +167,7 @@ export async function onRequestPost({ request, env }) {
       generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD};
     // Deliberately omit profile, prompt, selected actions, raw response and API key from logs.
     console.info(JSON.stringify({event:"ai_complete",...meta}));
-    return json({success:true,schemaVersion:2,...presentAdvice(selection,context),meta},200,extra);
+    return json({success:true,schemaVersion:3,...presentCoaching(selection,context),meta},200,extra);
   } catch (error) {
     console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",status:error?.upstreamStatus||null,durationMs:Date.now()-started}));
     const { message, status } = describeUpstreamError(error, usingOwnKey);

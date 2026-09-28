@@ -190,28 +190,57 @@ export function parseRetryAfter(raw, now=Date.now()) {
   return Number.isFinite(n)&&n>=0 ? Math.min(Math.ceil(n),86400) : null;
 }
 const MAX_OUTPUT_TOKENS=1800;
-export async function callProvider(provider, summary, apiKey, model, ctx) {
-  const schema=adviceSchema(ctx), messages=[{role:'system',content:SYSTEM_PROMPT},{role:'user',content:summary}];
+async function readProviderEnvelope(response) {
+  const maximum = 128 * 1024;
+  const incomplete = () => Object.assign(new Error('Incomplete response'), { code: 'INCOMPLETE_OUTPUT' });
+  if (Number(response.headers.get('Content-Length')) > maximum) {
+    await response.body?.cancel();
+    throw incomplete();
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw incomplete();
+  let size = 0, raw = '';
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maximum) { await reader.cancel(); throw incomplete(); }
+      raw += decoder.decode(value, { stream: true });
+    }
+    return JSON.parse(raw + decoder.decode());
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    if (error?.name === 'AbortError' || error?.name === 'TimeoutError') throw error;
+    throw incomplete();
+  } finally { reader.releaseLock(); }
+}
+export async function callProvider(provider, summary, apiKey, model, ctx, options = {}) {
+  const schema=options.schema || adviceSchema(ctx), systemPrompt=options.systemPrompt || SYSTEM_PROMPT;
+  const maxOutputTokens=options.maxOutputTokens || MAX_OUTPUT_TOKENS;
+  const schemaName=options.schemaName || 'action_cards';
+  const messages=[{role:'system',content:systemPrompt},{role:'user',content:summary}];
   let url, headers, body;
   if(provider==='groq') {
     url='https://api.groq.com/openai/v1/chat/completions'; headers={Authorization:`Bearer ${apiKey}`};
-    body={model,messages,max_completion_tokens:MAX_OUTPUT_TOKENS,reasoning_effort:'low',response_format:{type:'json_schema',json_schema:{name:'action_cards',strict:true,schema}}};
+    body={model,messages,max_completion_tokens:maxOutputTokens,reasoning_effort:'low',response_format:{type:'json_schema',json_schema:{name:schemaName,strict:true,schema}}};
   } else if(provider==='openai') {
     url='https://api.openai.com/v1/responses';headers={Authorization:`Bearer ${apiKey}`};
-    body={model,input:messages,store:false,max_output_tokens:MAX_OUTPUT_TOKENS,reasoning:{effort:'low'},text:{format:{type:'json_schema',name:'action_cards',strict:true,schema}}};
+    body={model,input:messages,store:false,max_output_tokens:maxOutputTokens,reasoning:{effort:'low'},text:{format:{type:'json_schema',name:schemaName,strict:true,schema}}};
   } else if(provider==='claude') {
     url='https://api.anthropic.com/v1/messages';headers={'x-api-key':apiKey,'anthropic-version':'2023-06-01'};
-    body={model,max_tokens:MAX_OUTPUT_TOKENS,system:SYSTEM_PROMPT,messages:messages.slice(1),output_config:{format:{type:'json_schema',schema}}};
+    body={model,max_tokens:maxOutputTokens,system:systemPrompt,messages:messages.slice(1),output_config:{format:{type:'json_schema',schema}}};
   } else {
     url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;headers={'x-goog-api-key':apiKey};
-    body={systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},contents:[{role:'user',parts:[{text:summary}]}],generationConfig:{maxOutputTokens:MAX_OUTPUT_TOKENS,thinkingConfig:{thinkingLevel:'low'},responseMimeType:'application/json',responseJsonSchema:schema}};
+    body={systemInstruction:{parts:[{text:systemPrompt}]},contents:[{role:'user',parts:[{text:summary}]}],generationConfig:{maxOutputTokens:maxOutputTokens,thinkingConfig:{thinkingLevel:'low'},responseMimeType:'application/json',responseJsonSchema:schema}};
   }
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(options.timeoutMs || 30000),redirect:'error'});
   if(!response.ok) {
     await response.body?.cancel();
     throw Object.assign(new Error('Upstream request failed'),{code:'UPSTREAM_ERROR',upstreamStatus:response.status,retryAfter:parseRetryAfter(response.headers.get('Retry-After'))});
   }
-  const result=await response.json();
+  const result=await readProviderEnvelope(response);
   let content, complete=false, inputTokens, outputTokens;
   if(provider==='groq') {
     const choice=result.choices?.[0];content=choice?.message?.content;complete=choice?.finish_reason==='stop'&&!choice?.message?.refusal;
@@ -227,7 +256,7 @@ export async function callProvider(provider, summary, apiKey, model, ctx) {
     const candidate=result.candidates?.[0];content=(candidate?.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join('');complete=candidate?.finishReason==='STOP'&&!result.promptFeedback?.blockReason;
     inputTokens=result.usageMetadata?.promptTokenCount;outputTokens=(result.usageMetadata?.candidatesTokenCount||0)+(result.usageMetadata?.thoughtsTokenCount||0);
   }
-  if(!complete||typeof content!=='string'||!content.trim()||content.length>10000) throw Object.assign(new Error('Incomplete response'),{code:'INCOMPLETE_OUTPUT'});
+  if(!complete||typeof content!=='string'||!content.trim()||content.length>(options.maxContentChars || 10000)) throw Object.assign(new Error('Incomplete response'),{code:'INCOMPLETE_OUTPUT'});
   const count=n=>Number.isSafeInteger(n)&&n>=0?n:null;
   return {content,model,usage:{inputTokens:count(inputTokens),outputTokens:count(outputTokens)}};
 }
