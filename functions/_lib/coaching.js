@@ -84,7 +84,7 @@ export function buildCoachingPrompt(ctx) {
     untrustedCoachingContext: { ...proseContext, timeWindow } });
 }
 
-const string = (maxLength = 600, minLength = 1) => ({ type: 'string', minLength, maxLength, pattern: '^[^0-9０-９<>]*$' });
+const string = (maxLength = 600, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = items => ({ type: 'array', minItems: 1, maxItems: 3, items });
 const pair = keys => ({ type: 'object', additionalProperties: false, required: keys, properties: Object.fromEntries(keys.map(key => [key, string(['action', 'obstacle'].includes(key) ? 100 : 600)])) });
 export function coachingSchema() {
