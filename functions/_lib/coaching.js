@@ -143,7 +143,7 @@ function obviousHabitualExercise(text) {
   return clauses.some((clause, i) => i > 0 && continuation.test(clause) && scopedUnsafeMatch(clauses[i - 1] + clause, habitualExercise));
 }
 
-function scopedUnsafeMatch(text, pattern) {
+function scopedUnsafeMatch(text, pattern, extraNegation) {
   // Negation and clinician questions must govern this particular action. A word
   // such as "討論" elsewhere in the sentence cannot clear an exercise directive.
   const clauses = text.split(/[,;!?，。；！？\n]/u);
@@ -152,7 +152,7 @@ function scopedUnsafeMatch(text, pattern) {
       const prefix = clause.slice(0, match.index);
       const negated = /(?:不要|不應該|不應|不宜|不可以|不可|不能|無法|避免|勿|別|不建議|不代表|不等於|無須|不必|不需|不需要|不套用)(?:(?:自行|擅自|隨意|直接|額外|立刻|立即|馬上|繼續|再|先|在家|開始|進行|去|就|做|自己|可以|一定|完全|會|能|把|目前的|目前|降壓|降糖|止痛|套用)){0,6}$/u.test(prefix);
       const clinicianQuestion = /(?:詢問|問|確認|討論)[^,;!?，。；！？\n]{0,24}(?:是否|能否|何時|可否|能不能|可不可以|適不適合)(?:(?:自己|現在|目前|才|還|再|需要|應該)){0,3}$/u.test(prefix);
-      if (negated || clinicianQuestion) continue;
+      if (negated || clinicianQuestion || extraNegation?.test(prefix)) continue;
       return true;
     }
   }
@@ -196,7 +196,9 @@ export function validateCoachingNarrative(content, ctx) {
     // Reproduced model errors: new movement routines, unsuitable footwear,
     // omitted prescription components and claims of completing both targets.
     // This is a targeted guard, not comprehensive clinical semantic validation.
-    if (scopedUnsafeMatch(text, /(?:做|進行|加入|改為|改成|轉為|開始|練習)(?:(?:簡短的|簡易的|站立式|徒手|一些|原地|自體重|幾個|熟悉的)){0,3}(?:伸展|抬腿|抬膝|踏步|深蹲|俯臥撐|伏地挺身|牆壁俯身)|(?:穿|換上)(?:舒適的)?(?:襪子|拖鞋)|(?:完成|達成|達到)(?:既有的|原有的|原訂的|完整的|所有的)?(?:有氧與肌力|肌力與有氧|全部訓練)(?:目標|需求)|(?:省去|省略|刪除|取消)(?:有氧|腳踏車|肌力)(?:環節|訓練|項目)?/u)) invalid('unsafe_advice', field);
+    if (scopedUnsafeMatch(text, /(?:做|進行|加入|改為|改成|轉為|開始|練習)(?:(?:簡短的|簡易的|站立式|徒手|一些|原地|自體重|幾個|熟悉的)){0,3}(?:伸展|抬腿|抬膝|踏步|深蹲|俯臥撐|伏地挺身|牆壁俯身)|(?:省去|省略|刪除|取消)(?:有氧|腳踏車|肌力)(?:環節|訓練|項目)?/u)) invalid('unsafe_advice', field);
+    if (scopedUnsafeMatch(text, /(?:完成|達成|達到)(?:既有的|原有的|原訂的|完整的|所有的)?(?:有氧與肌力|肌力與有氧|全部訓練)(?:目標|需求)/u, /(?:尚未|還未|還沒|未能|尚未能|不代表(?:已經|已)?|不能保證|不保證)$/u)) invalid('unsafe_advice', field);
+    if (scopedUnsafeMatch(text, /(?:穿|換上)(?:舒適的)?(?:襪子或)?拖鞋|(?:只穿|僅穿|光穿)(?:一雙)?襪子/u)) invalid('unsafe_advice', field);
     if (authoredCitation.test(text)) invalid('citation', field);
   }
   if ((value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid('clinical_flag', 'clinicalReason');

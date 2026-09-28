@@ -22,8 +22,17 @@ test('coaching may request more reasoning while diagnostics never expose provide
 test('coaching rejects reproduced invented routines and false target-completion claims', async () => {
   const { validateCoachingNarrative } = await import('../functions/_lib/coaching.js');
   const { createCoachingSelection } = await import('./helpers/coaching-fixture.mjs');
-  for (const text of ['改為原地踏步', '可以先做簡短的伸展', '直接進行站立式抬腿', '換上舒適的拖鞋', '完成有氧與肌力目標', '省去腳踏車環節']) {
+  for (const text of ['改為原地踏步', '可以先做簡短的伸展', '直接進行站立式抬腿', '換上舒適的拖鞋', '完成有氧與肌力目標', '省去腳踏車環節', '只穿襪子', '不能保證完成有氧與肌力目標，但這樣就能完成有氧與肌力目標', '避免只穿襪子，改穿拖鞋']) {
     const value = createCoachingSelection({ consult:false, coachingContext:{ setting:'home', equipment:['none'], availableDays:[], question:'', timeOfDay:'flexible' } }); value.answer=[text];
     assert.throws(()=>validateCoachingNarrative(JSON.stringify(value)), {code:'INVALID_OUTPUT',reason:'unsafe_advice'},text);
+  }
+});
+
+test('protective target and footwear statements remain accepted', async () => {
+  const { validateCoachingNarrative } = await import('../functions/_lib/coaching.js');
+  const { createCoachingSelection } = await import('./helpers/coaching-fixture.mjs');
+  for (const text of ['目前尚未完成有氧與肌力目標', '這個安排不代表已經完成有氧與肌力目標', '不能保證完成有氧與肌力目標', '避免只穿襪子', '換上襪子與合腳的運動鞋', '先穿襪子再穿運動鞋']) {
+    const value = createCoachingSelection({ consult:false, coachingContext:{ setting:'home', equipment:['none'], availableDays:[], question:'', timeOfDay:'flexible' } }); value.answer=[text];
+    assert.deepEqual(validateCoachingNarrative(JSON.stringify(value)).answer,[text]);
   }
 });
