@@ -134,7 +134,7 @@ test('site reservation uses exactly adapter output ceiling and unsupported provi
   assert.equal((await post({ customApiKey: null, coachingContext: context }, { GROQ_API_KEY: 'fixture', RATE_LIMIT_KV: kv })).status, 200);
   const sent = calls[0].body;
   const input = new TextEncoder().encode(sent.messages.map(m => m.content).join('') + JSON.stringify(sent.response_format.json_schema.schema)).byteLength + 1000;
-  assert.equal(reserved, (input * 0.15 + sent.max_completion_tokens * 0.6) / 1e6);
+  assert.equal(reserved, ((input * 2 + 1000) * 0.15 + sent.max_completion_tokens * 2 * 0.6) / 1e6);
   assert.ok(sent.max_completion_tokens >= 4096);
   assert.equal((await post({ provider: 'openai' })).status, 400);
   assert.equal(calls.length, 1);

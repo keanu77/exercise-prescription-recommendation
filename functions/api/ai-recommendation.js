@@ -3,10 +3,11 @@
  * 流程：CORS → 讀 body → 驗證並正規化 → 限流 → 依 provider 呼叫 AI → 統一 JSON 回應。
  * 金鑰來自 Pages 專案的 Secrets（GROQ_API_KEY 等），使用者也可自帶 customApiKey。
  */
-import { validateUserData, sanitizeApiKey, callProvider } from "../_lib/ai.js";
+import { validateUserData, sanitizeApiKey } from "../_lib/ai.js";
 import { MODELS, DEFAULT_MODELS, MODEL_ALLOWLIST, publicCatalog } from "../_lib/models.js";
-import { validateCoachingContext, buildCoachingContext, buildCoachingPrompt, coachingSchema, validateCoachingNarrative, presentCoaching, COACHING_SYSTEM_PROMPT, RULES_VERSION, PROMPT_VERSION } from "../_lib/coaching.js";
-import { COACHING_MAX_OUTPUT_TOKENS, COACHING_MAX_CONTENT_CHARS } from "../_lib/coaching-limits.js";
+import { validateCoachingContext, buildCoachingContext, buildCoachingPrompt, coachingSchema, presentCoaching, COACHING_SYSTEM_PROMPT, RULES_VERSION, PROMPT_VERSION } from "../_lib/coaching.js";
+import { coachingTokenReservation } from "../_lib/coaching-limits.js";
+import { runCoaching } from "../_lib/coaching-runner.js";
 import { safeOutputDiagnostic } from "../_lib/ai-diagnostics.js";
 import { reserveSiteBudget } from "../_lib/budget.js";
 import { json, corsHeadersFor, corsPreflight, checkRateLimit } from "../_lib/http.js";
@@ -154,18 +155,17 @@ export async function onRequestPost({ request, env }) {
   const inputTokenBound = new TextEncoder().encode(COACHING_SYSTEM_PROMPT + userSummary + JSON.stringify(coachingSchema())).byteLength + 1000;
   if (inputTokenBound > 48000) return json({success:false,error:"本次資料超過 AI 處理上限，請使用標準處方"},400,extra);
   if (!usingOwnKey) {
-    const budget = await reserveSiteBudget(env, modelInfo, inputTokenBound);
+    const reservation = coachingTokenReservation(inputTokenBound);
+    const budget = await reserveSiteBudget(env, modelInfo, reservation.inputTokens, reservation.outputTokens);
     if (!budget.allowed) return json({success:false,retryScope:"site",error:budget.error},503,{...extra,"Retry-After":String(budget.retryAfter)});
   }
   const started = Date.now();
   try {
-    const result = await callProvider(chosen, userSummary, apiKey, chosenModel, context, {systemPrompt:COACHING_SYSTEM_PROMPT,schema:coachingSchema(),schemaName:'personal_coaching',maxOutputTokens:COACHING_MAX_OUTPUT_TOKENS,maxContentChars:COACHING_MAX_CONTENT_CHARS,reasoningEffort:'medium',timeoutMs:45000});
-    const selection = validateCoachingNarrative(result.content, context);
-    const usage = result.usage;
+    const { selection, usage, attempts } = await runCoaching({provider:chosen,summary:userSummary,apiKey,model:chosenModel,context});
     const estimatedCostUSD = usage.inputTokens === null || usage.outputTokens === null ? null :
       (usage.inputTokens * modelInfo.inputUSD + usage.outputTokens * modelInfo.outputUSD) / 1e6;
     const meta = {provider:chosen,model:chosenModel,promptVersion:PROMPT_VERSION,rulesVersion:RULES_VERSION,
-      generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD};
+      generatedAt:new Date().toISOString(),durationMs:Date.now()-started,usage,estimatedCostUSD,attempts};
     // Deliberately omit profile, prompt, selected actions, raw response and API key from logs.
     console.info(JSON.stringify({event:"ai_complete",...meta}));
     return json({success:true,schemaVersion:3,...presentCoaching(selection,context),meta},200,extra);

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { validateUserData } from '../functions/_lib/ai.js';
 import { buildCoachingContext, validateCoachingContext, buildCoachingPrompt, coachingSchema, COACHING_SYSTEM_PROMPT } from '../functions/_lib/coaching.js';
-import { COACHING_MAX_OUTPUT_TOKENS } from '../functions/_lib/coaching-limits.js';
+import { COACHING_MAX_OUTPUT_TOKENS, COACHING_MAX_ATTEMPTS, coachingTokenReservation } from '../functions/_lib/coaching-limits.js';
 import { buildAdviceContext, presentAdvice } from '../functions/_lib/advice.js';
 import { MODELS, DEFAULT_MODELS } from '../functions/_lib/models.js';
 
@@ -19,6 +19,8 @@ const customApiKey = process.env[MODELS[provider].envKey] || null;
 const output = process.env.AI_EVAL_OUTPUT || '.claude/audit/personal-coaching-20260928/evaluation.json';
 const repeats = Number(process.env.AI_EVAL_REPEATS || 1);
 if (!Number.isInteger(repeats) || repeats < 1 || repeats > 2) throw new Error('AI_EVAL_REPEATS must be 1..2');
+const delayMs = Number(process.env.AI_EVAL_DELAY_MS ?? 65000);
+if (!Number.isInteger(delayMs) || delayMs < 0 || delayMs > 120000) throw new Error('AI_EVAL_DELAY_MS must be an integer in 0..120000');
 if (fs.existsSync(output)) throw new Error('Evaluation output exists; choose a new AI_EVAL_OUTPUT to preserve prior costs and evidence');
 const fixtures = JSON.parse(fs.readFileSync('tests/fixtures/ai-cases.json')).cases;
 const base = { ...fixtures[0].data, age: 35, health_status: 'healthy', diseases: [], limitations: ['time'], fitness_level: 'good', exercise_goal: 'health', parq_answers: Object.fromEntries(Array.from({ length: 7 }, (_, i) => ['parq_q' + (i + 1), 'no'])) };
@@ -33,14 +35,15 @@ const allCases = [
 const selected = process.env.AI_EVAL_CASES?.split(',').map(x => x.trim()).filter(Boolean);
 if (selected?.some(id => !allCases.some(c => c.id === id)) || selected && new Set(selected).size !== selected.length) throw new Error('AI_EVAL_CASES contains unknown or duplicate ids');
 const cases = selected?.length ? allCases.filter(c => selected.includes(c.id)) : allCases;
-const report = { provider, model, syntheticOnly: true, startedAt: new Date().toISOString(), budgetUSD: 1, reservedUSD: 0, reportedCostUSD: 0, outputTokenCeiling: COACHING_MAX_OUTPUT_TOKENS, results: [], humanReview: 'pending', criteria: 'Automated success covers transport, report structure and baseline preservation only; usefulness, factual accuracy and clinical suitability need human review' };
+const report = { provider, model, syntheticOnly: true, startedAt: new Date().toISOString(), budgetUSD: 1, reservedUSD: 0, reportedCostUSD: 0, outputTokenCeiling: COACHING_MAX_OUTPUT_TOKENS, maxAttempts: COACHING_MAX_ATTEMPTS, requestDelayMs: delayMs, results: [], humanReview: 'pending', criteria: 'Automated success covers transport, report structure and baseline preservation only; usefulness, factual accuracy and clinical suitability need human review' };
 fs.mkdirSync(path.dirname(output), { recursive: true });
 const persist = () => fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
 evaluation: for (const c of cases) for (let repeat = 0; repeat < repeats; repeat++) {
   const data = validateUserData(c.data).data;
   const ctx = buildCoachingContext(data, validateCoachingContext(c.coachingContext).data);
   const bytes = Buffer.byteLength(COACHING_SYSTEM_PROMPT + buildCoachingPrompt(ctx) + JSON.stringify(coachingSchema())) + 1000;
-  const reserve = (bytes * pricing.inputUSD + COACHING_MAX_OUTPUT_TOKENS * pricing.outputUSD) / 1e6;
+  const reservation = coachingTokenReservation(bytes);
+  const reserve = (reservation.inputTokens * pricing.inputUSD + reservation.outputTokens * pricing.outputUSD) / 1e6;
   if (report.reservedUSD + reserve > report.budgetUSD) { report.stopped = 'budget'; persist(); process.exit(2); }
   report.reservedUSD += reserve; persist();
   const legacy = buildAdviceContext(data);
@@ -60,7 +63,7 @@ evaluation: for (const c of cases) for (let repeat = 0; repeat < repeats; repeat
   report.results.push(result); persist();
   console.log(JSON.stringify({ completed: report.results.length, total: cases.length * repeats, success: result.success, status: result.status, case: c.id }));
   if (result.status === 429 || result.status === 503) { report.stopped = 'upstream_limit'; persist(); break evaluation; }
-  if (report.results.length < cases.length * repeats) await new Promise(resolve => setTimeout(resolve, 7000));
+  if (report.results.length < cases.length * repeats) await new Promise(resolve => setTimeout(resolve, delayMs));
 }
 const times = report.results.map(r => r.durationMs).sort((a, b) => a - b);
 report.summary = { completed: report.results.length, passed: report.results.filter(r => r.success).length, p95Ms: times[Math.ceil(times.length * .95) - 1] };
