@@ -3,7 +3,7 @@ import { COACHING_MAX_CONTENT_CHARS } from './coaching-limits.js';
 import { buildDecisionFrame } from './coaching-frame.js';
 export { buildDecisionFrame };
 export { RULES_VERSION };
-export const PROMPT_VERSION = 'personal-coaching-12';
+export const PROMPT_VERSION = 'personal-coaching-13';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const dayLabels = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -68,8 +68,8 @@ export function buildCoachingPrompt(ctx) {
   const { sessionMinutes, availableDays, ...proseContext } = coachingContext;
   const timeWindow = sessionMinutes === null ? 'unknown' : sessionMinutes <= 20 ? 'short' : sessionMinutes <= 45 ? 'medium' : 'long';
   return JSON.stringify({ profile: { ageGroup: ctx.minor ? 'child_or_adolescent' : d.age >= 65 ? 'older_adult' : 'adult', gender: d.gender, diseases: d.diseases, fitness: d.fitness_level, habit: d.exercise_habit, goal: ctx.minor ? 'enjoyable_familiar_activities' : d.exercise_goal, limitations: d.limitations },
-    baseline: { intensity: baseline.intensity, type: baseline.type, includesResistanceTraining: Boolean(baseline.resistanceTraining), dosesRenderedSeparately: true }, risk: ctx.risk.level,
-    constraints: { consultation: ctx.consult, minor: ctx.minor, unknownAvailability: !coachingContext.availableDays.length || sessionMinutes === null, noModelAuthoredDose: true, modelMayOnlyRaiseClinicalConcern: true },
+    baseline: ctx.minor ? { dosesRenderedSeparately: true } : { intensity: baseline.intensity, type: baseline.type, includesResistanceTraining: Boolean(baseline.resistanceTraining), dosesRenderedSeparately: true }, risk: ctx.risk.level,
+    constraints: { consultation: ctx.consult, minor: ctx.minor, unknownAvailability: !coachingContext.availableDays.length || sessionMinutes === null, noModelAuthoredDose: true, modelMayOnlyRaiseClinicalConcern: true, ...(ctx.minor ? { minorGrounding: 'Preference or familiarity does not establish intensity, physiological benefit or prescription fit. Explain preparation and checking suitability with caregivers; do not claim increased activity, preserved aerobic/strength needs or matched intensity.' } : {}) },
     decisionFrame: { known: frame.known, unknown: frame.unknown, actions: frame.actions.map(({ title, instruction }) => ({ title, instruction })), barriers: frame.barriers.map(({ title, alternative }) => ({ title, alternative })), questionFocus: frame.questionFocus },
     untrustedCoachingContext: { ...proseContext, timeWindow, datesProvided: availableDays.length > 0 } });
 }
@@ -160,7 +160,7 @@ function scopedUnsafeMatch(text, pattern, extraNegation) {
   return false;
 }
 
-const unsafeAdvice = /(?:自行|直接|建議|可以|應該)(?:先)?(?:停藥|改藥|減藥)|(?:停用|停服|加倍|減半|減量|加量).{0,8}(?:藥|胰島素)|(?:藥|胰島素).{0,8}(?:停用|停服|加倍|減半|減量|加量)|(?:忍痛|帶痛).{0,6}(?:完成|繼續)|(?:提高|增加).{0,3}(?:運動強度|訓練重量)|(?:保證|一定).{0,5}(?:治癒|改善|安全)|已達標|可以放心/iu;
+const unsafeAdvice = /(?:自行|直接|建議|可以|應該)(?:先)?(?:停藥|改藥|減藥)|(?:停用|停服|加倍|減半|減量|加量).{0,8}(?:藥|胰島素)|(?:藥|胰島素).{0,8}(?:停用|停服|加倍|減半|減量|加量)|(?:忍痛|帶痛).{0,6}(?:完成|繼續)|(?:提高|增加).{0,3}(?:運動強度|訓練重量)|(?:保證|一定).{0,5}(?:治癒|改善|安全)|確保[^,;!?，。；！？\n]{0,24}安全(?!提醒|說明|資訊|資料|守則|規範|注意事項|檢查|用品)|已達標|可以放心/iu;
 const exerciseDirective = /(?:可以|建議|請|先|就|再|然後|接著|恢復|繼續|開始|嘗試|安排|改成|改為|改做|做|進行|維持|持續|保持|去)(?:(?:先|開始|進行|做|在家|居家|戶外|徒手|規律|熟悉的|原本的|繼續|原本熟悉的|低強度|輕度|適量|一些|少量|簡單的|溫和的|自行|短時間|去))*(?:跑步|快走|散步|步行|慢跑|游泳|騎車|騎單車|騎自行車|踩飛輪|重訓|肌力訓練|阻力訓練|深蹲|跳繩|登階|伸展|瑜伽|運動)/u;
 export function validateCoachingNarrative(content, ctx) {
   if (typeof content !== 'string') invalid('json');
@@ -213,6 +213,11 @@ export function validateCoachingNarrative(content, ctx) {
     // question must govern the matched claim; a separate discussion is no waiver.
     const weightLossAdvice = /節食(?:減重)?|限制熱量(?:攝取)?|成人(?:減重|熱量)(?:目標|計畫|處方)?|(?:符合|達成|達到|滿足|實現|支持|幫助|有助於?|促進|有利於)(?:你的|兒少的|孩子的)?(?:減重|減脂|瘦身)|(?:減輕|降低|減少)體重|(?:透過|利用|用)(?:遊戲|活動|運動)(?:來)?(?:減重|減脂|瘦身)/u;
     for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, weightLossAdvice, /(?:不應|不能|不可|不要)(?:宣稱|聲稱|承諾)$/u)) invalid('minor_weightloss', field, undefined, itemIndex);
+    // Familiarity/preferences do not establish physiological adequacy. Checking
+    // whether a choice fits remains allowed; asserting that it does is not.
+    const prescriptionFit = /(?:符合|滿足)(?:原有|既有|原訂|原本|原)?(?:的)?處方|(?:保留|維持|涵蓋)(?:原有|既有|原訂|原本|原)?(?:的)?處方(?:的)?(?:有氧(?:與肌力)?|肌力(?:與有氧)?|強度)(?:需求|要求|目標)|(?:自然)?(?:提升|增加|提高)(?:活動量|運動量)/u;
+    const fitCheck = /(?:不能保證|不保證|不代表(?:會|能|可以)|(?:核對|檢查|釐清)[^,;!?，。；！？\n]{0,24}(?:是否|能否)|^(?:若|如果|假如))$/u;
+    for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, prescriptionFit, fitCheck)) invalid('unsafe_advice', field, undefined, itemIndex);
   }
   return value;
 }
