@@ -88,7 +88,12 @@ test('fixed reason indices never recover by pruning and answer recovery remains 
       assert.throws(() => coaching.validateCoachingNarrative(JSON.stringify({ ...narrative(), [field]: values }), ctx), { reason: 'schema', field });
     }
     const value = narrative(); value[field][1] = 'PRIVATE_REJECTED 跑步三十分鐘';
-    assert.throws(() => coaching.validateCoachingReport(JSON.stringify(value), ctx), { reason: 'obvious_dose', field, itemIndex: 1 });
+    assert.throws(() => coaching.validateCoachingNarrative(JSON.stringify(value), ctx), { reason: 'obvious_dose', field, itemIndex: 1 });
+    if (field === 'barrierReasons') {
+      const result = coaching.validateCoachingReport(JSON.stringify(value), ctx);
+      assert.equal(result.omittedItems, 1);
+      assert.deepEqual(result.selection.barrierReasons, [value.barrierReasons[0], ctx.decisionFrame.barriers[1].reasonFallback]);
+    } else assert.throws(() => coaching.validateCoachingReport(JSON.stringify(value), ctx), { reason: 'obvious_dose', field, itemIndex: 1 });
   }
   const value = narrative(); value.answer.push('PRIVATE_REJECTED 跑步三十分鐘');
   const result = coaching.validateCoachingReport(JSON.stringify(value), ctx);

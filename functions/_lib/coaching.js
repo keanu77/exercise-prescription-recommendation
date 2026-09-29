@@ -206,7 +206,11 @@ export function validateCoachingNarrative(content, ctx) {
   }
   if ((value.needsClinicalReview && !value.clinicalReason.trim()) || (!value.needsClinicalReview && value.clinicalReason !== '')) invalid('clinical_flag', 'clinicalReason');
   if (ctx?.consult || value.needsClinicalReview) {
-    for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, exerciseDirective)) invalid('consultation_directive', field, undefined, itemIndex);
+    const safetyAssurance = /(?:可以|可(?!能)|能夠|能)[^,;!?，。；！？\n]{0,24}(?:保持|維持)安全|(?:在)?(?:等待|等候)(?:諮詢|評估)(?:期間|時)(?:仍|仍然)?(?:保持|維持)安全/u;
+    for (const { text, field, itemIndex } of checkedProse) {
+      if (scopedUnsafeMatch(text, exerciseDirective)) invalid('consultation_directive', field, undefined, itemIndex);
+      if (scopedUnsafeMatch(text, safetyAssurance, /(?:不|未必|不一定|(?:不能|無法|不)(?:保證|確保))$/u)) invalid('unsafe_advice', field, undefined, itemIndex);
+    }
   }
   if (ctx?.minor) {
     // Catch explicit endorsement as well as instructions. Negation or a clinical
@@ -227,27 +231,36 @@ export function validateCoachingNarrative(content, ctx) {
 }
 
 const recoverableItemReasons = new Set(['forbidden_numeric', 'forbidden_markup', 'forbidden_control', 'forbidden_instruction', 'obvious_dose', 'unsafe_advice', 'citation', 'consultation_directive', 'minor_weightloss', 'language']);
-const recoverableArrays = new Set(['answer']);
 const MAX_ITEM_OMISSIONS = 1;
+const MAX_BARRIER_REPLACEMENTS = 2;
 
 export function validateCoachingReport(content, ctx) {
-  let candidate = content, value, omittedItems = 0;
+  let candidate = content, value, omittedAnswers = 0;
+  const replacedBarriers = new Set();
   while (true) {
     try {
-      // Every remaining item and all scalar/clinical fields must still pass the
-      // original strict validator. No fallback text or weaker validation is used.
+      // Every retained or replaced item and all scalar/clinical fields must pass
+      // the original strict validator. The schema and content guards stay intact.
       const selection = validateCoachingNarrative(candidate, ctx);
       // General reasons and the old question cannot be paired with a newly
-      // raised consultation frame. The presenter uses trusted replacements.
-      return { selection, omittedItems: omittedItems + (selection.needsClinicalReview && !ctx?.consult ? 5 : 0) };
+      // raised consultation frame. Its five omissions already include barriers.
+      return { selection, omittedItems: omittedAnswers + (selection.needsClinicalReview && !ctx?.consult ? 5 : replacedBarriers.size) };
     } catch (error) {
-      if (error?.code !== 'INVALID_OUTPUT' || !recoverableItemReasons.has(error.reason) || !recoverableArrays.has(error.field) || !Number.isInteger(error.itemIndex) || error.itemIndex < 0 || omittedItems >= MAX_ITEM_OMISSIONS) throw error;
+      if (error?.code !== 'INVALID_OUTPUT' || !recoverableItemReasons.has(error.reason) || !Number.isInteger(error.itemIndex) || error.itemIndex < 0) throw error;
       // Content guards run only after JSON and the complete schema have passed.
       value ||= JSON.parse(candidate);
       const items = value[error.field];
-      if (!Array.isArray(items) || items.length <= 1 || error.itemIndex >= items.length) throw error;
-      items.splice(error.itemIndex, 1); // Only answers are removable; reason indices are fixed.
-      omittedItems++;
+      if (!Array.isArray(items) || error.itemIndex >= items.length) throw error;
+      if (error.field === 'barrierReasons' && replacedBarriers.size < MAX_BARRIER_REPLACEMENTS && !replacedBarriers.has(error.itemIndex)) {
+        const frame = ctx?.decisionFrame && (value.needsClinicalReview && !ctx.consult ? buildDecisionFrame(ctx, true) : ctx.decisionFrame);
+        const fallback = frame?.barriers?.[error.itemIndex]?.reasonFallback;
+        if (typeof fallback !== 'string' || fallback === items[error.itemIndex]) throw error;
+        items[error.itemIndex] = fallback; // Keep alignment; never splice a reason.
+        replacedBarriers.add(error.itemIndex);
+      } else if (error.field === 'answer' && items.length > 1 && omittedAnswers < MAX_ITEM_OMISSIONS) {
+        items.splice(error.itemIndex, 1);
+        omittedAnswers++;
+      } else throw error;
       candidate = JSON.stringify(value);
     }
   }

@@ -47,7 +47,13 @@ test('minor observed prescription adequacy and activity-increase claims fail in 
     '不能保證符合原處方，但熟悉遊戲可以自然提升活動量',
   ];
   for (const text of examples) for (const field of ['answer', 'actionReasons', 'barrierReasons']) {
-    assert.throws(() => validateCoachingReport(narrative(text, context, field), context), { code: 'INVALID_OUTPUT', reason: 'unsafe_advice', field }, text);
+    const content = narrative(text, context, field);
+    assert.throws(() => validateCoachingNarrative(content, context), { code: 'INVALID_OUTPUT', reason: 'unsafe_advice', field }, text);
+    if (field === 'barrierReasons') {
+      const result = validateCoachingReport(content, context);
+      assert.equal(result.omittedItems, 1);
+      assert.deepEqual(result.selection.barrierReasons, [context.decisionFrame.barriers[0].reasonFallback, createCoachingSelection(context).barrierReasons[1]]);
+    } else assert.throws(() => validateCoachingReport(content, context), { reason: 'unsafe_advice', field }, text);
   }
 });
 
@@ -72,7 +78,11 @@ test('safety assurances are rejected across ages while negation and gathering re
   for (const age of [12, 35]) {
     const context = ctx(age, { question: '活動後胸悶怎麼辦？' });
     for (const text of ['依原安全提醒處理身體變化可確保在等待諮詢期間仍維持安全', '熟悉活動能確保運動安全', '不能確保等待期間安全，但照著提醒就能確保安全']) {
-      assert.throws(() => validateCoachingReport(narrative(text, context, 'barrierReasons'), context), { reason: 'unsafe_advice', field: 'barrierReasons' }, text);
+      const content = narrative(text, context, 'barrierReasons');
+      assert.throws(() => validateCoachingNarrative(content, context), { reason: 'unsafe_advice', field: 'barrierReasons' }, text);
+      const result = validateCoachingReport(content, context);
+      assert.equal(result.omittedItems, 1);
+      assert.equal(result.selection.barrierReasons[0], context.decisionFrame.barriers[0].reasonFallback);
     }
     for (const text of ['不能確保等待期間安全', '無法確保在等待諮詢期間仍維持安全', '確保帶齊資料，讓諮詢容易掌握問題', '確保安全提醒資料已經帶齊']) {
       assert.doesNotThrow(() => validateCoachingNarrative(narrative(text, context), context), text);

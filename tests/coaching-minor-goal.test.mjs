@@ -31,7 +31,12 @@ test('minor validator rejects the observed weight-loss endorsement and aligned r
   }
   for (const field of ['actionReasons', 'barrierReasons']) {
     const value = createCoachingSelection(ctx); value[field][1] = '這樣既符合減重目標又能保持玩樂的動機';
-    assert.throws(() => validateCoachingReport(JSON.stringify(value), ctx), { reason: 'minor_weightloss', field, itemIndex: 1 });
+    assert.throws(() => validateCoachingNarrative(JSON.stringify(value), ctx), { reason: 'minor_weightloss', field, itemIndex: 1 });
+    if (field === 'barrierReasons') {
+      const result = validateCoachingReport(JSON.stringify(value), ctx);
+      assert.equal(result.omittedItems, 1);
+      assert.deepEqual(result.selection.barrierReasons, [value.barrierReasons[0], ctx.decisionFrame.barriers[1].reasonFallback]);
+    } else assert.throws(() => validateCoachingReport(JSON.stringify(value), ctx), { reason: 'minor_weightloss', field, itemIndex: 1 });
   }
 });
 
