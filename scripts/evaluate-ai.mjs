@@ -55,7 +55,7 @@ evaluation: for (const c of cases) for (let repeat = 0; repeat < repeats; repeat
     const r = await response.json();
     const ids = r.report?.sections?.map(s => s.id);
     const success = response.ok && r.success && r.schemaVersion === 3 && r.report?.version === 2 && JSON.stringify(ids) === JSON.stringify(['answer', 'priorities', 'plan', 'barriers', 'review', 'safety']) && JSON.stringify(r.baseline) === JSON.stringify(ctx.baseline);
-    result = { case: c.id, repeat: repeat + 1, status: response.status, success: Boolean(success), durationMs: Date.now() - started, meta: r.meta || null, retryAfter: response.headers.get('Retry-After'), mode: r.mode || null, report: r.report || null, error: r.error || null };
+    result = { case: c.id, repeat: repeat + 1, status: response.status, success: Boolean(success), durationMs: Date.now() - started, meta: r.meta || null, retryAfter: response.headers.get('Retry-After'), mode: r.mode || null, report: r.report || null, error: r.error || null, diagnostic: r.diagnostic || null };
     if (typeof r.meta?.estimatedCostUSD === 'number') report.reportedCostUSD += r.meta.estimatedCostUSD;
   } catch { result = { case: c.id, repeat: repeat + 1, success: false, error: 'request_failed', durationMs: Date.now() - started }; }
   result.syntheticInput = { userData: c.data, coachingContext: c.coachingContext };

@@ -49,14 +49,27 @@ test('Groq json_validate_failed retries once and missing first-attempt usage rem
   assert.equal(result.meta.estimatedCostUSD, null);
 });
 
-test('invalid repair exhausts exactly two attempts and returns only the generic error', async t => {
+test('invalid repair returns generic error and closed diagnostic labels without private content', async t => {
   const original = globalThis.fetch; t.after(() => { globalThis.fetch = original; });
   let count = 0;
   globalThis.fetch = async () => { count++; return upstream(bad); };
   const response = await post();
   assert.equal(response.status, 502);
   assert.equal(count, 2);
-  assert.match((await response.json()).error, /完整性檢查/);
+  const result = await response.json();
+  assert.match(result.error, /完整性檢查/);
+  assert.deepEqual(result.diagnostic, { code: 'INVALID_OUTPUT', reason: 'forbidden_numeric', field: 'answer', doseKind: null });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_REJECTED_DRAFT|PRIVATE_KEY/);
+});
+
+test('unknown error properties cannot escape through public diagnostics', async t => {
+  const original = globalThis.fetch; t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async () => { throw Object.assign(new Error('PRIVATE_ERROR_TEXT'), { code: 'PRIVATE_CODE', reason: 'PRIVATE_REASON', field: 'PRIVATE_FIELD', doseKind: 'PRIVATE_KIND' }); };
+  const response = await post();
+  const result = await response.json();
+  assert.equal(response.status, 502);
+  assert.deepEqual(result.diagnostic, { code: 'REQUEST_FAILED', reason: null, field: null, doseKind: null });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE/);
 });
 
 test('transport, timeout, auth, rate-limit and unknown validation failures never retry', async t => {

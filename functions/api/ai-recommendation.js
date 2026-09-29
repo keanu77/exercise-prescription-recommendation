@@ -173,6 +173,9 @@ export async function onRequestPost({ request, env }) {
     console.warn(JSON.stringify({event:"ai_error",provider:chosen,model:chosenModel,code:["INVALID_OUTPUT","INCOMPLETE_OUTPUT","UPSTREAM_ERROR"].includes(error?.code)?error.code:"REQUEST_FAILED",...safeOutputDiagnostic(error),upstreamCode:['json_validate_failed','json_schema_invalid','invalid_request_error','context_length_exceeded'].includes(error?.upstreamCode)?error.upstreamCode:null,rateLimitScope:error?.upstreamStatus===429&&['tpm','tpd','rpm','rpd'].includes(error?.rateLimitScope)?error.rateLimitScope:null,rateLimitKind:error?.upstreamStatus===429&&['request_too_large','exhausted'].includes(error?.rateLimitKind)?error.rateLimitKind:null,status:Number.isInteger(error?.upstreamStatus)&&error.upstreamStatus>=100&&error.upstreamStatus<=599?error.upstreamStatus:null,durationMs:Date.now()-started}));
     const { message, status } = describeUpstreamError(error, usingOwnKey);
     const headers = error?.retryAfter !== null && error?.retryAfter !== undefined ? {...extra,"Retry-After":String(error.retryAfter)} : extra;
-    return json({success:false,error:message},status,headers);
+    // Stable, closed labels allow support to distinguish failed validation from
+    // transport errors without exposing the rejected draft, profile or key.
+    const diagnostic = { code: ["INVALID_OUTPUT", "INCOMPLETE_OUTPUT", "UPSTREAM_ERROR"].includes(error?.code) ? error.code : "REQUEST_FAILED", ...safeOutputDiagnostic(error) };
+    return json({success:false,error:message,diagnostic},status,headers);
   }
 }
