@@ -13,30 +13,31 @@
 - [x] Browser/PDF fixture migration: existing AI, cached assets and PDF tests consume createCoachingResponse; test answer/priorities/plan/barriers/review/safety; verify changed question invalidates report and aborts requests without losing context on cancel
 - [x] Local commands: npm test; npm run build:css; npm run build:pages; bash tests/browser/run_all.sh test_ai_flow.py test_asset_updates.py test_data_reset.py test_form_journey.py test_a11y.py; full relevant PDF checks with two engines
 - [x] Review backend against specification, then code quality; root resolves integration and final review findings before release
-- [ ] Bounded synthetic real Groq comparison to old examples; no logs containing keys, user real health data or raw upstream errors; preserve costs/failures, evaluate specificity and conflict behavior; no claim of clinician quality approval
-- [ ] Commit only named files, integrate branch without touching untracked assets, exact archive build, deploy under existing session authorization and verify source hashes/live UI/PDF; update handoff with evidence and limitations
+- [x] Bounded synthetic real Groq comparison to old examples; no logs containing keys, user real health data or raw upstream errors; preserve costs/failures, evaluate specificity and conflict behavior; no claim of clinician quality approval
+- Release execution: commit only named files, preserve untracked assets, build an exact archive and deploy under existing session authorization; record source hashes, live UI/PDF results and final completion in `.claude/HANDOFF.md` and ignored `release.json`
 
 Contract and exact enum strings: ../specs/2026-09-28-personal-coaching-design.md
 Readiness gate: a person can identify what to do next, why it suits their stated constraint, what alternative to use and what to review, without receiving a duplicated generic template
 
 ## Local evidence before deployment
-- v12 decision-frame architecture: 88/88 Node tests and build:pages (28 files) passed; the final catalog disables both unevaluated candidates for site-key use
-- All 13 browser suites passed; Chromium/WebKit PDF checks covered 30 exports, including combined prescriptions, minors, consultation, long text and actual downloads
-- Context lifecycle tests passed on both engines: explicit consent, validation, none-equipment exclusion, cancel retains fields, edits abort stale responses/PDF and clear removes context
-- Spec review initially found negation false positives, consultation-directive escapes and occupation-word false positives; a1af1e9 resolves the reproduced cases (41 backend/report tests plus reviewer 27 targeted assertions)
-- Concurrent production update 8d2f27f is merged: AI PDF retains the complete original prescription before the AI supplement
-- No dependency/environment/migration changes; plain JavaScript has no TypeScript project, syntax checks are part of the production build
-- Production secret presence confirmed by name only; preview has no Groq key, so real-model validation must follow a reviewed candidate release, with 8d2f27f rollback snapshot available
-- Mock/synthetic checks and pattern validation do not establish clinical correctness; actual-model usefulness still pending
-- The fixed v11 GPT-OSS batch returned four reports, then stopped on a diagnosed daily token limit; it failed the minor content gate because the answer endorsed a weight-loss goal. These results are retained in the local audit and do not count as a six-case pass
-- Decision-frame UI and PDF integration passed Chromium/WebKit at 320/390/1280 widths and 30 actual PDF exports after the contract change
-- Final code quality review found no critical/important blockers; evaluator failed/incomplete runs now exit nonzero, verified with success/failure mocks (0/1)
+- The decision-frame architecture passed all 13 browser suites and the original 30 prescription fixtures plus 128 PAR-Q combinations without changing `prescription-rules.js`
+- Latest bounded barrier-reason recovery passed 104 Node tests including the v14 minor anchors; Chromium/WebKit AI flows passed at 320/390/1280 widths and 30 PDF exports retained all original prescription and AI text
+- Context lifecycle checks cover explicit consent, validation, none-equipment exclusion, cancellation, stale responses, report/PDF invalidation and clearing inputs
+- Fixed-index recovery replaces at most two invalid barrier explanations with the corresponding server reason, fully revalidating after each replacement; action explanations, scalar fields and clinical flags cannot use this recovery
+- Shared UI/PDF disclosure states that incomplete AI content may be omitted or replaced by explanations based on the supplied conditions
+- Independent spec and quality reviews are recorded under `.claude/audit/ai-coaching-20260928/`; medical correctness still requires clinical review
+- The complete original prescription precedes the AI appendix in downloaded PDFs
+- No dependency, environment or migration change is required; build includes JavaScript syntax, asset completeness and compiled CSS freshness checks
 
-## Release gate status on 2026-09-28
-- v12 projects minor goals to enjoyable familiar activities and rejects the observed weight-loss endorsement without changing clinical inputs or prescription rules
-- v12 GPT-OSS 120B: home-short returned a reviewed acceptable answer; gym-long hit HTTP 429 / Retry-After 796 seconds, and the remaining four cases were not run
-- Qwen was not adopted: its first attempt failed a duration guard and the repair encountered a diagnosed TPM limit
-- GPT-OSS 20B was not adopted: its home answer claimed the short window could ensure completion of the target; the batch was stopped on this content failure
-- Keep GPT-OSS 120B as the default; retain both candidates as BYOK only
-- Source work can be saved and pushed, but production remains verified baseline 8d2f27f until the remaining fixed v12 cases and real UI/PDF release checks pass
-- Resume only gym-long, unknown-context, minor, symptom-question and consultation after provider capacity recovers; preserve home-short and all failures, do not reroll already reviewed answers
+## Actual-model evidence and release gates
+- Use Groq GPT-OSS 120B as the default; Qwen and GPT-OSS 20B were evaluated but not adopted for the site key, and remain BYOK candidates only
+- Keep every failed run and cost reservation; do not reroll already accepted outputs to inflate the success rate
+- Four adult cases from v12 are retained: home-short, gym-long, unknown-context and consultation; their initial system/user prompts remain byte-identical and their reports pass the newer strict validator
+- v12 minor and symptom-question reports failed content review despite HTTP 200: unsupported physiological adequacy and safety assurances respectively
+- v13 removes physiological prescription fields from the minor model input and rejects the reproduced claims; suitability questions remain allowed
+- The latest symptom-question report passed independent engineering content review after safety-assurance validation and bounded barrier recovery; earlier failures remain in the audit
+- v14 gives minor explanations short, same-index practical rationale anchors without changing adult prompts, trusted instructions or validators; the actual minor report passed independent content review on its first attempt, with one invalid barrier explanation transparently replaced by its trusted reason
+- The six-case content gate uses four retained v12 adult reports, the corrected v13 symptom report and the corrected v14 minor report; this is affected-case validation across versions, not six fresh v14 calls
+- Actual-model samples and automated checks are not clinician approval and do not estimate general reliability
+- The content gate passed on 2026-09-29; exact-source deployment, live asset comparison, real UI generation and PDF downloads in both engines remain the release verification procedure, with `8d2f27f` retained as the rollback snapshot
+- Final source, deployment ID, custom-domain evidence and rollback location belong in ignored `release.json` and `.claude/HANDOFF.md`, so deployment proof never depends only on a source push

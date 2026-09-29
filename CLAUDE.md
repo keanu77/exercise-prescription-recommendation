@@ -25,7 +25,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ### 兩段式處方：共用規則＋選用個人化 AI 報告
 1. `prescription-rules.js` 包含原樣抽出的 `calculateFITTVP`、PAR-Q 與 safety caps，供瀏覽器及 Pages Function 共用。修改規則時在此檔操作；`script.js` 處理表單與顯示。
 2. `ai-ui.js` 先讀取 `/api/providers` 目錄，使用者同意後送 schemaVersion:3、表單資料與選填 coachingContext（個人問題、時間、場地、器材與偏好）。伺服器嚴格驗證完整問卷、忽略 client 處方並重算可信 baseline。
-3. `functions/_lib/coaching.js` 建立可信處方邊界，由伺服器 decisionFrame 固定適用行動、條件式備案與回顧，AI 專責問題回答、行動／備案理由及追問措辭；伺服器組成 report version 2 的六節報告，保留所有 warnings。成人模型提示取得處方活動類型、強度、年齡層與定性的可用時間；兒少僅以喜歡且熟悉的活動為目標，不傳送處方類型／強度供模型推斷生理效果，精確劑量與完整原處方留在伺服器呈現；模型不得另開數字課表；具體日期與可用時間由伺服器在原處方內安排，缺資料明示未知。有症狀、需諮詢或兒少者不新增數字課表；模型只能提高需諮詢警戒，不能降低原問卷風險。明顯違規文字會拒收，但驗證不代表醫療正確性。前端只用 textContent。`advice.js` / `report.js` 保留作舊模板比較及既有 baseline context，不再使用舊 ID-only 回覆流程。
+3. `functions/_lib/coaching.js` 建立可信處方邊界，由伺服器 decisionFrame 固定適用行動、條件式備案與回顧，AI 專責問題回答、行動／備案理由及追問措辭；伺服器組成 report version 2 的六節報告，保留所有 warnings。成人模型提示取得處方活動類型、強度、年齡層與定性的可用時間；兒少僅以喜歡且熟悉的活動為目標，不傳送處方類型／強度供模型推斷生理效果，兒少行動的模型輸入僅含標題與同索引的可信生活安排理由，備案附同索引理由作為參考，避免把待確認條件改寫成生理效果；精確劑量與完整原處方留在伺服器呈現；模型不得另開數字課表；具體日期與可用時間由伺服器在原處方內安排，缺資料明示未知。有症狀、需諮詢或兒少者不新增數字課表；模型只能提高需諮詢警戒，不能降低原問卷風險。明顯違規文字會拒收，但驗證不代表醫療正確性。前端只用 textContent。`advice.js` / `report.js` 保留作舊模板比較及既有 baseline context，不再使用舊 ID-only 回覆流程。
 4. 規則不變證據是 `tests/fixtures/ai-cases.json`：抽取前 30 案例輸出逐欄比對；另測 128 組 PAR-Q。醫療待複核項仍有效。
 
 ### 運動風格與圖片
