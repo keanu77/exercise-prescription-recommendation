@@ -216,7 +216,11 @@ export function validateCoachingNarrative(content, ctx) {
     // Familiarity/preferences do not establish physiological adequacy. Checking
     // whether a choice fits remains allowed; asserting that it does is not.
     const prescriptionFit = /(?:符合|滿足)(?:原有|既有|原訂|原本|原)?(?:的)?處方|(?:保留|維持|涵蓋)(?:原有|既有|原訂|原本|原)?(?:的)?處方(?:的)?(?:有氧(?:與肌力)?|肌力(?:與有氧)?|強度)(?:需求|要求|目標)|(?:自然)?(?:提升|增加|提高)(?:活動量|運動量)/u;
-    const fitCheck = /(?:不能保證|不保證|不代表(?:會|能|可以)|(?:核對|檢查|釐清)[^,;!?，。；！？\n]{0,24}(?:是否|能否)|^(?:若|如果|假如))$/u;
+    // Allow bounded activity noun phrases inside a suitability question or
+    // condition, without swallowing assertions such as 已經 or 場地後就.
+    const activityPhrase = '(?:(?:所選|已熟悉|熟悉|偏好|原本)(?:的)?){0,3}(?:活動|遊戲|項目)?';
+    const fitQuestion = `(?:確認|核對|檢查|釐清)(?:(?:哪些|哪種|哪個|何種|是否|能否)${activityPhrase}|${activityPhrase}(?:是否|能否)(?:已熟悉|熟悉)?)(?:且|並且)?`;
+    const fitCheck = new RegExp(`(?:不能保證|不保證|不代表(?:會|能|可以)|(?:核對|檢查|釐清)[^,;!?，。；！？\\n]{0,24}(?:是否|能否)|${fitQuestion}|^(?:若|如果|假如)${activityPhrase})$`, 'u');
     for (const { text, field, itemIndex } of checkedProse) if (scopedUnsafeMatch(text, prescriptionFit, fitCheck)) invalid('unsafe_advice', field, undefined, itemIndex);
   }
   return value;

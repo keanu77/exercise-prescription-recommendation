@@ -58,6 +58,16 @@ test('minor suitability checks, protective negation and professional discussion 
   }
 });
 
+test('minor fit checks preserve scoped questions and conditions with intervening familiar activity phrases', () => {
+  const context = ctx();
+  for (const text of ['和家長確認哪些熟悉的遊戲符合原處方', '需要先確認所選活動是否熟悉且符合原處方', '確認哪些已熟悉且符合原處方', '和照顧者核對哪些原本熟悉的活動符合原處方', '核對所選的活動是否已熟悉並且符合原處方', '若所選活動符合原處方，再和照顧者討論場地', '如果熟悉的遊戲符合原處方，再確認可用場地']) {
+    for (const field of ['answer', 'actionReasons']) assert.doesNotThrow(() => validateCoachingNarrative(narrative(text, context, field), context), text);
+  }
+  for (const text of ['熟悉的遊戲已經符合原處方', '和家長確認哪些熟悉的遊戲已經符合原處方', '確認場地後就符合原處方', '詢問專業人員，再選熟悉的遊戲就符合原處方', '若場地可以使用就符合原處方', '和家長確認哪些熟悉的遊戲符合原處方，這些遊戲已經符合原處方', '需要先確認所選活動是否熟悉且符合原處方，但其實已經符合原處方']) {
+    assert.throws(() => validateCoachingNarrative(narrative(text, context, 'actionReasons'), context), { reason: 'unsafe_advice', field: 'actionReasons' }, text);
+  }
+});
+
 test('safety assurances are rejected across ages while negation and gathering records stay valid', () => {
   for (const age of [12, 35]) {
     const context = ctx(age, { question: '活動後胸悶怎麼辦？' });
