@@ -53,7 +53,7 @@ with sync_playwright() as p:
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
    partial=json.loads(json.dumps(fixture['normal']));partial['meta']['omittedItems']=1
    current['response']=partial;page.locator('#refreshAiBtn').click()
-   expect(page.locator('[data-ai-omission-notice]')).to_contain_text('部分 AI 建議未能完整整理')
+   expect(page.locator('[data-ai-omission-notice]')).to_contain_text('已省略或改用依填寫條件整理的說明')
    assert page.evaluate("createAIPDFReport().sections.find(s=>s.appendix).items.some(v=>v.includes('部分 AI 建議未能完整整理'))")
    current['response']=fixture['high'];page.locator('#refreshAiBtn').click()
    expect(page.locator('.action-safety')).to_be_visible()

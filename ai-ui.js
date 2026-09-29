@@ -140,7 +140,7 @@ function validateDetailedReport(report) {
       s.items.every(item=>s.kind==='rows'?Array.isArray(item)&&item.length===2&&item.every(text):text(item)));
 }
 function aiOmissionNotice(r) {
-  return Number.isInteger(r.meta.omittedItems) && r.meta.omittedItems>0 ? '部分 AI 建議未能完整整理，已省略；以下保留可供參考的內容，請搭配原處方與安全提醒使用' : '';
+  return Number.isInteger(r.meta.omittedItems) && r.meta.omittedItems>0 ? '部分 AI 建議未能完整整理，已省略或改用依填寫條件整理的說明；請搭配原處方與安全提醒使用' : '';
 }
 function renderAIResult(r) {
   const root=aiEl('aiContent');root.replaceChildren();
