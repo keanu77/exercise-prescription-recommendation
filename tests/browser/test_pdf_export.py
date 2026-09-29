@@ -111,9 +111,10 @@ with sync_playwright() as p:
                   generatePrescription(); showPage('resultPage');
                 }''')
             if not standalone:
-                assert page.locator('#downloadPrescription, #includeAiInPdf').count() == 0
-                page.evaluate('r=>{renderAIResult(r);setAIState("content");}', AI_FIXTURE['normal'])
-            button = page.locator('#downloadPdfButton' if standalone else '#downloadAiReport')
+                assert page.locator('#includeAiInPdf').count() == 0
+                expect(page.locator('#downloadPrescription')).to_be_enabled()
+                expect(page.locator('#downloadAiReport')).to_be_disabled()
+            button = page.locator('#downloadPdfButton' if standalone else '#downloadPrescription')
             page.evaluate('''() => {
               window.realPDFLoader = loadPDFLibraries; window.loadCount = 0;
               window.loadPDFLibraries = () => {
@@ -144,7 +145,7 @@ with sync_playwright() as p:
             assert len(library_requests) == 3, library_requests  # jsPDF, failed font, successful font
             assert not any('html2canvas' in url for url in library_requests)
 
-            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'mobile', 'child', 'high', 'long', 'ai-report', 'ai-report-mobile', 'ai-report-child', 'ai-report-long', 'ai-consultation']
+            scenarios = ['standard', 'mobile', 'over45', 'moderate', 'high'] if standalone else ['standard', 'standard-ai-error', 'mobile', 'child', 'high', 'long', 'ai-report', 'ai-report-mobile', 'ai-report-child', 'ai-report-long', 'ai-consultation']
             baseline = page.evaluate('JSON.parse(JSON.stringify(basicInfo))' if standalone else 'JSON.parse(JSON.stringify(window.lastFormData))')
             standard_text = None
             for scenario in scenarios:
@@ -174,6 +175,10 @@ with sync_playwright() as p:
                         window.lastPrescription.recommendations.push('長段落測試：' + '依計畫逐步活動並記錄身體反應。'.repeat(200) + '段落結束。');
                       }
                     }''', {'base': baseline, 'scenario': scenario, 'aiFixture': AI_FIXTURE['normal']})
+                if scenario == 'standard-ai-error':
+                    page.evaluate('setAIState("error")')
+                    expect(page.locator('#downloadPrescription')).to_be_enabled()
+                    expect(page.locator('#downloadAiReport')).to_be_disabled()
                 ai_report = scenario.startswith('ai-report') or scenario == 'ai-consultation'
                 export_button = button
                 if ai_report:
@@ -191,7 +196,7 @@ with sync_playwright() as p:
                     page.evaluate('loadAICatalog()')
                     page.locator('#generateAiBtn').click()
                     expect(page.locator('#aiContent')).to_be_visible()
-                    export_button = page.get_by_role('button', name='下載 AI 報告 PDF', exact=True)
+                    export_button = page.get_by_role('button', name='運動處方＆AI分析', exact=True)
                     expect(export_button).to_be_visible()
                     assert page.locator('#includeAiInPdf').count() == 0
                     if scenario == 'ai-report':
@@ -217,11 +222,7 @@ with sync_playwright() as p:
                   return report;
                 }''', ai_report)
                 with page.expect_download(timeout=60000) as event:
-                    if standalone or ai_report:
-                        export_button.click()
-                    else:
-                        # Keep renderer stress coverage for the internal standard-report builder.
-                        page.evaluate('downloadPDF()')
+                    export_button.click()
                 target = OUT / f'{engine}-{"parq" if standalone else "exercise"}-{scenario}.pdf'
                 event.value.save_as(target)
                 assert event.value.failure() is None
@@ -265,10 +266,7 @@ with sync_playwright() as p:
                     assert '未滿18歲' in text and '不適用' in text
                 if scenario == 'high':
                     assert '高風險' in text and '醫師評估' in text
-                if standalone or ai_report:
-                    expect(button).to_be_enabled()
-                else:
-                    expect(button).to_be_disabled()
+                expect(button).to_be_enabled()
                 assert page.locator('#pdfLoadingStatus, #pdfExportContent, #loadingModal.active').count() == 0
                 assert len(library_requests) == 3, 'Exports must reuse the loaded font and jsPDF'
                 print(f'[OK] {target.name}: {count} pages, {target.stat().st_size} bytes; all text present, no overlaps, printable margins')
@@ -281,12 +279,27 @@ with sync_playwright() as p:
                 page.locator('#downloadAiReport').click()
                 expect(page.locator('#downloadAiReport')).to_be_disabled()
                 page.evaluate('resetAISection();window.finishPDFLoad()')
-                expect(button).to_be_disabled()
+                expect(button).to_be_enabled()
                 page.evaluate('window.loadPDFLibraries=window.realPDFLoader')
                 assert not downloads, 'Clearing a report must discard pending PDF work'
                 page.evaluate('resetAISection()')
                 expect(page.locator('#downloadAiReport')).to_be_disabled()
                 expect(page.locator('#pdfDownloadFeedback')).to_be_hidden()
+                assert page.locator('#pdfSaveLink').get_attribute('href') is None
+                # Optional AI edits must preserve an in-flight prescription export.
+                page.evaluate('()=>{window.loadPDFLibraries=()=>new Promise(resolve=>window.finishPDFLoad=resolve);}')
+                page.locator('#downloadPrescription').click()
+                expect(page.locator('#downloadPrescription')).to_be_disabled()
+                with page.expect_download(timeout=10000) as standard_done:
+                    page.evaluate('resetAISection();window.finishPDFLoad()')
+                saved = OUT / f'{engine}-prescription-during-ai-reset.pdf'
+                standard_done.value.save_as(saved)
+                assert saved.read_bytes().startswith(b'%PDF-')
+                expect(page.locator('#downloadPrescription')).to_be_enabled()
+                page.evaluate('window.loadPDFLibraries=window.realPDFLoader')
+                # Clearing the health assessment still revokes both kinds of PDF.
+                page.evaluate('()=>{lastFormData=null;lastPrescription=null;clearPDFDownload();resetAISection();}')
+                expect(page.locator('#downloadPrescription')).to_be_disabled()
                 assert page.locator('#pdfSaveLink').get_attribute('href') is None
             assert len(alerts) == (1 if standalone else 2) and not errors, (alerts, errors)
             page.close()

@@ -764,7 +764,7 @@ body {
 .action-provenance p { margin:8px 0; }
 .action-provenance a { display:inline-block; padding:10px 0; text-decoration:underline; }
 .report-download-panel { margin-top:28px; padding:8px 0; text-align:center; }
-.report-download-buttons { display:flex; justify-content:center; }
+.report-download-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; max-width:560px; margin-inline:auto; }
 .report-download-buttons button { min-width:0; }
 .report-download-buttons button:disabled { opacity:.55; cursor:not-allowed; }
 .pdf-download-feedback { margin:14px 0; padding:14px 16px; border:1px solid var(--line); border-radius:8px; background:var(--paper); font-size:14px; overflow-wrap:anywhere; }
@@ -793,7 +793,7 @@ body {
 .coaching-choices input { width:17px; height:17px; accent-color:var(--brand); flex-shrink:0; }
 .coaching-context :focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
 @media(max-width:640px) { .coaching-context { padding:16px; } .coaching-fields-grid,.coaching-time-fields { grid-template-columns:1fr; } }
-@media(max-width:540px) { .report-download-buttons .btn-primary { width:100%; padding:14px 20px; font-size:16px; } }
+@media(max-width:540px) { .report-download-buttons { gap:8px; } .report-download-buttons .btn-primary, .report-download-buttons .btn-secondary { width:100%; padding:12px 8px; font-size:14px; } }
 .action-settings { margin-top:20px; border-top:1px solid #d5e1e7; padding-top:12px; }
 .action-settings-fields { margin-top:12px; }
 .action-settings-fields label { display:block; font-size:14px; margin-bottom:8px; }

@@ -88,12 +88,14 @@ function setAIState(state) {
   aiEl('aiRecommendationSection').setAttribute('aria-busy',String(state==='loading'));
   aiEl('refreshAiBtn').classList.toggle('hidden',state==='idle'||state==='loading');
   aiEl('advancedAISettings').querySelectorAll('input,select').forEach(el=>{el.disabled=state==='loading';});
-  aiEl('aiDownloadHint').textContent=state==='content'?'PDF 將包含完整運動處方、安全提醒與 AI 行動建議':state==='loading'?'AI 報告產生中，完成後可連同運動處方一起下載':'先產生上方 AI 建議，即可下載包含運動處方的完整報告';
+  aiEl('aiDownloadHint').textContent=state==='content'?'可下載運動處方，或包含完整運動處方、安全提醒與 AI 分析的合併報告':state==='loading'?'運動處方可先下載；AI 分析產生中，完成後可下載合併報告':state==='error'?'仍可下載運動處方；重新產生 AI 分析後可下載合併報告':'可直接下載運動處方；AI 分析完成後可下載合併報告';
   updatePDFButtons();
 }
 function clearAIResult() {
   lastAIResult=null;
-  clearPDFDownload();
+  clearPDFDownload({aiOnly:true});
+  aiEl('aiErrorDetails').open=false;aiEl('aiErrorDetails').classList.add('hidden');
+  aiEl('aiErrorDiagnostic').textContent='';
   aiEl('aiContent').replaceChildren();
   aiEl('aiProviderBadge').classList.add('hidden');
 }
@@ -201,19 +203,34 @@ async function fetchAIRecommendation() {
   try {
     if(!window.lastFormData || !window.lastPrescription) throw new Error('請先完成評估，再產生行動建議');
     const response=await fetch(AI_API_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({schemaVersion:3,userData:window.lastFormData,coachingContext,...settings}),signal:controller.signal});
-    const result=await response.json().catch(()=>{throw new Error('伺服器回應異常，請稍後重試');});
     if(seq!==aiRequestSeq)return;
+    // Read failures (including AbortError) must keep their real category instead
+    // of being reported as malformed JSON. Never render an HTML error body.
+    const responseText=await response.text();
+    if(seq!==aiRequestSeq)return;
+    let result;
+    try { result=JSON.parse(responseText); } catch { /* Edge errors may be HTML or plain text. */ }
+    if(!result || typeof result!=='object' || Array.isArray(result)) result=null;
     const raw=response.headers.get('Retry-After');
     if(!response.ok && raw) {
       const seconds=/^\d+$/.test(raw)?Number(raw):Math.ceil((Date.parse(raw)-Date.now())/1000);
-      if(Number.isFinite(seconds)&&seconds>0){aiRetryScope=result.retryScope==='site'?'site':'all';aiRetryUntil=Date.now()+Math.min(seconds,86400)*1000;updateRetryButtons();}
+      if(Number.isFinite(seconds)&&seconds>0){aiRetryScope=result?.retryScope==='site'?'site':'all';aiRetryUntil=Date.now()+Math.min(seconds,86400)*1000;updateRetryButtons();}
+    }
+    if(!response.ok || !result) {
+      const ray=response.headers.get('CF-Ray');
+      const reference=/^[a-f0-9]{16}(?:-[a-z]{3})?$/i.test(ray||'')?` · 識別碼 ${ray}`:'';
+      aiEl('aiErrorDiagnostic').textContent=`HTTP ${response.status}${reference} · ${new Date().toLocaleString('zh-TW')}`;
+      aiEl('aiErrorDetails').classList.remove('hidden');
+    }
+    if(!result) {
+      throw new Error(response.status===429||response.status===503?'AI 服務目前忙碌，請稍後按「重新產生」':response.status===403?'本次連線未通過服務驗證，請重新整理頁面後再試':response.status===504||response.status===524?'服務等候回應逾時，請稍後按「重新產生」':'未收到完整的 AI 回應，請稍後按「重新產生」');
     }
     if(!response.ok || !result.success) throw new Error(result.error||'AI 服務暫時無法使用');
     if(!validateAIResult(result)) throw new Error('AI 回應未通過完整性檢查，請重新整理頁面後再試');
     renderAIResult(result);setAIState('content');
   } catch(error) {
     if(seq!==aiRequestSeq)return;
-    aiEl('aiErrorMessage').textContent=error.name==='AbortError'?'等候 AI 回應逾時，請稍後重試':error.message==='Failed to fetch'?'AI 服務暫時無法連線，請稍後重試':siteCopy(error.message);
+    aiEl('aiErrorMessage').textContent=error.name==='AbortError'?'等候 AI 回應逾時，請稍後重試':['Failed to fetch','Load failed','NetworkError when attempting to fetch resource.'].includes(error.message)?'AI 服務暫時無法連線，請稍後重試':siteCopy(error.message);
     setAIState('error');
   } finally {
     clearTimeout(timeout);

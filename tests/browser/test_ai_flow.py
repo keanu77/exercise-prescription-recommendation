@@ -31,6 +31,7 @@ with sync_playwright() as p:
    page.evaluate('''data=>{window.lastFormData=data;window.lastPrescription=calculateFITTVP(data);displayPrescriptionSummary(window.lastPrescription);showPage('resultPage');resetAISection();}''',fixture['data'])
    expect(page.locator('#aiConsent')).to_be_visible();assert not calls
    expect(page.locator('#downloadAiReport')).to_be_visible();expect(page.locator('#downloadAiReport')).to_be_disabled()
+   expect(page.locator('#downloadPrescription')).to_be_enabled()
    assert page.locator('#aiProviderSelect option').evaluate_all('(els)=>els.map(el=>el.value)')==['auto','groq']
    expect(page.locator('#aiDestination')).to_contain_text('Groq')
    page.locator('#generateAiBtn').click()
@@ -43,11 +44,16 @@ with sync_playwright() as p:
    assert page.evaluate('createAIPDFReport().sections.find(s=>s.appendix).items[0]')==fixture['normal']['report']['summary']
    assert page.evaluate('JSON.stringify(createAIPDFReport().sections.slice(0,6))===JSON.stringify(createPDFReport().sections)')
    expect(page.locator('#aiDownloadHint')).to_contain_text('完整運動處方')
-   assert page.locator('#downloadPrescription, #includeAiInPdf, #aiPdfOption').count()==0
+   assert page.locator('#includeAiInPdf, #aiPdfOption').count()==0
+   expect(page.get_by_role('button',name='下載運動處方',exact=True)).to_be_enabled()
+   expect(page.get_by_role('button',name='運動處方＆AI分析',exact=True)).to_be_enabled()
    assert page.locator('.ai-report-section').count()==6
    assert page.locator('.result-shell > :last-child').get_attribute('class')=='report-download-panel'
    ai=page.locator('#downloadAiReport').bounding_box(); reference=page.locator('.reference-panel').last.bounding_box()
    assert ai['y']>=reference['y']+reference['height']
+   standard=page.locator('#downloadPrescription').bounding_box()
+   assert standard['x']+standard['width']<=ai['x'] and abs(standard['y']-ai['y'])<2
+   assert standard['height']>=44 and ai['height']>=44
    page.locator('.report-download-panel').screenshot(path=str(OUT/f'{engine}-{width}-download.png'))
    expect(page.locator('#downloadAiReport')).to_be_enabled()
    page.locator('#aiRecommendationSection').screenshot(path=str(OUT/f'{engine}-{width}-normal.png'))
@@ -77,6 +83,7 @@ with sync_playwright() as p:
    page.evaluate('''()=>{window.originalFetch=window.fetch; window.fetch=(url,options)=>new Promise(resolve=>{window.pendingSignal=options.signal;window.finishOld=resolve;});}''')
    page.locator('#generateAiBtn').click();expect(page.locator('#aiLoading')).to_be_visible()
    expect(page.locator('#downloadAiReport')).to_be_visible();expect(page.locator('#downloadAiReport')).to_be_disabled()
+   expect(page.locator('#downloadPrescription')).to_be_enabled()
    page.get_by_role('button',name='取消等待').click();expect(page.locator('#aiConsent')).to_be_visible()
    assert page.evaluate('window.pendingSignal.aborted')
    page.evaluate('r=>window.finishOld(new Response(JSON.stringify(r)))',fixture['normal'])

@@ -82,7 +82,7 @@ try:
             expect(page.locator('#aiContent')).to_be_visible()
             assert Handler.ai_requests==count+1
             assert page.locator('.ai-report-section').count()==6
-            expect(page.get_by_role('button',name='下載 AI 報告 PDF',exact=True)).to_be_enabled()
+            expect(page.get_by_role('button',name='運動處方＆AI分析',exact=True)).to_be_enabled()
             assert not errors,errors
             print(f'[OK] {engine}: retained old cache, new version loads, one click produces full report and enables PDF')
             browser.close()

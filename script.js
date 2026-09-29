@@ -656,6 +656,7 @@ function clearAssessment() {
   }
   window.lastFormData = null;
   window.lastPrescription = null;
+  clearPDFDownload();
   for (const id of ["prescriptionSummary", "fittpDetails", "exerciseGuidelines"]) {
     document.getElementById(id).replaceChildren();
   }
@@ -678,7 +679,7 @@ function clearAssessment() {
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
   // 僅綁定已知操作，不解析或執行 HTML 屬性中的程式碼。
-  const actions = { nextStep, prevStep, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
+  const actions = { nextStep, prevStep, downloadPDF, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
   document.querySelectorAll("[data-page]").forEach((button) => {
     button.addEventListener("click", () => showPage(button.dataset.page));
   });
@@ -1325,13 +1326,18 @@ function getExerciseExamples(types) {
 let pdfDownloadInProgress = false;
 let pdfDownloadUrl = null;
 let pdfDownloadSequence = 0;
+let pdfDownloadKind = null;
 
 function updatePDFButtons() {
+  document.getElementById('downloadPrescription').disabled = pdfDownloadInProgress || !window.lastPrescription || !window.lastFormData;
   document.getElementById('downloadAiReport').disabled = pdfDownloadInProgress || !lastAIResult;
 }
 
-function clearPDFDownload() {
+function clearPDFDownload({ aiOnly = false } = {}) {
+  // Editing optional AI context does not invalidate the unchanged prescription.
+  if (aiOnly && pdfDownloadKind === 'prescription') return;
   pdfDownloadSequence++;
+  pdfDownloadKind = null;
   if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl);
   pdfDownloadUrl = null;
   document.getElementById('pdfDownloadFeedback').classList.add('hidden');
@@ -1340,18 +1346,19 @@ function clearPDFDownload() {
 }
 
 async function downloadPDF() {
-  return savePDFReport(createPDFReport, "運動處方建議");
+  return savePDFReport(createPDFReport, "運動處方建議", 'prescription');
 }
 
 async function downloadAIPDF() {
   if (!lastAIResult) return;
-  return savePDFReport(createAIPDFReport, "AI運動行動報告");
+  return savePDFReport(createAIPDFReport, "AI運動行動報告", 'combined');
 }
 
-async function savePDFReport(buildReport, filePrefix) {
+async function savePDFReport(buildReport, filePrefix, kind) {
   if (pdfDownloadInProgress) return;
   clearPDFDownload();
   const sequence = pdfDownloadSequence;
+  pdfDownloadKind = kind;
   pdfDownloadInProgress = true;
   updatePDFButtons();
   const feedback = document.getElementById('pdfDownloadFeedback');
@@ -1560,6 +1567,7 @@ function generatePrescription() {
     const prescription = calculateFITTVP(data);
 
     // 保存處方資料供 AI 使用
+    clearPDFDownload();
     window.lastPrescription = prescription;
 
     displayPrescriptionSummary(prescription);

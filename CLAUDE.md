@@ -17,7 +17,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 ```
 
 - **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
-- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十三支腳本包含規則引擎、AI、生活情境與舊快取更新、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
+- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十四支腳本包含規則引擎、AI、生活情境與舊快取更新、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 `/usr/bin/python3` 與 macOS 的使用者套件目錄，可用 `PY` / `PYTHONPATH` 覆寫；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
 - `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）
@@ -38,9 +38,10 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 
 ### 表單與輸出流程
 - 主入口先呈現標準處方與修改操作，AI 是選用補充；強度與 MET 參考使用原生 `details`，醫療提醒仍直接顯示。
+- AI 收到 HTML／空白／其他非 JSON 錯誤時，仍讀取 Retry-After 並保留手動重試，不自動再次傳送資料或付費。讀取 body 的 AbortError 保留逾時分類；錯誤資訊僅顯示 HTTP status、格式驗證後的 CF-Ray 及時間，不呈現原始錯誤正文。原先單次非 JSON 回應的上游原因未確定，不能把恢復實測當作已確認根因
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／生活情境／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入本站 `assets/vendor/jspdf.umd.min.js`（原 pinned 2.5.1 與 SRI）及本機中文字型，20秒逾時、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁僅保留「下載 AI 報告 PDF」，位於所有報告內容與參考說明之後、頁尾之前；AI 未完成時 disabled 並說明原因。一般處方下載按鈕及合併附錄勾選已移除，PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 沿用 `createPDFReport()` 的完整處方、風險提醒與免責說明，再另頁附上六節個人化 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。合併 PDF 用 compact 留白，字級不縮小。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁最下方為兩個並排按鈕：左側「下載運動處方」在完成處方後獨立可用，右側「運動處方＆AI分析」在 AI 完成後可用；未生成、等待或失敗時，一般處方仍可下載。兩種匯出共用下載鎖，AI 情境修改僅撤銷合併 PDF，重新生成或清除健康評估才撤銷兩種 PDF。PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 沿用 `createPDFReport()` 的完整處方、風險提醒與免責說明，再另頁附上六節個人化 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。合併 PDF 用 compact 留白，字級不縮小。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。

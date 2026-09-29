@@ -717,7 +717,10 @@
                         <button type="button" data-action="cancelAIRecommendation" class="action-link">取消等待</button>
                     </div>
                     <div id="aiContent" class="hidden" aria-live="polite"></div>
-                    <div id="aiError" class="hidden action-error" role="alert"><p>行動建議暫時無法使用</p><p id="aiErrorMessage"></p><p>你仍可使用上方的標準處方</p></div>
+                    <div id="aiError" class="hidden action-error" role="alert">
+                        <p>行動建議暫時無法使用</p><p id="aiErrorMessage"></p><p>你仍可使用上方的標準處方，或在下方下載運動處方</p>
+                        <details id="aiErrorDetails" class="hidden action-provenance"><summary>錯誤資訊</summary><p id="aiErrorDiagnostic"></p></details>
+                    </div>
                     <p id="aiRetryStatus" role="status" class="action-note"></p>
                     <div id="aiProviderBadge" class="hidden action-note">由 <span id="aiProviderName">AI</span> 依你的情境撰寫，運動量與必要提醒以本站處方為依據</div>
                     <p class="action-note">AI 建議是依填寫內容整理的執行參考，不能代替個別醫療評估；健康狀況改變時，請先確認原處方是否仍適用</p>
@@ -785,9 +788,10 @@
 
             <div class="report-download-panel">
                 <div class="report-download-buttons" role="group" aria-label="下載報告">
-                    <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary" aria-describedby="aiDownloadHint" disabled>下載 AI 報告 PDF</button>
+                    <button type="button" id="downloadPrescription" data-action="downloadPDF" class="btn-secondary" aria-describedby="aiDownloadHint" disabled>下載運動處方</button>
+                    <button type="button" id="downloadAiReport" data-action="downloadAIPDF" class="btn-primary" aria-describedby="aiDownloadHint" disabled>運動處方＆AI分析</button>
                 </div>
-                <p id="aiDownloadHint" class="action-note" role="status">先產生上方 AI 建議，即可下載包含運動處方的完整報告</p>
+                <p id="aiDownloadHint" class="action-note" role="status">可直接下載運動處方；AI 分析完成後可下載合併報告</p>
                 <div id="pdfDownloadFeedback" class="hidden pdf-download-feedback" role="status">
                     <p id="pdfDownloadMessage"></p>
                     <div id="pdfDownloadLinks" class="hidden">
