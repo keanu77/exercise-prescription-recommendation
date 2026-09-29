@@ -36,6 +36,61 @@ test('minor model input omits physiological prescription fields while the truste
   baseline.warnings.forEach(warning => assert.ok(result.report.sections[5].items.includes(warning)));
 });
 
+test('minor actions expose bounded practical explanation anchors without implying established prescription fit', () => {
+  for (const input of [{ preferences: ['ball', 'play'] }, {}, { question: '活動後胸悶怎麼辦？' }]) {
+    const context = ctx(12, input);
+    const before = structuredClone(context.decisionFrame);
+    const prompt = JSON.parse(buildCoachingPrompt(context));
+    assert.equal(prompt.decisionFrame.actions.length, 2);
+    prompt.decisionFrame.actions.forEach((action, index) => {
+      assert.deepEqual(Object.keys(action), ['title', 'reasonAnchor']);
+      assert.equal(action.title, before.actions[index].title);
+      assert.equal(action.reasonAnchor, before.actions[index].reasonFallback);
+      assert.ok(action.reasonAnchor.length > 0 && action.reasonAnchor.length <= 200);
+      assert.doesNotMatch(action.reasonAnchor, /符合原處方|有氧與肌力需求|提升活動量|強度需求/);
+    });
+    prompt.decisionFrame.barriers.forEach((barrier, index) => {
+      assert.equal(barrier.alternative, before.barriers[index].alternative);
+      assert.equal(barrier.reasonAnchor, before.barriers[index].reasonFallback);
+      assert.ok(barrier.reasonAnchor.length > 0 && barrier.reasonAnchor.length <= 200);
+    });
+    assert.deepEqual(context.decisionFrame, before);
+    const report = presentCoaching(createCoachingSelection(context), context).report;
+    assert.deepEqual(report.sections[2].items.slice(-2), before.actions.map(({ title, instruction }) => [title, instruction]));
+    assert.match(prompt.constraints.minorGrounding, /reasonAnchor/);
+    assert.match(prompt.constraints.minorGrounding, /participation|caregiver|access/);
+    assert.match(prompt.constraints.minorGrounding, /commas.*semicolons/);
+  }
+});
+
+test('minor anchors remain bounded and do not become action-reason output fallbacks', () => {
+  const context = ctx(12, { preferences: ['ball', 'play'] });
+  context.decisionFrame.actions[0].reasonFallback = '參與選擇'.repeat(100);
+  context.decisionFrame.barriers[1].reasonFallback = '協調條件'.repeat(100);
+  const prompt = JSON.parse(buildCoachingPrompt(context));
+  assert.equal(typeof prompt.decisionFrame.actions[0].reasonAnchor, 'string');
+  assert.equal(prompt.decisionFrame.actions[0].reasonAnchor.length, 200);
+  assert.equal(prompt.decisionFrame.barriers[1].reasonAnchor.length, 200);
+  assert.equal(context.decisionFrame.actions[0].reasonFallback.length, 400);
+  const value = createCoachingSelection(ctx());
+  value.actionReasons[0] = '熟悉的遊戲已經符合原處方';
+  assert.throws(() => validateCoachingReport(JSON.stringify(value), context), { reason: 'unsafe_advice', field: 'actionReasons' });
+});
+
+test('minor generated explanations may relate anchored participation and coordination to the personal question', () => {
+  const context = ctx(12, { preferences: ['ball', 'play'], question: '我不喜歡跑步，但喜歡跟同學玩，該怎麼開始？' });
+  const prompt = JSON.parse(buildCoachingPrompt(context));
+  assert.equal(prompt.untrustedCoachingContext.question, context.coachingContext.question);
+  assert.deepEqual(prompt.untrustedCoachingContext.preferences, ['ball', 'play']);
+  assert.deepEqual(prompt.decisionFrame.known.preferences, ['ball', 'play']);
+  assert.ok(prompt.decisionFrame.unknown.includes('familiarActivities'));
+  assert.ok(prompt.decisionFrame.unknown.includes('access'));
+  const value = createCoachingSelection(context);
+  value.answer = ['你不喜歡跑步、比較想跟同學玩，選擇討論可以從喜歡且熟悉的項目開始；同學能否一起參與和照顧者陪伴需要分開確認，喜歡某項活動還不能判定是否適合'];
+  value.actionReasons = ['你提到比較喜歡跟同學玩，讓你一起選喜歡且熟悉的項目，可以把自己的想法帶進討論，而不是由大人直接決定', '先和照顧者談好誰能陪伴、場地何時可用，能把想參加的事情和實際安排連起來；還沒確認的條件就先保留'];
+  assert.deepEqual(validateCoachingNarrative(JSON.stringify(value), context), value);
+});
+
 test('minor observed prescription adequacy and activity-increase claims fail in answers and fixed reasons', () => {
   const context = ctx();
   const examples = [

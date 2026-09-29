@@ -3,7 +3,7 @@ import { COACHING_MAX_CONTENT_CHARS } from './coaching-limits.js';
 import { buildDecisionFrame } from './coaching-frame.js';
 export { buildDecisionFrame };
 export { RULES_VERSION };
-export const PROMPT_VERSION = 'personal-coaching-13';
+export const PROMPT_VERSION = 'personal-coaching-14';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const dayLabels = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -69,8 +69,10 @@ export function buildCoachingPrompt(ctx) {
   const timeWindow = sessionMinutes === null ? 'unknown' : sessionMinutes <= 20 ? 'short' : sessionMinutes <= 45 ? 'medium' : 'long';
   return JSON.stringify({ profile: { ageGroup: ctx.minor ? 'child_or_adolescent' : d.age >= 65 ? 'older_adult' : 'adult', gender: d.gender, diseases: d.diseases, fitness: d.fitness_level, habit: d.exercise_habit, goal: ctx.minor ? 'enjoyable_familiar_activities' : d.exercise_goal, limitations: d.limitations },
     baseline: ctx.minor ? { dosesRenderedSeparately: true } : { intensity: baseline.intensity, type: baseline.type, includesResistanceTraining: Boolean(baseline.resistanceTraining), dosesRenderedSeparately: true }, risk: ctx.risk.level,
-    constraints: { consultation: ctx.consult, minor: ctx.minor, unknownAvailability: !coachingContext.availableDays.length || sessionMinutes === null, noModelAuthoredDose: true, modelMayOnlyRaiseClinicalConcern: true, ...(ctx.minor ? { minorGrounding: 'Preference or familiarity does not establish intensity, physiological benefit or prescription fit. Explain preparation and checking suitability with caregivers; do not claim increased activity, preserved aerobic/strength needs or matched intensity.' } : {}) },
-    decisionFrame: { known: frame.known, unknown: frame.unknown, actions: frame.actions.map(({ title, instruction }) => ({ title, instruction })), barriers: frame.barriers.map(({ title, alternative }) => ({ title, alternative })), questionFocus: frame.questionFocus },
+    constraints: { consultation: ctx.consult, minor: ctx.minor, unknownAvailability: !coachingContext.availableDays.length || sessionMinutes === null, noModelAuthoredDose: true, modelMayOnlyRaiseClinicalConcern: true, ...(ctx.minor ? { minorGrounding: 'Use each matching reasonAnchor for reasons, personalized only through practical/social rationale: child participation, caregiver coordination, access or organizing consultation information. Address the actual question and preferences; unknown skills/access remain unknown. Preference or familiarity does not establish intensity, physiological benefit or prescription fit; do not claim increased activity, safety or adequate training. Use short clauses with natural Chinese commas or semicolons; no full stops.' } : {}) },
+    // Minor action explanations use practical anchors, not suitability wording
+    // that might be recast as established adequacy. Full instructions stay in ctx.
+    decisionFrame: { known: frame.known, unknown: frame.unknown, actions: frame.actions.map(({ title, instruction, reasonFallback }) => ctx.minor ? { title, reasonAnchor: reasonFallback.slice(0, 200) } : { title, instruction }), barriers: frame.barriers.map(({ title, alternative, reasonFallback }) => ({ title, alternative, ...(ctx.minor ? { reasonAnchor: reasonFallback.slice(0, 200) } : {}) })), questionFocus: frame.questionFocus },
     untrustedCoachingContext: { ...proseContext, timeWindow, datesProvided: availableDays.length > 0 } });
 }
 
