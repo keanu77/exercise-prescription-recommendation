@@ -41,7 +41,7 @@ python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳�
 - AI 收到 HTML／空白／其他非 JSON 錯誤時，仍讀取 Retry-After 並保留手動重試，不自動再次傳送資料或付費。讀取 body 的 AbortError 保留逾時分類；錯誤資訊僅顯示 HTTP status、格式驗證後的 CF-Ray 及時間，不呈現原始錯誤正文。原先單次非 JSON 回應的上游原因未確定，不能把恢復實測當作已確認根因
 - 草稿只用本分頁 `sessionStorage` 的 `exerciseRxFormDraft`。`clearAssessment()` 須取消 debounce、清除表單／生活情境／衍生結果／自帶金鑰，並透過 `resetAISection()` 中止 AI 請求與隔離舊回應，避免已清除資料回流。
 - `pdf-loader.js` 由兩入口共用，依需求載入本站 `assets/vendor/jspdf.umd.min.js`（原 pinned 2.5.1 與 SRI）及本機中文字型，20秒逾時、合併同時請求、失敗可重試。两入口的 `downloadPDF()` 各有防重複與 `finally` 清理。`pdf-report.js` 以可選取的原生文字／向量表格輸出 A4，段落與表格列自動分頁，不再截取長圖。字型來源及重建步驟見 `assets/fonts/README.md`。新增前端資產須同步 `scripts/build-pages.sh` 與 `tests/build.test.mjs`。
-- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁最下方為兩個並排按鈕：左側「下載運動處方」在完成處方後獨立可用，右側「運動處方＆AI分析」在 AI 完成後可用；未生成、等待或失敗時，一般處方仍可下載。兩種匯出共用下載鎖，AI 情境修改僅撤銷合併 PDF，重新生成或清除健康評估才撤銷兩種 PDF。PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 沿用 `createPDFReport()` 的完整處方、風險提醒與免責說明，再另頁附上六節個人化 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。合併 PDF 用 compact 留白，字級不縮小。
+- AI 不再載入 DOMPurify；模型無法注入 HTML。主結果頁最下方為兩個並排按鈕：左側「下載運動處方」在完成處方後獨立可用，右側「運動處方＆AI分析」在 AI 完成後可用；未生成、等待或失敗時，一般處方仍可下載。兩種匯出共用下載鎖，AI 情境修改僅撤銷合併 PDF，重新生成或清除健康評估才撤銷兩種 PDF。PAR-Q 獨立頁的下載仍保留。`createAIPDFReport()` 沿用 `createPDFReport()` 的完整處方、風險提醒與免責說明，再依剩餘空間接續六節個人化 AI 報告；Blob 儲存／預覽連結、載入鎖、序號隔離與重設撤銷 URL 維持。一般處方與合併 PDF 都用 compact 排版：移除注意事項與 AI 區塊的固定換頁，縮減頁首、表格 padding 與段落間距，保留原字級、18mm 左右邊界及所有內容；處方使用提醒仍位於 AI 之前。CJK 行距不可低於 1.45em，表格行距採 5.4mm，避免文字邊界重疊。PAR-Q 獨立頁沿用原版型。
 
 ### calculateFITTVP 的規則優先序（改規則前必讀）
 - 年齡層基準 → 體能 → 運動習慣（起始量）→ 目標 → 疾病 → 限制 → PAR-Q，**但疾病 / 限制 / PAR-Q 只透過 `caps` 設「安全上限」**（`capIntensity` / `capFrequency` / `capTime` / `hrZoneUnsafe`），不直接改處方。

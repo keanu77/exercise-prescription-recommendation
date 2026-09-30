@@ -257,8 +257,8 @@ function createAIPDFReport() {
     date:new Date(r.meta.generatedAt).toLocaleDateString('zh-TW'),
     sections:[
       ...prescriptionReport.sections,
-      // The renderer keeps the prescription disclaimer before this new-page supplement.
-      {title:'07  AI 行動建議',kind:'paragraph',newPage:true,appendix:true,items:[r.report.summary,r.safety,...(aiOmissionNotice(r)?[aiOmissionNotice(r)]:[])]},
+      // Keep the prescription disclaimer before AI, then flow into available space.
+      {title:'07  AI 行動建議',kind:'paragraph',appendix:true,items:[r.report.summary,r.safety,...(aiOmissionNotice(r)?[aiOmissionNotice(r)]:[])]},
       ...aiActionPDFSections(r),
       {title:'AI 說明與限制',kind:'paragraph',items:['行動與備案依填寫的條件整理，AI 回答個人問題並說明選擇理由，運動量沿用原處方；未即時查詢研究，亦未完成個別醫療評估；請搭配本報告前段的運動處方與安全提醒使用，不能取代個別醫療建議']},
     ],

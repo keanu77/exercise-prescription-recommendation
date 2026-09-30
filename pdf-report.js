@@ -15,11 +15,17 @@ function renderPDFReport(report) {
     doc.setLanguage('zh-TW');
 
     const left = 18, right = 192, width = right - left, bottom = 273;
-    // Short standalone action reports use less whitespace at the same text size.
-    const sectionSpace = report.compact ? 10 : 13;
-    const sectionGap = report.compact ? 3 : 5;
-    const paragraphGap = report.compact ? 2 : 3;
-    const lineSpacing = report.compact ? 1.4 : 1.5;
+    // Fit more complete content by tightening whitespace, never the body font.
+    const sectionSpace = report.compact ? 9 : 13;
+    const sectionGap = report.compact ? 2 : 5;
+    const paragraphGap = report.compact ? 1 : 3;
+    // The embedded CJK font's full glyph bounds need at least 1.45em leading.
+    const lineSpacing = report.compact ? 1.45 : 1.5;
+    const rowLeading = report.compact ? 5.4 : 5.6;
+    const rowPadding = report.compact ? 3.5 : 7;
+    const rowBaseline = report.compact ? 5 : 6;
+    const factLeading = report.compact ? 5.4 : 5.5;
+    const factGap = report.compact ? 3 : 5;
     const ink = '#202820', muted = '#60675F', line = '#DCE0D7';
     const riskColors = { low: '#306743', moderate: '#855600', high: '#A33030' };
     const riskFills = { low: '#F0F5ED', moderate: '#FAF4E6', high: '#FAEEEE' };
@@ -49,14 +55,16 @@ function renderPDFReport(report) {
         doc.setDrawColor(color); doc.setLineWidth(0.25); doc.line(left, at, right, at);
     };
     function header(first = false) {
-        text('MOVE WITH PURPOSE', left, 17, 10, ink);
+        text(!first && report.compact ? report.title : 'MOVE WITH PURPOSE', left, 17, 10, ink);
         font(9, muted); doc.text(report.date, right, 17, { align: 'right' });
         rule(22, ink);
         doc.setFillColor('#C4D959'); doc.rect(left, 21.4, 14, 1.2, 'F');
         if (first) {
-            text(report.title, left, 37, 22);
-            text(report.subtitle, left, 46, 10, muted);
-            y = 54;
+            text(report.title, left, report.compact ? 33 : 37, 22);
+            text(report.subtitle, left, report.compact ? 41 : 46, 10, muted);
+            y = report.compact ? 48 : 54;
+        } else if (report.compact) {
+            y = 28;
         } else {
             text(report.title, left, 32, 11, muted);
             y = 41;
@@ -96,20 +104,20 @@ function renderPDFReport(report) {
     function tableRow(label, value) {
         const labelLines = wrap(label, 32, 10);
         const valueLines = wrap(value, width - 43);
-        const leading = 5.6;
+        const leading = rowLeading;
         // A row normally stays together; unusually long values can flow over
         // pages, with their label repeated so the context is never lost.
         let offset = 0;
         while (offset < valueLines.length) {
             const remaining = valueLines.length - offset;
-            const fullHeight = Math.max(labelLines.length, remaining) * leading + 7;
+            const fullHeight = Math.max(labelLines.length, remaining) * leading + rowPadding;
             if (fullHeight <= 190) ensure(fullHeight);
-            else ensure(Math.max(labelLines.length, 2) * leading + 7);
-            const count = Math.min(remaining, Math.floor((bottom - y - 7) / leading));
-            const rowHeight = Math.max(labelLines.length, count) * leading + 7;
+            else ensure(Math.max(labelLines.length, 2) * leading + rowPadding);
+            const count = Math.min(remaining, Math.floor((bottom - y - rowPadding) / leading));
+            const rowHeight = Math.max(labelLines.length, count) * leading + rowPadding;
             doc.setFillColor('#F5F6F2'); doc.rect(left, y, 37, rowHeight, 'F');
-            labelLines.forEach((part, index) => text(part, left + 3, y + 6 + index * leading, 10, muted));
-            valueLines.slice(offset, offset + count).forEach((part, index) => text(part, left + 41, y + 6 + index * leading));
+            labelLines.forEach((part, index) => text(part, left + 3, y + rowBaseline + index * leading, 10, muted));
+            valueLines.slice(offset, offset + count).forEach((part, index) => text(part, left + 41, y + rowBaseline + index * leading));
             y += rowHeight; rule(y); offset += count;
             if (offset < valueLines.length) nextPage();
         }
@@ -118,20 +126,23 @@ function renderPDFReport(report) {
     if (report.notice) {
         const { level, title, body } = report.notice;
         const lines = wrap(body, width - 10);
-        const height = 17 + lines.length * 5.5;
+        const noticeLeading = report.compact ? 5.4 : 5.5;
+        const height = (report.compact ? 15 : 17) + lines.length * noticeLeading;
         doc.setFillColor(riskFills[level] || riskFills.low); doc.rect(left, y, width, height, 'F');
         text(title, left + 5, y + 7, 12, riskColors[level]);
-        lines.forEach((part, index) => text(part, left + 5, y + 14 + index * 5.5));
-        y += height + 8;
+        lines.forEach((part, index) => text(part, left + 5, y + 14 + index * noticeLeading));
+        y += height + (report.compact ? 4 : 8);
     }
     let disclaimerDrawn = false;
     function drawDisclaimer() {
         currentSection = null;
-        ensure(13 + wrap(report.disclaimer, width, 9).length * 4.7625 + 3);
+        const before = report.compact ? 2 : 5;
+        const heading = report.compact ? 6 : 8;
+        ensure(before + heading + wrap(report.disclaimer, width, 9).length * (9 * 0.352778 * lineSpacing) + paragraphGap);
         rule(y);
-        y += 5;
+        y += before;
         text('使用提醒', left, y + 4, 10, muted);
-        y += 8;
+        y += heading;
         paragraph(report.disclaimer, { size: 9, color: muted });
         disclaimerDrawn = true;
     }
@@ -144,20 +155,20 @@ function renderPDFReport(report) {
         // Keep a heading with at least the first item, not alone at the page foot.
         const first = section.items[0];
         const firstHeight = section.kind === 'rows'
-            ? Math.max(wrap(first[0], 32, 10).length, wrap(first[1], width - 43).length) * 5.6 + 7
-            : section.kind === 'facts' ? 13 : wrap(first, width - 5).length * 5.6 + 3;
+            ? Math.max(wrap(first[0], 32, 10).length, wrap(first[1], width - 43).length) * rowLeading + rowPadding
+            : section.kind === 'facts' ? 13 : wrap(first, width - 5).length * (10.5 * 0.352778 * lineSpacing) + paragraphGap;
         ensure(sectionSpace + (firstHeight <= 190 ? firstHeight : 35));
         currentSection = section;
         sectionHeading();
         if (section.kind === 'facts') {
             for (let i = 0; i < section.items.length; i += 2) {
                 const cells = section.items.slice(i, i + 2).map(([label, value]) => ({ label, lines: wrap(value, 56) }));
-                const height = Math.max(...cells.map(cell => cell.lines.length)) * 5.5 + 5;
+                const height = Math.max(...cells.map(cell => cell.lines.length)) * factLeading + factGap;
                 ensure(height);
                 cells.forEach((cell, index) => {
                     const x = left + index * 90;
                     text(cell.label, x, y + 4, 9, muted);
-                    cell.lines.forEach((part, j) => text(part, x + 28, y + 4 + j * 5.5));
+                    cell.lines.forEach((part, j) => text(part, x + 28, y + 4 + j * factLeading));
                 });
                 y += height;
             }

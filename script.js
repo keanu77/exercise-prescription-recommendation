@@ -1512,6 +1512,7 @@ function createPDFReport() {
   if (prescription.resistanceTraining) rows.push(["阻力訓練", prescription.resistanceTraining]);
   return {
     title: "個人運動處方", subtitle: "從了解自己開始，讓每一次活動都有方向。",
+    compact: true,
     date: new Date().toLocaleDateString("zh-TW"),
     notice: { level: risk.level, title: `PAR-Q+：${riskLabel}  /  ${risk.yesCount} 題回答「是」`, body: risk.recommendations[0] },
     sections: [
@@ -1522,7 +1523,7 @@ function createPDFReport() {
         ["運動習慣", getHabitText(data.exercise_habit)],
       ] },
       { title: "02  FITT-VP 運動計畫", kind: "rows", items: rows },
-      { title: "03  重要注意事項", kind: "list", newPage: true, warning: true,
+      { title: "03  重要注意事項", kind: "list", warning: true,
         items: prescription.warnings.length ? [...prescription.warnings] : ["運動中如感到不適，請立即停止；如有健康疑慮，請諮詢專業醫療人員。"] },
       { title: "04  執行建議", kind: "list", items: [...prescription.recommendations] },
       { title: "05  推薦運動範例", kind: "paragraph", items: [[...examples.content.querySelectorAll("span")].map(el => el.textContent).join("、")] },

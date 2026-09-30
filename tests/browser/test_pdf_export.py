@@ -235,7 +235,9 @@ with sync_playwright() as p:
                     assert text.index('FITT-VP運動計畫') < text.index(compact(report['disclaimer'])) < text.index('07AI行動建議')
                     pdf_pages = subprocess.check_output(['pdftotext', '-layout', str(target), '-'], text=True).split('\f')
                     ai_start = next(i for i, value in enumerate(pdf_pages) if '07AI行動建議' in compact(value))
-                    assert ai_start >= 2 and '使用提醒' not in pdf_pages[ai_start], 'AI supplement starts on a separate page after clinical reminders'
+                    assert ai_start >= 1, 'Complete prescription and clinical reminders must precede AI'
+                    if scenario in ['ai-report', 'ai-report-mobile', 'ai-report-child', 'ai-consultation']:
+                        assert count <= 3, f'{scenario}: compact report regressed to {count} pages (previously 4)'
                     if scenario == 'ai-report':
                         ai_standard_text = text
                         # A fresh user click can save again when automatic downloading is blocked.
@@ -254,18 +256,19 @@ with sync_playwright() as p:
                     elif scenario == 'ai-report-child':
                         assert '未滿18歲' in text and '每日身體活動' in text
                     elif scenario == 'ai-report-long':
-                        assert count >= 6 and '表格結束。' in text and '段落結束。' in text
+                        assert 4 <= count <= 7 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'standard':
-                    assert count == 2, count
+                    assert count <= 2, count
                     standard_text = text
                 if scenario == 'mobile':
-                    assert count == 2 and text == standard_text, 'Viewport changed report content or pagination'
+                    assert count <= 2 and text == standard_text, 'Viewport changed report content or pagination'
                 if scenario == 'long':
-                    assert count >= 4 and '表格結束。' in text and '段落結束。' in text
+                    assert 4 <= count <= 5 and '表格結束。' in text and '段落結束。' in text
                 if scenario == 'child':
                     assert '未滿18歲' in text and '不適用' in text
                 if scenario == 'high':
                     assert '高風險' in text and '醫師評估' in text
+                    assert count <= 2, 'Safety content must fit without a nearly empty disclaimer page'
                 expect(button).to_be_enabled()
                 assert page.locator('#pdfLoadingStatus, #pdfExportContent, #loadingModal.active').count() == 0
                 assert len(library_requests) == 3, 'Exports must reuse the loaded font and jsPDF'
