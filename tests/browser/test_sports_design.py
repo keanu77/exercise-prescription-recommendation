@@ -8,7 +8,8 @@ OUT = Path(os.environ.get('SCREENSHOT_DIR', str(Path.cwd() / '.claude/audit/spor
 OUT.mkdir(parents=True, exist_ok=True)
 FOLLOW = [
     'https://blog.sportsmedicine.tw/', 'https://www.facebook.com/EthanWuMD/',
-    'https://www.instagram.com/ethan77wu/', 'https://github.com/keanu77',
+    'https://www.instagram.com/ethan77wu/', 'https://www.youtube.com/@sportsmedicinetw',
+    'https://github.com/keanu77',
     'https://line.me/R/ti/p/@521cvffb', 'https://sportsmedicine.tw/',
 ]
 
