@@ -33,8 +33,9 @@ Tailwind4.3.3 CLI仍固定watcher2.5.1，因此僅更新Tailwind會剩4項間接
 - 完整既有瀏覽器回歸通過；樣式收尾後另重跑相容性、a11y、填表、PAR-Q與四尺寸版面。
 - 390／1280px × 首頁／PAR-Q × 首頁／表單／結果共12狀態：DOM元素位置、尺寸、字型、行距、顏色、圓角與陰影與原版一致；僅PAR-Q底色元素的class文字改名。已檢視實際截圖。
 - Chromium／WebKit透過HTTPS及正式CSP完成32個PDF案例與Tailwind樣式相容性檢查。
-- macOS watcher2.6.0檔案變更事件通過。
-- Linux乾淨安裝與最終CI結果見PR驗證欄。
+- macOS與Ubuntu的watcher2.6.0檔案建立事件均通過。
+- Ubuntu 24.04 arm64獨立乾淨checkout：Node24.19.0／npm11.17.0，`npm ci --ignore-scripts`、完整audit 0項、104項測試、CSS一致性與Pages打包通過；相容性、三尺寸填表、兩入口四尺寸版面及16個Chromium PDF案例通過。
+- GitHub Ubuntu CI的Node22／24均通過（[執行紀錄](https://github.com/keanu77/exercise-prescription-recommendation/actions/runs/39271050115)）。[PR #2](https://github.com/keanu77/exercise-prescription-recommendation/pull/2)保留最終檢查狀態。
 
 ## 發佈邊界
 
