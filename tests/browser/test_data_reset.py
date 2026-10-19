@@ -1,10 +1,11 @@
 """Reset/cancel, stale async responses, draft races and result reading order."""
 import os
+import tempfile
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('BASE_URL', 'http://127.0.0.1:8765')
-OUT = Path('/private/tmp/exercise-ux-review')
+OUT = Path(tempfile.gettempdir()) / 'exercise-ux-review'
 OUT.mkdir(exist_ok=True)
 
 with sync_playwright() as p:

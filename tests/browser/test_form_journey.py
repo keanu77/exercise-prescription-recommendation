@@ -1,10 +1,11 @@
 """Real form interactions: decimal inputs, validation recovery, keyboard and mobile."""
 import os
+import tempfile
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('BASE_URL', 'http://127.0.0.1:8765')
-OUT = Path('/private/tmp/exercise-site-audit')
+OUT = Path(tempfile.gettempdir()) / 'exercise-site-audit'
 OUT.mkdir(exist_ok=True)
 
 with sync_playwright() as p:

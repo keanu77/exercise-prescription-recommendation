@@ -6,12 +6,13 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('BASE_URL', 'http://127.0.0.1:8765')
-OUT = Path(os.environ.get('PDF_OUTPUT_DIR', '/private/tmp/exercise-ux-review'))
+OUT = Path(os.environ.get('PDF_OUTPUT_DIR', str(Path(tempfile.gettempdir()) / 'exercise-ux-review')))
 OUT.mkdir(parents=True, exist_ok=True)
 BROWSERS = os.environ.get('PDF_BROWSERS', 'chromium').split(',')
 

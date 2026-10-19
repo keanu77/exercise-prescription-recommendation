@@ -25,7 +25,8 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install playwright
 python -m playwright install chromium
-# Ubuntu may need: python -m playwright install --with-deps chromium
+# On Ubuntu, also install the required OS libraries (prompts for sudo):
+python -m playwright install-deps chromium
 PY="$PWD/.venv/bin/python" bash tests/browser/run_all.sh test_form_journey.py test_sports_design.py test_pdf_export.py
 ```
 
