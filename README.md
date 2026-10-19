@@ -1,10 +1,44 @@
 # 運動處方推薦系統
 
-> 2026-09-28 AI 改版：可選填個人問題、可用時間、運動偏好、場地與器材，網站依條件整理具體行動、替代方案與回顧重點，由 Groq 回答個人問題並解釋選擇理由。運動劑量由伺服器依原處方提供，AI 不另開數字課表。結果頁最下方可下載包含完整原處方與 AI 報告的 PDF。架構見 [個人化報告設計](docs/superpowers/specs/2026-09-28-personal-coaching-design.md)
+**給想建立運動習慣的人與運動衛教工作者：填寫健康條件，取得 FITT-VP 運動處方與可下載 PDF；AI 行動建議為選用功能。**
 
-基於美國運動醫學會（ACSM）FITT-VP 原則與世界衛生組織（WHO）2020 身體活動指引的運動處方工具。使用者填寫多步驟問卷後，前端以確定性規則計算 FITT-VP 處方、PAR-Q+ 風險分級、BMI/BMR/TDEE 與 MET 熱量估算；另可在結果頁按下按鈕，由 AI 產生補充說明。
+[立即試用](https://exerciseprescription.sportsmedicine.tw/) · [English](README.en.md) · [快速開始](#快速開始) · [版本紀錄](CHANGELOG.md) · [安全回報](SECURITY.md)
 
-線上使用：https://exerciseprescription.sportsmedicine.tw/
+[![虛構案例操作示範：填表、產生處方、下載 PDF](docs/media/demo.gif)](https://exerciseprescription.sportsmedicine.tw/)
+
+> 示範使用虛構資料，沒有呼叫 AI。網站介面為繁體中文。輸出僅供衛教，不能取代診斷或個別醫療評估。
+
+## 你可以得到什麼
+
+| 輸入與操作 | 產出 |
+| --- | --- |
+| 年齡、體能、運動習慣、目標與健康篩檢 | 依共用規則產生 FITT-VP 處方與提醒 |
+| PAR-Q+ 問卷 | 保守的活動風險分級與追蹤指引 |
+| 下載運動處方 | 可選取中文字的 A4 PDF，不需要 AI 金鑰 |
+| 選填生活情境並主動啟用 AI | 回答個人問題、說明行動理由與備案，可與原處方合併下載 |
+
+## 快速開始
+
+需要 **Node.js 20 或更新版本**、npm 與 Git；新安裝建議使用仍受維護的 Node.js LTS。一般處方與 PDF 不需要帳號或 API 金鑰。
+
+```bash
+git clone https://github.com/keanu77/exercise-prescription-recommendation.git
+cd exercise-prescription-recommendation
+npm ci
+npm run dev
+```
+
+開啟 http://127.0.0.1:3000 。不需要先建立 `.env`。初次安裝需網路；頁面字型使用 Google Fonts，PDF 函式庫與中文字型由本站載入。
+
+需要測試 AI 時，再複製 `.env.example` 為 `.env`，填入自己的 `GROQ_API_KEY` 並重啟；不要把金鑰貼到 issue 或提交進 Git。站方模式目前僅使用 Groq，候選模型需自帶金鑰。
+
+```bash
+npm test              # 後端與打包測試，不呼叫真實 AI
+npm run build:pages   # 驗證 CSS、JS 與資產後打包至 dist/
+npm run build:css     # 修改 Tailwind class 或 src/input.css 後執行
+```
+
+瀏覽器與 PDF 回歸的環境安裝見 [開發與貢獻](CONTRIBUTING.md)。已知依賴風險與回報方式見 [SECURITY.md](SECURITY.md)。
 
 ## 功能
 
@@ -19,35 +53,30 @@
 
 ## 架構
 
-- **前端**：純靜態頁面（HTML + 預編譯 Tailwind CSS + vanilla JavaScript），沒有 build step。`index.html` + `script.js` + `ai-ui.js` 是主應用，`prescription-rules.js` 為前後端共用規則；`parq-form.html` + `parq-script.js` 是獨立的 PAR-Q+ 問卷頁。
+- **前端**：純靜態頁面（HTML + 預編譯 Tailwind CSS + vanilla JavaScript），前端直接執行，部署前有資產打包檢查。`index.html` + `script.js` + `ai-ui.js` 是主應用，`prescription-rules.js` 為前後端共用規則；`parq-form.html` + `parq-script.js` 是獨立的 PAR-Q+ 問卷頁。
 - **後端**：Cloudflare Pages Functions（`functions/`）。`POST /api/ai-recommendation` 驗證並正規化問卷資料後，依 `provider` 轉發給 AI 供應商；`GET /api/health` 回服務狀態，`GET /api/providers` 回不含金鑰的模型目錄與可用性。API 金鑰放在 Pages Secrets，不會出現在前端。
 - **部署**：Cloudflare Pages，靜態檔由 `scripts/build-pages.sh` 打包到 `dist/`，安全標頭與快取策略在 `_headers`，Functions 設定在 `wrangler.toml`。
 - `*.py` 是領域知識參考腳本（FITT-VP、MET、特殊族群等科學依據），各自可獨立執行印出內容，不是執行期依賴。
 
 處方先由共用規則在前端計算，送出 AI 時由伺服器重算。AI 依個人問題與情境撰寫分析、理由及備案，具體時間窗口由伺服器在原處方範圍內安排。沒有設定任何 AI 金鑰時，規則式處方仍完整可用。
 
-## 本機開發
+## 部署到自己的 Cloudflare Pages
 
-```bash
-npm install                # 只有 tailwindcss 一個 devDependency
-cp .env.example .env       # 站方模式需 Groq 金鑰；候選模型僅支援自带金鑰
-npm run dev                # http://127.0.0.1:3000，直接載入 functions/ 的 handler，可離線
-npm test                   # Pages Functions + 打包回歸測試（node --test）
-bash tests/browser/run_all.sh  # 十一組 Python Playwright 測試，套用部署 CSP、自動起停伺服器
-npm run build:css          # 改動 Tailwind class 後必跑，並把 tailwind.css 一起 commit
-```
+本專案已有 [正式 Live Demo](https://exerciseprescription.sportsmedicine.tw/)，不需要另外啟用 GitHub Pages。純靜態 GitHub Pages 無法執行本專案的 AI Functions。
 
-## 部署
+自行部署前，在 Cloudflare 建立自己的 Pages 專案與 KV namespace，將 `wrangler.toml` 的 `name`、`RATE_LIMIT_KV.id` 換成自己的值；不要沿用本專案的 KV ID。把專案名稱帶入以下指令：
 
 ```bash
 npx wrangler login
-npx wrangler pages secret put GROQ_API_KEY --project-name exercise-prescription
-npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度檢查）→ wrangler pages deploy dist
+npx wrangler pages project create YOUR_PROJECT --production-branch main
+npx wrangler pages secret put GROQ_API_KEY --project-name YOUR_PROJECT
+npm run build:pages
+npx wrangler pages deploy dist --project-name YOUR_PROJECT --branch main
 ```
 
-`build:pages` 會在暫存目錄重編 CSS 並與 `tailwind.css` 比對；忘記重新編譯 HTML/JS 新增的 class 時會拒絕打包，且保留既有 `dist/`。瀏覽器測試需先備妥 Python Playwright、Chromium 與 Poppler（PDF 文字／版面檢查使用 `pdftotext`），PDF 元件與字型均由本站載入（測試會阻擋 cdnjs，確認沒有外部 CDN 依賴）；可用 `PY`、`PYTHONPATH` 指定環境。
+AI 是選用功能；沒有金鑰時，一般處方仍可用。`ALLOWED_ORIGINS` 留空只允許同站 `/api` 呼叫；部署後應檢查 `/api/health`、`/api/providers` 與一筆虛構案例。API 金鑰使用 Pages Secrets 管理。
 
-`wrangler.toml` 已綁定 `RATE_LIMIT_KV`；`ALLOWED_ORIGINS` 留空代表只允許同站呼叫 `/api`。
+`build:pages` 會重新編譯並比對已提交的 CSS；若不一致會拒絕打包。公開輸出採明列資產清單，不包含 `.env`、測試或內部文件。本站使用 CLI 上傳，GitHub PR 合併不會自動部署正式網站。
 
 ## 安全模型
 
@@ -77,7 +106,9 @@ npm run deploy             # build:pages（含資產與 tailwind.css 新鮮度�
 ## 作者
 
 運動醫學科 吳易澄醫師
-Blog: https://wycswimming.blogspot.com/
+網站：https://sportsmedicine.tw/
+
+YouTube：https://www.youtube.com/@sportsmedicinetw
 
 ## License
 
