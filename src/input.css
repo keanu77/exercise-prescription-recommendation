@@ -409,7 +409,7 @@ body {
 .content-trail a:hover { color: var(--ink); text-decoration: underline; }
 .home-follow { display: flex; align-items: center; gap: 12px; }
 .home-follow-label { font-size: 12px; color: var(--muted); }
-.home-follow-list { display: flex; align-items: center; gap: 4px; }
+.home-follow-list { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .home-follow-list a { display: grid; place-items: center; width: 44px; height: 44px; color: var(--brand); background: var(--surface); border: 1px solid var(--line); border-radius: 48% 44% 48% 42%; }
 .home-follow-list a:hover { background: var(--sky); color: var(--ink); border-color: #829ba8; }
 .home-follow-list svg { width: 18px; height: 18px; }

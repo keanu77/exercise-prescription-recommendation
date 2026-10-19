@@ -69,7 +69,7 @@ with sync_playwright() as p:
                     expect(page.locator('#how-it-works')).to_be_focused()
                     page.get_by_role('button', name='開始使用', exact=True).click()
                     expect(page.locator('#age')).to_have_value('35')
-            print(f'[OK] {path} {width}px: image, creator, 6 follow links, touch targets, skip link and start flow')
+            print(f'[OK] {path} {width}px: image, creator, {len(FOLLOW)} follow links, touch targets, skip link and start flow')
         assert not errors, errors
         page.close()
     browser.close()
