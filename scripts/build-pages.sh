@@ -49,7 +49,7 @@ CSS_CHECK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/exercise-rx-css.XXXXXX")"
 trap 'rm -rf "$CSS_CHECK_DIR"' EXIT
 if ! (
   cd "$ROOT"
-  "$TAILWIND_BIN" --config ./tailwind.config.js --input ./src/input.css \
+  "$TAILWIND_BIN" --input ./src/input.css \
     --output "$CSS_CHECK_DIR/tailwind.css" --minify >"$CSS_CHECK_DIR/build.log" 2>&1
 ); then
   cat "$CSS_CHECK_DIR/build.log" >&2

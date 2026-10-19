@@ -107,7 +107,7 @@ with sync_playwright() as p:
     st = pg2.evaluate("() => ({labelFor: document.querySelectorAll('label[for]').length, low: getComputedStyle(Object.assign(document.body.appendChild(document.createElement('div')), {className: 'risk-low'})).backgroundColor})")
     ok(st["labelFor"] >= 5 and st["low"] == "rgb(21, 128, 61)", "parq page labels + solid risk color", json.dumps(st))
     pg2.evaluate("() => { parqAnswers={q1:'no',q2:'no',q3:'no',q4:'no',q5:'yes',q6:'no',q7:'no'}; displayRiskAssessment(assessParqLevel(parqAnswers)); }")
-    ok(pg2.evaluate("() => document.querySelector('#riskAssessment .bg-black') !== null"), "parq inner panel uses dark overlay")
+    ok(pg2.evaluate("() => [...document.querySelectorAll('#riskAssessment div')].some(el => getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0.2)')"), "parq inner panel preserves translucent dark overlay")
     ok(not e2, "parq page no errors", e2)
     b.close()
 sys.exit(1 if fails else 0)

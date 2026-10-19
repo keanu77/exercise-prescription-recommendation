@@ -2,7 +2,14 @@
 
 This file describes user-visible releases. Dates refer to publication, not clinical guideline review. The application version is `2.1.0`; the repository previously had no GitHub release.
 
-## Unreleased — repository launch preparation
+## Unreleased — dependency security update
+
+- Upgrade Tailwind CSS and its CLI to 4.3.3, retain the existing status colors, and declare scanned files/dynamic risk classes explicitly.
+- Override the CLI's Parcel watcher to 2.6.0 to remove its `braces` dependency. The full npm audit drops from eight findings to zero at verification time.
+- Preserve the CSS freshness check and add an audit gate to CI.
+- Browser minimums become Safari 16.4, Chrome 111, and Firefox 128. Older browsers are outside Tailwind 4 support; this needs review before production deployment.
+
+## Repository launch preparation
 
 - Chinese and English getting-started guides, a synthetic walkthrough, and downloadable demo media.
 - Contribution instructions, private vulnerability reporting guidance, and an explicit dependency-risk note.

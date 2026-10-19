@@ -20,7 +20,7 @@ async function createFixture(t) {
   await copyFile(path.join(ROOT, "tailwind.config.js"), path.join(dir, "tailwind.config.js"));
   await symlink(path.join(ROOT, "node_modules"), path.join(dir, "node_modules"), "dir");
   await writeFile(path.join(dir, "package.json"), '{"type":"module"}\n');
-  await writeFile(path.join(dir, "src/input.css"), "@tailwind utilities;\n");
+  await writeFile(path.join(dir, "src/input.css"), '@import "tailwindcss" source(none);\n@config "../tailwind.config.js";\n@source "../index.html";\n@source "../parq-form.html";\n@source "../script.js";\n');
   await writeFile(path.join(dir, "index.html"), '<div class="text-blue-700">Fixture</div>\n');
   await writeFile(path.join(dir, "parq-form.html"), '<div class="text-green-700">PAR-Q fixture</div>\n');
   for (const file of ["script.js", "prescription-rules.js", "ai-ui.js", "multi-step-form.js", "parq-script.js", "pdf-loader.js", "pdf-report.js"]) {
@@ -30,7 +30,7 @@ async function createFixture(t) {
     await writeFile(path.join(dir, file), "fixture\n");
   }
   const compiled = spawnSync(path.join(dir, "node_modules/.bin/tailwindcss"), [
-    "--config", "./tailwind.config.js", "--input", "./src/input.css", "--output", "./tailwind.css", "--minify",
+    "--input", "./src/input.css", "--output", "./tailwind.css", "--minify",
   ], { cwd: dir, encoding: "utf8" });
   assert.equal(compiled.status, 0, compiled.stderr);
   return dir;

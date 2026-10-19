@@ -6,7 +6,7 @@
 
 [![Synthetic walkthrough: questionnaire, exercise plan, PDF download](docs/media/demo.gif)](https://exerciseprescription.sportsmedicine.tw/)
 
-> The recording uses fictional data and makes no AI request. The application UI is in Traditional Chinese. Outputs are educational and do not replace diagnosis or an individual medical assessment.
+> The recording uses fictional data and makes no AI request. The application UI is in Traditional Chinese. Tailwind 4 requires Safari 16.4+, Chrome 111+, or Firefox 128+. Outputs are educational and do not replace diagnosis or an individual medical assessment.
 
 ## What you get
 

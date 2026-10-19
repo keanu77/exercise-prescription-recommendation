@@ -25,10 +25,15 @@ The public AI endpoint has no authentication. KV rate and daily budget guards ar
 
 The development server is loopback-only and is not hardened for public hosting. Production uses Cloudflare Pages Functions and `_headers`. The normal build copies an explicit asset list, not the repository or `.env`.
 
-## Known dependency-audit limitations (2026-10-19)
+## Dependency audit (2026-10-19)
 
-The installed lockfile audit reports **8 findings: 6 high and 2 moderate**, in the Tailwind development-tool dependency tree. This repository has no npm production dependencies, but that does not establish that the browser application or vendored libraries are vulnerability-free. Some suggested fixes require a Tailwind major-version migration; this documentation release does not silently make that migration.
+The Tailwind build toolchain has been migrated to **Tailwind CSS / CLI 4.3.3**. A complete `npm audit` including development dependencies reports **0 known vulnerabilities** for the committed lockfile at the time of verification (previously 8: 6 high and 2 moderate).
 
-Recheck with `npm audit`. Evaluate package advisories, build-time exposure, and output changes before updating; do not run `npm audit fix --force` as an unattended release step. The vendored PDF library and fonts are outside npm audit coverage and require separate review.
+- `braces` has no published patched version. Tailwind 3's glob/parser chain was removed rather than excluded from the audit.
+- The CLI pins `@parcel/watcher` 2.5.1, which still pulls in `micromatch`/`braces`. A package-specific npm override selects the official **2.6.0** release, which uses `picomatch`. Keep this override until the upstream CLI adopts a safe dependency; verify both builds and file watching before changing it.
+- `source-map-js` resolves to **1.2.2**. The vulnerable `postcss-selector-parser` dependency is no longer installed.
+- CI runs `npm audit --audit-level=moderate`, including development dependencies. Newly published advisories can change the result.
 
-Security tests and input validation do not establish clinical correctness or regulatory approval.
+References: [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [selector-parser advisory](https://github.com/advisories/GHSA-rj75-hqrm-r3gf), [source-map-js advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+
+An empty npm audit does not establish that the application is vulnerability-free. The vendored PDF library and fonts are outside npm audit coverage and require separate review. Security tests and input validation do not establish clinical correctness or regulatory approval.
