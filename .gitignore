@@ -20,3 +20,6 @@ __pycache__/
 dist/
 .wrangler/
 .claude/audit/
+
+# Local Python browser-test environment
+.venv/
