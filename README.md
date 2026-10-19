@@ -6,7 +6,7 @@
 
 [![虛構案例操作示範：填表、產生處方、下載 PDF](docs/media/demo.gif)](https://exerciseprescription.sportsmedicine.tw/)
 
-> 示範使用虛構資料，沒有呼叫 AI。網站介面為繁體中文。輸出僅供衛教，不能取代診斷或個別醫療評估。
+> 示範使用虛構資料，沒有呼叫 AI。網站介面為繁體中文。瀏覽器需 Safari 16.4+、Chrome 111+ 或 Firefox 128+（Tailwind 4）。輸出僅供衛教，不能取代診斷或個別醫療評估。
 
 ## 你可以得到什麼
 

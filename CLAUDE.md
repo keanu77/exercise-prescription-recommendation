@@ -16,8 +16,8 @@ npm run deploy     # build:pages → wrangler pages deploy dist
 python met_introduction.py   # *.py 為可獨立執行的領域知識參考腳本，非執行期依賴
 ```
 
-- **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。動態 `${parqColor}` 類別靠 `tailwind.config.js` 的 safelist 保留。
-- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十四支腳本包含規則引擎、AI、生活情境與舊快取更新、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 PATH 上的 `python3`（可直接使用已啟用的 venv），可用 `PY` 覆寫；測試產物使用系統暫存目錄；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
+- **Tailwind 是預編譯的，不是 CDN**：`index.html` / `parq-form.html` 載入 `/tailwind.css`，由 `src/input.css` 經 tailwind CLI 編譯後 commit。新增/修改 class（含 JS 動態產生的）後必須 `npm run build:css`，否則新 class 被 purge 掉不會生效。`build-pages.sh` 會在暫存目錄重新編譯並比對 `tailwind.css`；內容不一致就拒絕打包，涵蓋 HTML/JS class，且不依賴檔案修改時間。Tailwind 4 的明列來源與動態 `${parqColor}` 類別由 `src/input.css` 的 `@source`／`@source inline` 保留；`tailwind.config.js` 以 `@config` 載入，固定既有安全語意配色。CLI 為 `@tailwindcss/cli`，watcher override 2.6.0 用以排除有弱點的 braces。
+- **瀏覽器回歸**：`bash tests/browser/run_all.sh` 使用 Python Playwright，自動在隨機可用埠啟動本 checkout 的靜態伺服器並於結束關閉；十五支腳本包含規則引擎、AI、生活情境與舊快取更新、無障礙、前端資源、兩入口填表、資料清除競態、CSP 、實際 PDF 匯出與四尺寸運動風格版面／追蹤連結，以及桌面初次顯示／字體失敗版面與 Tailwind 樣式相容性。伺服器套用 `_headers` 的同一份 CSP，避免開發時正常、部署後被攔截。可加檔名只跑單支（例如 `bash tests/browser/run_all.sh test_form_journey.py`）。預設使用 PATH 上的 `python3`（可直接使用已啟用的 venv），可用 `PY` 覆寫；測試產物使用系統暫存目錄；自行起伺服器時可設定 `BASE_URL`。後端與打包測試用 `npm test`。PDF 測試另外需要 Poppler `pdftotext`，會驗證完整文字、頁碼、無重疊及列印邊界；`PDF_BROWSERS=webkit` 可搭配 HTTPS runner 驗證 WebKit。
 - `archive/blogger/` 內是舊的 Blogger 嵌入副本（已封存），用 Tailwind CDN、沒有 PAR-Q、邏輯與主站各自漂移，不會部署。改主站時**不要**同步它們；要嵌入請用 iframe 指向線上網址（見 `archive/blogger/README.md`）。
 
 ## 架構重點（需跨檔閱讀才能理解的部分）

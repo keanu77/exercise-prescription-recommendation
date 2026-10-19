@@ -34,3 +34,7 @@
 主要工具：Node.js v24.19.0、npm 11.17.0、Ubuntu 24.04 arm64、Python venv、Playwright Chromium、Poppler。macOS 的畫面及正式站驗證是另一組證據，沒有將兩者混成同一次測試。
 
 本輪應用程式檔案、Functions、處方規則、依賴鎖檔與正式部署設定相對 `4e6282e` 沒有改動。測試可攜性修改只影響 Python 選擇與產物暫存路徑。
+
+## 後續狀態更新
+
+PR #1 已於 2026-10-19 合併至 main（30a57b7），GitHub 社群預覽圖也已更新。先前記錄的8項開發依賴弱點由後續 Tailwind 安全修正處理，詳細來源、相容性與驗證見 [Tailwind 安全修正](../tailwind-security-2026-10-19.md)。Release 在安全修正完成審查前維持草稿。
