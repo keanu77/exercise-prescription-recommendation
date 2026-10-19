@@ -4,82 +4,78 @@ const totalSteps = 3;
 // 記錄當前步驟第一個未完成欄位，供 showStepError 顯示具體訊息並捲動聚焦
 let lastStepError = null;
 
-// 初始化多步驟表單
-function initMultiStepForm() {
-  // 檢查是否有表單步驟
-  const allSteps = document.querySelectorAll(".form-step");
-
-  // 列出所有步驟的詳細信息
-  allSteps.forEach((step, index) => {});
-
-  // 顯示第一步
-  showStep(1);
-
-  // 更新步驟指示器
-  updateStepIndicator();
+// 使用者要求減少動態效果時，捲動改為即時
+function scrollBehavior() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+    ? "auto"
+    : "smooth";
 }
 
-// 顯示指定步驟
-function showStep(step) {
-  // 隱藏所有步驟
-  const allSteps = document.querySelectorAll(".form-step");
+// 初始化多步驟表單（載入時不搶焦點）
+function initMultiStepForm() {
+  showStep(1, { focusHeading: false });
+}
 
-  allSteps.forEach((s, index) => {
+// 顯示指定步驟；切換時把焦點移到該步驟標題並用 live region 宣告
+function showStep(step, { focusHeading = true } = {}) {
+  const allSteps = document.querySelectorAll(".form-step");
+  allSteps.forEach((s) => {
     s.classList.remove("active");
     s.style.display = "none";
   });
 
-  // 顯示當前步驟
   const currentStepElement = document.querySelector(
     `.form-step[data-step="${step}"]`,
   );
-
-  if (currentStepElement) {
-    currentStepElement.classList.add("active");
-    currentStepElement.style.display = "block";
-
-    // 特別檢查第三步的內容
-    if (step === 3) {
-      const parqContent = currentStepElement.querySelector(".space-y-6");
-      if (parqContent) {
-      }
-    }
-  } else {
+  if (!currentStepElement) {
     console.error("Could not find step element for step:", step);
-    allSteps.forEach((s) => {});
+    return;
   }
+  currentStepElement.classList.add("active");
+  currentStepElement.style.display = "block";
 
   currentStep = step;
   updateStepIndicator();
+
+  const heading = currentStepElement.querySelector("h3");
+  const announcer = document.getElementById("stepAnnouncer");
+  if (announcer && heading) {
+    announcer.textContent = `第 ${step} 步，共 ${totalSteps} 步：${heading.textContent.trim()}`;
+  }
+  if (focusHeading && heading) {
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+  }
 }
 
 // 下一步
 function nextStep() {
-  // 驗證當前步驟
   if (!validateCurrentStep()) {
     showStepError();
     return;
   }
+  hideStepError();
 
   if (currentStep < totalSteps) {
     showStep(currentStep + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 }
 
 // 上一步
 function prevStep() {
   if (currentStep > 1) {
+    hideStepError();
     showStep(currentStep - 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 }
 
 // 驗證當前步驟
-function validateCurrentStep() {
+function validateCurrentStep(step = currentStep) {
   lastStepError = null;
 
-  switch (currentStep) {
+  switch (step) {
     case 1: {
       // 驗證基本資料：回報第一個未填欄位
       const fields = [
@@ -92,6 +88,13 @@ function validateCurrentStep() {
         const el = document.getElementById(f.id);
         if (!el?.value) {
           lastStepError = { message: `請填寫「${f.label}」`, focusId: f.id };
+          return false;
+        }
+        if (!el.validity.valid) {
+          lastStepError = {
+            message: getFieldValidationMessage(el),
+            focusId: f.id,
+          };
           return false;
         }
       }
@@ -118,6 +121,15 @@ function validateCurrentStep() {
     }
 
     case 3: {
+      for (const [name, label] of [
+        ["exercise_habit", "目前運動習慣"],
+        ["exercise_goal", "運動目標"],
+      ]) {
+        if (!document.querySelector(`input[name="${name}"]:checked`)) {
+          lastStepError = { message: `請選擇您的${label}`, focusName: name };
+          return false;
+        }
+      }
       // 驗證 PAR-Q 問題：指出是第幾題未回答
       const parqQuestions = [
         "parq_q1",
@@ -159,7 +171,11 @@ function updateStepIndicator() {
     if (stepNum === currentStep) {
       // 當前步驟
       indicator.classList.add("active");
+      indicator.setAttribute("aria-current", "step");
+      const circle = indicator.querySelector(".step-circle");
+      if (circle) circle.textContent = String(stepNum);
     } else if (stepNum < currentStep) {
+      indicator.removeAttribute("aria-current");
       // 已完成步驟
       indicator.classList.add("completed");
 
@@ -169,6 +185,7 @@ function updateStepIndicator() {
         circle.innerHTML = "✓";
       }
     } else {
+      indicator.removeAttribute("aria-current");
       // 未到達步驟 - 恢復數字
       const circle = indicator.querySelector(".step-circle");
       if (circle && circle.innerHTML.includes("✓")) {
@@ -177,7 +194,7 @@ function updateStepIndicator() {
     }
   });
 
-  // 更新進度條
+  // 進度文字與可存取數值由同一個函式同步更新
   updateFormProgress();
 
   // 確保正確的按鈕顯示
@@ -196,7 +213,7 @@ function updateNavigationButtons() {
       'button[type="submit"]',
     );
     const nextButton = currentStepElement.querySelector(
-      'button[onclick="nextStep()"]',
+      'button[data-action="nextStep"]',
     );
 
     if (currentStep === 3) {
@@ -240,7 +257,8 @@ function showStepError() {
       );
     }
     if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
+      target.setAttribute("aria-invalid", "true");
       if (typeof target.focus === "function") {
         try {
           target.focus({ preventScroll: true });
@@ -250,11 +268,11 @@ function showStepError() {
       }
     }
   }
+  // 不自動隱藏：等使用者按下一步且驗證通過（hideStepError）才清除
+}
 
-  // 5秒後自動隱藏
-  setTimeout(() => {
-    errorDiv.classList.add("hidden");
-  }, 5000);
+function hideStepError() {
+  document.getElementById("formError")?.classList.add("hidden");
 }
 
 // 將函數添加到 window 對象以便全局訪問
@@ -262,8 +280,5 @@ window.nextStep = nextStep;
 window.prevStep = prevStep;
 window.showStep = showStep;
 
-// 當 DOM 載入完成時初始化
-document.addEventListener("DOMContentLoaded", function () {
-  // 延遲執行以確保所有元素都載入完成
-  setTimeout(initMultiStepForm, 100);
-});
+// 當 DOM 載入完成時初始化（script 在 body 底部，DOM 已就緒）
+document.addEventListener("DOMContentLoaded", initMultiStepForm);

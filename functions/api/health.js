@@ -1,10 +1,12 @@
-/** GET /api/health — 對齊 server.js 的健康檢查回應格式。 */
-import { json, providerAvailability } from "../_lib/http.js";
+/** GET /api/health — 健康檢查與各 provider 金鑰是否已設定（只回布林）。 */
+import { json, providerAvailability, withCors, corsPreflight } from "../_lib/http.js";
 
-export async function onRequestGet({ env }) {
-  return json({
+export const onRequestOptions = corsPreflight;
+
+export const onRequestGet = withCors(async ({ env }) =>
+  json({
     status: "ok",
     timestamp: new Date().toISOString(),
     aiProviders: providerAvailability(env),
-  });
-}
+  }),
+);

@@ -22,31 +22,61 @@ const DOMCache = {
   },
 };
 
-// 即時欄位驗證函數（統一驗證系統，透過 HTML oninput 觸發）
+// 即時欄位驗證函數（由外部事件監聽器觸發）
+const FIELD_LABELS = {
+  age: { label: "年齡", unit: "歲" },
+  height: { label: "身高", unit: "公分" },
+  weight: { label: "體重", unit: "公斤" },
+};
+
+function getFieldValidationMessage(input) {
+  const meta = FIELD_LABELS[input.id] || { label: "數值", unit: "" };
+  if (input.validity.stepMismatch) {
+    return input.id === "age"
+      ? "年齡請填寫整數"
+      : `${meta.label}最多填寫一位小數`;
+  }
+  return `${meta.label}需介於 ${input.min}–${input.max} ${meta.unit}`;
+}
+
 function validateField(input, min, max) {
   const value = parseFloat(input.value);
-  const iconId = input.id + "Icon";
-  const icon = DOMCache.get(iconId);
+  const icon = DOMCache.get(input.id + "Icon");
+  const message = document.getElementById(input.id + "Msg");
 
   if (!icon) return;
 
+  const setMessage = (text) => {
+    if (!message) return;
+    message.textContent = text;
+    message.classList.toggle("hidden", !text);
+  };
+
   if (input.value === "") {
     input.classList.remove("field-valid", "field-invalid");
+    input.removeAttribute("aria-invalid");
     icon.textContent = "";
     icon.className = "validation-icon";
+    setMessage("");
     return;
   }
 
-  if (!isNaN(value) && value >= min && value <= max) {
+  if (!isNaN(value) && value >= min && value <= max && input.validity.valid) {
     input.classList.remove("field-invalid");
     input.classList.add("field-valid");
+    input.removeAttribute("aria-invalid");
     icon.textContent = "✓";
     icon.className = "validation-icon icon-valid";
+    icon.setAttribute("aria-hidden", "true");
+    setMessage("");
   } else {
     input.classList.remove("field-valid");
     input.classList.add("field-invalid");
+    input.setAttribute("aria-invalid", "true");
     icon.textContent = "✗";
     icon.className = "validation-icon icon-invalid";
+    icon.setAttribute("aria-hidden", "true");
+    setMessage(getFieldValidationMessage(input));
   }
 }
 
@@ -116,22 +146,18 @@ function calculateCalories(metValue, weightKg, durationMinutes) {
 }
 
 // 生成 MET 活動 HTML
+// 處方強度 → MET 活動表的強度分級；活動推薦必須跟著最終處方走，不另外看年齡/體能自評
+const PRESCRIPTION_TO_MET_LEVEL = {
+  light: "light",
+  "light-moderate": "light",
+  moderate: "moderate",
+  "moderate-vigorous": "vigorous",
+};
+
 function getMETActivitiesHtml(prescription) {
   const weight = parseFloat(document.getElementById("weight")?.value) || 70;
-  let intensity = "moderate"; // 預設中度
-
-  // 根據年齡和體能狀況調整強度
-  const age = parseInt(document.getElementById("age")?.value) || 30;
-  const fitnessLevelElement = document.querySelector(
-    'input[name="fitness_level"]:checked',
-  );
-  const fitnessLevel = fitnessLevelElement ? fitnessLevelElement.value : "good";
-
-  if (age >= 65 || fitnessLevel === "poor") {
-    intensity = "light";
-  } else if (fitnessLevel === "excellent" && age < 50) {
-    intensity = "vigorous";
-  }
+  const intensity =
+    PRESCRIPTION_TO_MET_LEVEL[prescription?.intensity] || "moderate";
 
   const activities = MET_ACTIVITIES[intensity].slice(0, 3); // 取前3個活動
 
@@ -142,13 +168,13 @@ function getMETActivitiesHtml(prescription) {
             <div class="bg-white p-3 rounded border">
                 <div class="flex justify-between items-start">
                     <div>
-                        <h6 class="font-semibold text-gray-800">${activity.name}</h6>
+                        <h5 class="font-semibold text-gray-800">${activity.name}</h5>
                         <p class="text-sm text-gray-600">${activity.met} METs</p>
-                        <p class="text-xs text-gray-500">例子: ${activity.examples.join("、")}</p>
+                        <p class="text-sm text-gray-600">例子: ${activity.examples.join("、")}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm font-semibold text-blue-600">${calories30min} 卡路里</p>
-                        <p class="text-xs text-gray-500">30分鐘</p>
+                        <p class="text-sm text-gray-600">30分鐘</p>
                     </div>
                 </div>
             </div>
@@ -171,7 +197,7 @@ function getMETActivitiesHtml(prescription) {
 
   return `
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-            <h5 class="font-semibold text-yellow-800 mb-3">推薦 ${intensityName} 活動 (${metRange} METs)</h5>
+            <h4 class="font-semibold text-yellow-800 mb-3">推薦 ${intensityName} 活動 (${metRange} METs)</h4>
             <div class="space-y-2">
                 ${activitiesHtml}
             </div>
@@ -198,20 +224,11 @@ const diseaseMap = {
   sarcopenia: "肌少症",
   pregnant: "孕婦",
   hyperlipidemia: "高血脂",
-  cancer_recovery: "癌症康復",
 };
 
 // 將疾病代碼轉換為中文名稱
 function getDiseaseName(code) {
   return diseaseMap[code] || code;
-}
-
-// 將疾病代碼數組轉換為中文名稱字符串
-function formatDiseases(diseases) {
-  if (!diseases || diseases.length === 0) {
-    return "健康狀況良好";
-  }
-  return diseases.map(getDiseaseName).join("、");
 }
 
 // BMI 計算功能
@@ -239,29 +256,7 @@ function calculateBMI() {
     // 更新BMI值
     document.getElementById("bmiValue").textContent = bmiRounded;
 
-    // 判斷BMI分類
-    let category = "";
-    let categoryClass = "";
-
-    if (bmi < 18.5) {
-      category = "體重過輕";
-      categoryClass = "bg-blue-100 text-blue-800";
-    } else if (bmi < 24) {
-      category = "正常範圍";
-      categoryClass = "bg-green-100 text-green-800";
-    } else if (bmi < 27) {
-      category = "體重過重";
-      categoryClass = "bg-yellow-100 text-yellow-800";
-    } else if (bmi < 30) {
-      category = "輕度肥胖";
-      categoryClass = "bg-orange-100 text-orange-800";
-    } else if (bmi < 35) {
-      category = "中度肥胖";
-      categoryClass = "bg-red-100 text-red-800";
-    } else {
-      category = "重度肥胖";
-      categoryClass = "bg-red-200 text-red-900";
-    }
+    const { label: category, badgeClass: categoryClass } = getBMICategory(bmi);
 
     const categoryElement = document.getElementById("bmiCategory");
     categoryElement.textContent = category;
@@ -274,7 +269,53 @@ function calculateBMI() {
     document.getElementById("bmiCategory").textContent = "";
     document.getElementById("bmiCategory").className =
       "text-sm px-2 py-1 rounded";
+    // 身高或體重清空時，BMR / TDEE / 熱量建議一併重置（不留上一次的數值）
+    calculateBMR();
   }
+}
+
+// BMI 分級（衛福部國健署成人標準）；輸入頁、結果頁、PDF 共用同一套
+const BMI_CATEGORIES = [
+  {
+    max: 18.5,
+    label: "體重過輕",
+    badgeClass: "bg-blue-100 text-blue-800",
+    textClass: "text-blue-700",
+  },
+  {
+    max: 24,
+    label: "正常範圍",
+    badgeClass: "bg-green-100 text-green-800",
+    textClass: "text-green-700",
+  },
+  {
+    max: 27,
+    label: "體重過重",
+    badgeClass: "bg-yellow-100 text-yellow-800",
+    textClass: "text-yellow-800",
+  },
+  {
+    max: 30,
+    label: "輕度肥胖",
+    badgeClass: "bg-orange-100 text-orange-800",
+    textClass: "text-orange-700",
+  },
+  {
+    max: 35,
+    label: "中度肥胖",
+    badgeClass: "bg-red-100 text-red-800",
+    textClass: "text-red-700",
+  },
+  {
+    max: Infinity,
+    label: "重度肥胖",
+    badgeClass: "bg-red-200 text-red-900",
+    textClass: "text-red-800",
+  },
+];
+
+function getBMICategory(bmi) {
+  return BMI_CATEGORIES.find((c) => bmi < c.max) || BMI_CATEGORIES.at(-1);
 }
 
 // BMR 基礎代謝率計算（使用 Mifflin-St Jeor 公式）
@@ -283,9 +324,11 @@ function calculateBMR() {
   const gender = document.getElementById("gender").value;
   const height = parseFloat(document.getElementById("height").value);
   const weight = parseFloat(document.getElementById("weight").value);
+  const bmrElement = document.getElementById("bmrValue");
 
   if (!age || !gender || !height || !weight) {
-    document.getElementById("bmrValue").textContent = "待計算";
+    bmrElement.textContent = "待計算";
+    calculateTDEE();
     return;
   }
 
@@ -297,11 +340,13 @@ function calculateBMR() {
     // 女性：BMR = (10 × 體重kg) + (6.25 × 身高cm) - (5 × 年齡) - 161
     bmr = 10 * weight + 6.25 * height - 5 * age - 161;
   } else {
+    // Mifflin-St Jeor 只有男女兩套係數；性別「其他」不估算，並清掉前一次的數值
+    bmrElement.textContent = "不適用";
+    calculateTDEE();
     return;
   }
 
-  bmr = Math.round(bmr);
-  document.getElementById("bmrValue").textContent = bmr;
+  bmrElement.textContent = Math.round(bmr);
 
   // 自動計算 TDEE
   calculateTDEE();
@@ -310,21 +355,44 @@ function calculateBMR() {
 // TDEE 每日總消耗熱量計算
 function calculateTDEE() {
   const bmrElement = document.getElementById("bmrValue");
+  const tdeeElement = document.getElementById("tdeeValue");
   const activityLevel =
     parseFloat(document.getElementById("activityLevel")?.value) || 1.375;
+  const bmr = parseInt(bmrElement?.textContent);
 
-  if (!bmrElement || bmrElement.textContent === "待計算") {
-    document.getElementById("tdeeValue").textContent = "待計算";
+  if (!bmrElement || Number.isNaN(bmr)) {
+    tdeeElement.textContent =
+      bmrElement?.textContent === "不適用" ? "不適用" : "待計算";
+    document.getElementById("calorieAdvice")?.classList.add("hidden");
     return;
   }
 
-  const bmr = parseInt(bmrElement.textContent);
   const tdee = Math.round(bmr * activityLevel);
-
-  document.getElementById("tdeeValue").textContent = tdee;
+  tdeeElement.textContent = tdee;
 
   // 顯示熱量建議
   showCalorieAdvice(tdee);
+}
+
+/**
+ * 減重熱量赤字不適用的情況：未成年（仍在生長）、懷孕、體重過輕。
+ * 回傳原因文字；適用時回傳 null。
+ */
+function getCalorieDeficitBlockReason() {
+  const age = parseInt(document.getElementById("age")?.value);
+  const height = parseFloat(document.getElementById("height")?.value);
+  const weight = parseFloat(document.getElementById("weight")?.value);
+  const pregnant = document.querySelector(
+    'input[name="diseases"][value="pregnant"]:checked',
+  );
+
+  if (pregnant) return "懷孕期間不建議刻意減重，熱量需求請由醫師或營養師評估";
+  if (age && age < 18) return "未滿18歲仍在生長發育，不建議以熱量赤字減重";
+  if (height && weight) {
+    const bmi = weight / Math.pow(height / 100, 2);
+    if (bmi < 18.5) return "目前體重過輕，不建議減重，請優先確保足夠營養";
+  }
+  return null;
 }
 
 // 顯示熱量攝取建議
@@ -333,17 +401,40 @@ function showCalorieAdvice(tdee) {
   const maintainElement = document.getElementById("maintainCalories");
   const loseElement = document.getElementById("loseCalories");
   const gainElement = document.getElementById("gainCalories");
+  const loseRow = document.getElementById("loseCaloriesRow");
+  const loseNote = document.getElementById("loseCaloriesNote");
 
-  if (calorieAdviceDiv && maintainElement && loseElement && gainElement) {
-    maintainElement.textContent = tdee;
-    loseElement.textContent = Math.max(1200, tdee - 500); // 最低不低於1200卡
-    gainElement.textContent = tdee + 300;
-
-    calorieAdviceDiv.classList.remove("hidden");
+  if (!calorieAdviceDiv || !maintainElement || !loseElement || !gainElement) {
+    return;
   }
+
+  maintainElement.textContent = tdee;
+  gainElement.textContent = tdee + 300;
+
+  const blockReason = getCalorieDeficitBlockReason();
+  if (blockReason) {
+    loseElement.textContent = "";
+    loseRow?.classList.add("hidden");
+    if (loseNote) {
+      loseNote.textContent = `• ${blockReason}`;
+      loseNote.classList.remove("hidden");
+    }
+  } else {
+    loseElement.textContent = Math.max(1200, tdee - 500); // 最低不低於1200卡
+    loseRow?.classList.remove("hidden");
+    loseNote?.classList.add("hidden");
+  }
+
+  calorieAdviceDiv.classList.remove("hidden");
 }
 
 // 頁面路由管理
+const PAGE_TITLES = {
+  homePage: "運動處方推薦系統",
+  formPage: "健康評估問卷｜運動處方推薦系統",
+  resultPage: "您的個人化運動處方｜運動處方推薦系統",
+};
+
 function showPage(pageId) {
   // 隱藏所有頁面
   const pages = document.querySelectorAll(".page");
@@ -360,31 +451,23 @@ function showPage(pageId) {
   // 滾動到頂部
   window.scrollTo(0, 0);
 
+  // 更新分頁標題並把焦點移到新頁面的主標題（初次載入不搶焦點）
+  document.title = PAGE_TITLES[pageId] || PAGE_TITLES.homePage;
+  const heading = targetPage?.querySelector("h2");
+  if (heading && document.readyState === "complete") {
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+  }
+
   // 移除了清除儲存資料的功能
 
   // 如果是表單頁，初始化多步驟表單
   if (pageId === "formPage") {
-    setTimeout(() => {
-      if (typeof initMultiStepForm === "function") {
-        initMultiStepForm();
-      }
-    }, 100);
+    if (typeof initMultiStepForm === "function") initMultiStepForm();
   }
 }
 
 // 舊的 setupRealTimeValidation 已移除，統一使用 validateField() 系統
-
-// 顯示欄位錯誤
-function showFieldError(field, message) {
-  clearFieldError(field);
-  field.classList.add("field-invalid");
-
-  const errorMsg = document.createElement("div");
-  errorMsg.className = "field-error";
-  errorMsg.style.cssText = "color:#ef4444;font-size:14px;margin-top:4px;";
-  errorMsg.textContent = message;
-  field.parentElement.appendChild(errorMsg);
-}
 
 // 清除欄位錯誤
 function clearFieldError(field) {
@@ -393,14 +476,6 @@ function clearFieldError(field) {
   if (existingError) {
     existingError.remove();
   }
-}
-
-// 標記欄位完成
-function markFieldComplete(field) {
-  field.classList.add("field-valid");
-  setTimeout(() => {
-    field.classList.remove("field-valid");
-  }, 2000);
 }
 
 // 移除了 LocalStorage 自動儲存功能以避免多人使用時的困擾
@@ -417,6 +492,8 @@ function updateFormProgress() {
     "weight",
     { name: "fitness_level", type: "radio" },
     { name: "health_status", type: "radio" },
+    { name: "exercise_habit", type: "radio" },
+    { name: "exercise_goal", type: "radio" },
     { name: "parq_q1", type: "radio" },
     { name: "parq_q2", type: "radio" },
     { name: "parq_q3", type: "radio" },
@@ -432,7 +509,7 @@ function updateFormProgress() {
   requiredFields.forEach((field) => {
     if (typeof field === "string") {
       const element = DOMCache.get(field);
-      if (element && element.value) {
+      if (element && element.value && element.validity.valid) {
         completed++;
       }
     } else if (field.type === "radio") {
@@ -455,18 +532,22 @@ function updateFormProgress() {
   if (progressText) {
     progressText.textContent = percentage + "%";
   }
+  DOMCache.get("progressTrack")?.setAttribute("aria-valuenow", String(percentage));
 
   // 當進度達到100%時，顯示完成提示
-  if (percentage === 100) {
-    if (progressBar) {
-      progressBar.style.background =
-        "linear-gradient(to right, #10b981, #22c55e)";
-    }
+  if (progressBar) {
+    progressBar.style.background = percentage === 100 ? "#15803d" : "";
   }
 }
 
 // ===== 表單自動暫存（sessionStorage）：避免重整 / 誤觸返回 / AI 逾時後重整時丟失整份填寫 =====
 const FORM_DRAFT_KEY = "exerciseRxFormDraft";
+let pendingFormActivity = null;
+
+function setDraftStatus(message) {
+  const status = document.getElementById("draftStatus");
+  if (status && status.textContent !== message) status.textContent = message;
+}
 
 function saveFormDraft() {
   const form = document.getElementById("healthForm");
@@ -486,8 +567,9 @@ function saveFormDraft() {
   });
   try {
     sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(data));
+    setDraftStatus("填寫內容已暫存在此分頁");
   } catch (e) {
-    /* sessionStorage 不可用時略過 */
+    setDraftStatus("此瀏覽器無法暫存，重新整理會失去填寫內容");
   }
 }
 
@@ -505,6 +587,7 @@ function restoreFormDraft() {
   } catch (e) {
     return;
   }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return;
   const form = document.getElementById("healthForm");
   if (!form) return;
   form.querySelectorAll("input, select").forEach((el) => {
@@ -519,6 +602,7 @@ function restoreFormDraft() {
       el.value = val;
     }
   });
+  setDraftStatus("已還原此分頁上次的填寫內容");
   // 還原後重算 BMI/BMR/TDEE 與進度
   try {
     if (typeof calculateBMI === "function") calculateBMI();
@@ -536,23 +620,117 @@ function clearFormDraft() {
   }
 }
 
+function debounce(fn, wait) {
+  let timer = null;
+  const run = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, wait);
+  };
+  run.cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+  return run;
+}
+
+// 只有確認對話框的清除按鈕呼叫；同時清掉衍生資料與尚未完成的 AI 回應。
+function clearAssessment() {
+  pendingFormActivity?.cancel();
+  clearFormDraft();
+  const form = document.getElementById("healthForm");
+  form.reset();
+  form.querySelectorAll("[aria-invalid]").forEach((field) => field.removeAttribute("aria-invalid"));
+  for (const id of ["age", "height", "weight"]) {
+    const field = document.getElementById(id);
+    validateField(field, Number(field.min), Number(field.max));
+  }
+  const ageInfo = document.getElementById("ageInfo");
+  ageInfo.textContent = "";
+  ageInfo.classList.add("hidden");
+  calculateBMI();
+  for (const id of ["maintainCalories", "loseCalories", "gainCalories", "loseCaloriesNote"]) {
+    document.getElementById(id).textContent = "";
+  }
+  window.lastFormData = null;
+  window.lastPrescription = null;
+  clearPDFDownload();
+  for (const id of ["prescriptionSummary", "fittpDetails", "exerciseGuidelines"]) {
+    document.getElementById(id).replaceChildren();
+  }
+  clearCoachingContext();
+  resetAISection();
+  document.getElementById("customApiKey").value = "";
+  document.getElementById("aiProviderSelect").value = "auto";
+  onProviderChange();
+  document.getElementById("advancedAISettings").classList.add("hidden");
+  document.getElementById("toggleAdvancedAI").setAttribute("aria-expanded", "false");
+  document.getElementById("advancedAIIcon").style.transform = "rotate(0deg)";
+  document.querySelectorAll("#resultPage details").forEach((panel) => { panel.open = false; });
+  hideStepError();
+  document.getElementById("clearAssessmentDialog").close();
+  showPage("formPage");
+  setDraftStatus("已清除填寫內容，可以重新開始");
+  document.getElementById("age").focus({ preventScroll: true });
+}
+
 // 年齡檢查功能
 document.addEventListener("DOMContentLoaded", function () {
-  // 驗證統一使用 HTML oninput 的 validateField() 系統
+  // 僅綁定已知操作，不解析或執行 HTML 屬性中的程式碼。
+  const actions = { nextStep, prevStep, downloadPDF, downloadAIPDF, fetchAIRecommendation, cancelAIRecommendation, toggleAdvancedAISettings };
+  document.querySelectorAll("[data-page]").forEach((button) => {
+    button.addEventListener("click", () => showPage(button.dataset.page));
+  });
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    const action = actions[button.dataset.action];
+    if (action) button.addEventListener("click", () => action());
+  });
+  for (const id of ["age", "height", "weight"]) {
+    const field = document.getElementById(id);
+    field.addEventListener("input", () => {
+      validateField(field, Number(field.min), Number(field.max));
+      calculateBMI();
+    });
+  }
+  document.getElementById("gender").addEventListener("change", calculateBMR);
+  document.getElementById("activityLevel").addEventListener("change", calculateTDEE);
+  document.getElementById("aiProviderSelect").addEventListener("change", onProviderChange);
 
   // 還原上次未完成的填寫（同分頁 session 內有效）
   restoreFormDraft();
 
+  document.querySelectorAll("[data-clear-assessment]").forEach((button) => {
+    button.addEventListener("click", () => document.getElementById("clearAssessmentDialog").showModal());
+  });
+  document.getElementById("confirmClearAssessment").addEventListener("click", clearAssessment);
+
+  // 勾選「孕婦」會影響減重熱量建議是否顯示
+  document
+    .querySelector('input[name="diseases"][value="pregnant"]')
+    ?.addEventListener("change", calculateTDEE);
+
   // 設置進度監聽 + 自動暫存
   const formElement = DOMCache.get("healthForm");
   if (formElement) {
-    formElement.addEventListener("input", () => {
+    // input 與 change 常連續觸發；合併並 debounce，避免每個按鍵都掃全表單、寫 sessionStorage
+    pendingFormActivity = debounce(() => {
       updateFormProgress();
       saveFormDraft();
-    });
-    formElement.addEventListener("change", () => {
-      updateFormProgress();
-      saveFormDraft();
+    }, 150);
+    formElement.addEventListener("input", pendingFormActivity);
+    formElement.addEventListener("change", pendingFormActivity);
+    formElement.addEventListener("change", (event) => {
+      const field = event.target;
+      if (!field.validity?.valid) return;
+      if (field.type === "radio") {
+        formElement.querySelectorAll(`input[name="${field.name}"]`).forEach((radio) => {
+          radio.removeAttribute("aria-invalid");
+        });
+      } else {
+        field.removeAttribute("aria-invalid");
+      }
     });
   }
 
@@ -593,6 +771,8 @@ document.addEventListener("DOMContentLoaded", function () {
     ageInfo.classList.remove("hidden");
   }
 
+  updateAgeInfo(parseInt(ageInput.value));
+
   // 健康狀態互斥邏輯：選「健康狀況良好」時清除疾病勾選
   const healthRadios = document.querySelectorAll('input[name="health_status"]');
   const diseaseCheckboxes = document.querySelectorAll('input[name="diseases"]');
@@ -626,8 +806,15 @@ document.addEventListener("DOMContentLoaded", function () {
     healthForm.addEventListener("submit", function (e) {
       e.preventDefault();
 
+      // Enter 在前兩步與「下一步」一致；最終送出會重新檢查所有步驟。
+      if (currentStep < totalSteps) {
+        nextStep();
+        return;
+      }
+
       if (validateForm()) {
         generatePrescription();
+        pendingFormActivity?.cancel();
         clearFormDraft(); // 成功產生處方後清除暫存
         showPage("resultPage");
       }
@@ -638,91 +825,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // 表單驗證（使用頁面內提示取代 alert）
 function validateForm() {
-  const errors = [];
-
-  const age = document.getElementById("age").value;
-  if (!age || age < 6 || age > 120) {
-    errors.push("請輸入有效的年齡 (6-120歲)");
+  for (let step = 1; step <= totalSteps; step++) {
+    if (!validateCurrentStep(step)) {
+      showStep(step);
+      showStepError();
+      return false;
+    }
   }
-
-  const gender = document.getElementById("gender").value;
-  if (!gender) {
-    errors.push("請選擇性別");
-  }
-
-  const height = document.getElementById("height").value;
-  if (!height || height < 100 || height > 250) {
-    errors.push("請輸入有效的身高 (100-250公分)");
-  }
-
-  const weight = document.getElementById("weight").value;
-  if (!weight || weight < 20 || weight > 300) {
-    errors.push("請輸入有效的體重 (20-300公斤)");
-  }
-
-  const fitnessLevel = document.querySelector(
-    'input[name="fitness_level"]:checked',
-  );
-  if (!fitnessLevel) {
-    errors.push("請選擇您的體能水平");
-  }
-
-  const parqQuestions = [
-    "parq_q1",
-    "parq_q2",
-    "parq_q3",
-    "parq_q4",
-    "parq_q5",
-    "parq_q6",
-    "parq_q7",
-  ];
-  const unansweredParq = parqQuestions.some(
-    (q) => !document.querySelector(`input[name="${q}"]:checked`),
-  );
-  if (unansweredParq) {
-    errors.push("請完成所有 PAR-Q 問題");
-  }
-
-  const healthStatus = document.querySelector(
-    'input[name="health_status"]:checked',
-  );
-  if (!healthStatus) {
-    errors.push("請選擇您的健康狀況");
-  }
-
-  if (errors.length > 0) {
-    showFormError(errors);
-    return false;
-  }
-
-  hideFormError();
+  hideStepError();
   return true;
-}
-
-// 顯示表單錯誤（頁面內提示）
-function showFormError(errors) {
-  const errorDiv = document.getElementById("formError");
-  if (!errorDiv) return;
-
-  if (Array.isArray(errors) && errors.length > 0) {
-    errorDiv.innerHTML = `
-      <div class="font-semibold mb-2">請修正以下問題：</div>
-      <ul class="list-disc list-inside space-y-1">
-        ${errors.map((e) => `<li>${e}</li>`).join("")}
-      </ul>
-    `;
-  }
-
-  errorDiv.classList.remove("hidden");
-  errorDiv.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
-// 隱藏表單錯誤
-function hideFormError() {
-  const errorDiv = document.getElementById("formError");
-  if (errorDiv) {
-    errorDiv.classList.add("hidden");
-  }
 }
 
 // 收集表單資料
@@ -837,739 +948,8 @@ function collectFormData() {
   }
 }
 
-// 生成運動處方（根據 ACSM FITT-VP 原則）
-function generatePrescription() {
-  try {
-    const data = collectFormData();
-
-    // 保存表單數據供顯示函數使用
-    window.lastFormData = data;
-
-    const prescription = calculateFITTVP(data);
-
-    displayPrescriptionSummary(prescription);
-    displayFITTPDetails(prescription);
-    displayExerciseGuidelines(prescription);
-  } catch (error) {
-    console.error("Error generating prescription:", error);
-    alert("生成運動處方時發生錯誤，請檢查輸入資料");
-  }
-}
-
-// PAR-Q 風險評估函數
-function assessPARQRisk(parqAnswers) {
-  const result = {
-    level: "low",
-    yesCount: 0,
-    recommendations: [],
-  };
-
-  // 計算回答「是」的問題數量
-  Object.values(parqAnswers).forEach((answer) => {
-    if (answer === "yes") {
-      result.yesCount++;
-    }
-  });
-
-  // 根據 PAR-Q 標準評估風險
-  if (result.yesCount === 0) {
-    result.level = "low";
-    result.recommendations.push("您可以安全地開始運動計畫");
-  } else if (result.yesCount === 1) {
-    result.level = "moderate";
-    result.recommendations.push("建議在開始運動前與運動醫學科醫師討論");
-    result.recommendations.push("從低強度活動開始，逐步增加");
-  } else {
-    result.level = "high";
-    result.recommendations.push("強烈建議在開始運動前諮詢運動醫學科醫師");
-    result.recommendations.push("需要專業監督下進行運動");
-  }
-
-  // 針對特定問題給予建議
-  if (parqAnswers.parq_q1 === "yes" || parqAnswers.parq_q6 === "yes") {
-    result.recommendations.push("請攜帶此評估結果與您的運動醫學科醫師討論");
-  }
-
-  if (parqAnswers.parq_q2 === "yes" || parqAnswers.parq_q3 === "yes") {
-    result.recommendations.push("如有胸痛症狀，請立即就醫檢查");
-  }
-
-  if (parqAnswers.parq_q4 === "yes") {
-    result.recommendations.push("運動時請避免快速改變姿勢，注意安全");
-  }
-
-  if (parqAnswers.parq_q5 === "yes") {
-    result.recommendations.push("請選擇關節友善的運動類型，避免高衝擊活動");
-  }
-
-  return result;
-}
-
-// FITT-VP 計算邏輯（根據 WHO 2020 與 ACSM 2022 指引）
-function calculateFITTVP(data) {
-  const prescription = {
-    frequency: 3,
-    intensity: "moderate",
-    time: 30,
-    type: [],
-    volume: 450,
-    progression: "每2-4週增加10%運動時間或頻率",
-    warnings: [],
-    recommendations: [],
-    ageGroup: getAgeGroup(data.age),
-    // 新增：心率區間建議
-    heartRateZone: null,
-    // 新增：每週總運動時間目標
-    weeklyMinutes: 150,
-    // 新增：阻力訓練建議
-    resistanceTraining: null,
-  };
-
-  // 根據年齡層調整基本參數
-  if (data.age >= 6 && data.age <= 11) {
-    // 兒童 (6-11歲) - WHO 2020: 每日至少60分鐘中高強度身體活動
-    prescription.frequency = 7; // 每日活動
-    prescription.time = 60; // 每日至少60分鐘
-    prescription.intensity = "moderate-vigorous";
-    prescription.type = ["自由遊戲", "體能遊戲", "基礎運動技能"];
-    prescription.volume = 0; // 兒童不用MET計算
-    prescription.weeklyMinutes = 420; // 7天 × 60分鐘
-    prescription.progression = "逐漸增加活動的複雜性和技能挑戰";
-    prescription.recommendations.push(
-      "WHO建議：每日累積60分鐘以上中高強度身體活動",
-    );
-    prescription.recommendations.push("包含高強度有氧活動，每週至少3天");
-    prescription.recommendations.push("包含肌肉與骨骼強化活動，每週至少3天");
-    prescription.recommendations.push("減少久坐時間，每30分鐘起身活動");
-    prescription.warnings.push("避免過度專項化訓練，強調多元發展");
-  } else if (data.age >= 12 && data.age <= 17) {
-    // 青少年 (12-17歲) - WHO 2020: 每日至少60分鐘中高強度身體活動
-    prescription.frequency = 7; // 每日活動
-    prescription.time = 60; // 每日至少60分鐘
-    prescription.intensity = "moderate-vigorous";
-    prescription.type = ["有氧運動", "肌力訓練", "團體運動"];
-    prescription.volume = 0; // 青少年以每日60分鐘為準
-    prescription.weeklyMinutes = 420;
-    prescription.progression = "每2-3週增加運動強度或技能難度";
-    prescription.recommendations.push(
-      "WHO建議：每日累積60分鐘以上中高強度身體活動",
-    );
-    prescription.recommendations.push(
-      "高強度有氧運動每週至少3天（如跑步、游泳、球類）",
-    );
-    prescription.recommendations.push("肌肉與骨骼強化活動每週至少3天");
-    prescription.recommendations.push("限制螢幕休閒時間，增加身體活動機會");
-    prescription.warnings.push("注意運動傷害預防，確保適當休息與恢復");
-  } else if (data.age >= 18 && data.age <= 64) {
-    // 成人 (18-64歲) - WHO 2020 與 ACSM 2022 整合建議
-    prescription.frequency = 5;
-    prescription.time = 30;
-    prescription.intensity = "moderate";
-    prescription.type.push("有氧運動", "肌力訓練");
-    prescription.volume = 500; // WHO建議：500-1000 MET-min/週
-    prescription.weeklyMinutes = 150;
-    prescription.heartRateZone = "最大心率 64-76%（中等強度）";
-    prescription.resistanceTraining = "每週2-3天，涵蓋主要肌群，每組8-12次";
-    prescription.progression =
-      "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度";
-    prescription.recommendations.push(
-      "WHO建議：每週150-300分鐘中等強度有氧運動",
-    );
-    prescription.recommendations.push("或每週75-150分鐘高強度有氧運動");
-    prescription.recommendations.push("肌力訓練每週至少2天，涵蓋所有主要肌群");
-    prescription.recommendations.push("減少久坐時間，以任何強度的身體活動取代");
-  } else if (data.age >= 65) {
-    // 銀髮族 (65歲以上) - WHO 2020: 與成人相同 + 多元運動 + 平衡訓練
-    prescription.frequency = 5;
-    prescription.time = 30;
-    prescription.intensity = "moderate";
-    prescription.type.push("有氧運動", "肌力訓練", "平衡訓練", "柔軟度訓練");
-    prescription.volume = 500;
-    prescription.weeklyMinutes = 150;
-    prescription.heartRateZone = "最大心率 57-67%（中等強度，較保守）";
-    prescription.resistanceTraining = "每週2-3天，中低負荷，每組10-15次";
-    prescription.progression = "每2-4週增加5%運動量，重視功能性與平衡能力";
-    prescription.recommendations.push(
-      "WHO建議：每週150-300分鐘中等強度有氧運動",
-    );
-    prescription.recommendations.push(
-      "每週至少3天進行多元運動（平衡、柔軟度、功能性訓練）",
-    );
-    prescription.recommendations.push("肌力訓練每週至少2天，預防肌少症");
-    prescription.recommendations.push("平衡訓練每週至少3天，降低跌倒風險");
-    prescription.warnings.push("運動前充分暖身，注意環境安全");
-    prescription.warnings.push("如有頭暈、胸悶等不適，應立即停止並就醫");
-  }
-
-  // 根據體能水平微調WHO基準（僅對成人和銀髮族）
-  if (data.age >= 18) {
-    switch (data.fitness_level) {
-      case "poor":
-        // 體能差：降低至WHO最低建議
-        prescription.frequency = 3; // 減少頻率但保持每週總時間約90分鐘
-        prescription.time = 30;
-        prescription.intensity = "light";
-        prescription.volume = 270; // 3.0 METs × 30分鐘 × 3次
-        prescription.progression =
-          "每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）";
-        break;
-      case "fair":
-        // 一般：WHO基準的80%
-        prescription.frequency = 4; // 略低於WHO建議
-        prescription.time = 30;
-        prescription.intensity = "light-moderate";
-        prescription.volume = 420; // 3.5 METs × 30分鐘 × 4次
-        prescription.progression =
-          "每週增加10%運動量，逐步達到ACSM建議（每週150-300分鐘中強度或75-150分鐘高強度有氧）";
-        break;
-      case "good":
-        // 良好：維持WHO建議
-        // 保持原設定：每週5次，每次30分鐘
-        break;
-      case "excellent":
-        // 優秀：超過WHO建議，達到額外健康益處
-        prescription.frequency = 6; // 超過WHO建議
-        prescription.time = 40; // 總計240分鐘/週，改為整數
-        prescription.volume = 840; // 3.5 METs × 40分鐘 × 6次
-        prescription.progression = "可維持高頻率或增加運動強度";
-        break;
-    }
-
-    // 根據BMI調整建議
-    if (data.bmi) {
-      if (data.bmi < 18.5) {
-        prescription.recommendations.push(
-          "體重過輕：建議增加肌力訓練，配合適當營養補充",
-        );
-        prescription.type.push("肌力訓練重點");
-      } else if (data.bmi >= 24 && data.bmi < 27) {
-        prescription.recommendations.push(
-          "體重過重：建議增加有氧運動頻率，控制飲食",
-        );
-        prescription.frequency = Math.min(prescription.frequency + 1, 6);
-      } else if (data.bmi >= 27) {
-        prescription.recommendations.push(
-          "BMI偏高：建議以低衝擊有氧運動為主，配合飲食管理",
-        );
-        prescription.type = ["低衝擊有氧", "水中運動", "肌力訓練"];
-        prescription.warnings.push(
-          "建議諮詢運動醫學科醫師或營養師制定完整的體重管理計畫",
-        );
-      }
-    }
-  } else {
-    // 兒童青少年根據體能水平微調時間，但不改變每日活動的原則
-    switch (data.fitness_level) {
-      case "poor":
-        prescription.time = Math.max(30, prescription.time); // 至少30分鐘
-        prescription.recommendations.push(
-          "可分段進行，如每次10-15分鐘，分2-3次完成",
-        );
-        break;
-      case "fair":
-        prescription.time = Math.max(45, prescription.time);
-        break;
-      case "good":
-        prescription.time = Math.max(60, prescription.time);
-        break;
-      case "excellent":
-        prescription.time = 80; // 改為整數
-        prescription.recommendations.push("可增加運動技能挑戰和競技元素");
-        break;
-    }
-  }
-
-  // ===== 根據「目前運動習慣」調整起始處方（避免運動量驟增）=====
-  if (data.age >= 18) {
-    // 先記錄年齡 + 體能水平計算出的「目標處方」
-    const targetFreq = prescription.frequency;
-    const targetTime = prescription.time;
-    const targetIntensity = prescription.intensity;
-
-    switch (data.exercise_habit) {
-      case "none":
-        // 無運動習慣：從非常保守的起點開始
-        prescription.frequency = Math.min(targetFreq, 3);
-        prescription.time = Math.min(targetTime, 20);
-        if (
-          targetIntensity === "moderate" ||
-          targetIntensity === "moderate-vigorous"
-        ) {
-          prescription.intensity = "light";
-        }
-        prescription.progression = `前4週：每週${prescription.frequency}次、每次${prescription.time}分鐘輕度運動 → 之後每2週增加10%，目標達到每週${targetFreq}次、每次${targetTime}分鐘`;
-        prescription.recommendations.push(
-          "目前無運動習慣，建議從散步、伸展等輕度活動開始",
-        );
-        prescription.recommendations.push("前2-4週以適應為主，不追求運動量");
-        break;
-      case "light":
-        // 偶爾運動（1-2次/週）：略為保守
-        prescription.frequency = Math.min(targetFreq, 3);
-        prescription.time = Math.min(targetTime, 25);
-        if (targetIntensity === "moderate-vigorous") {
-          prescription.intensity = "light-moderate";
-        }
-        prescription.progression = `目前每週1-2次 → 先穩定至每週${prescription.frequency}次，再每2週增加10%，目標每週${targetFreq}次、每次${targetTime}分鐘`;
-        prescription.recommendations.push(
-          "目前運動量偏低，先穩定頻率再逐步增加時間和強度",
-        );
-        break;
-      case "moderate":
-        // 規律運動（3-4次/週）：接近目標，微調即可
-        // 保持體能水平計算的處方，不額外降低
-        break;
-      case "active":
-        // 經常運動：可以接受較高起點
-        prescription.frequency = Math.max(targetFreq, 5);
-        prescription.time = Math.max(targetTime, 30);
-        break;
-      case "student_athlete":
-        // 專業訓練：可以接受高強度
-        prescription.frequency = Math.max(targetFreq, 5);
-        prescription.time = Math.max(targetTime, 40);
-        if (
-          targetIntensity === "light" ||
-          targetIntensity === "light-moderate"
-        ) {
-          prescription.intensity = "moderate";
-        }
-        break;
-    }
-  }
-
-  // ===== 根據「運動目標」微調處方重點 =====
-  if (data.age >= 18) {
-    switch (data.exercise_goal) {
-      case "weight_loss":
-        // 減重：優先增加有氧頻率與時間，中等強度
-        prescription.frequency = Math.max(prescription.frequency, 4);
-        if (!prescription.type.includes("有氧運動")) {
-          prescription.type.unshift("有氧運動");
-        }
-        prescription.recommendations.push(
-          "減重目標：建議每週累積200-300分鐘中等強度有氧運動",
-        );
-        prescription.recommendations.push(
-          "搭配飲食控制效果更佳，建議每日減少300-500大卡",
-        );
-        break;
-      case "muscle_building":
-        // 增肌：強調阻力訓練
-        if (!prescription.type.includes("肌力訓練")) {
-          prescription.type.push("肌力訓練");
-        }
-        prescription.resistanceTraining =
-          prescription.resistanceTraining ||
-          "每週2-3天，涵蓋主要肌群，每組8-12次";
-        prescription.recommendations.push(
-          "增肌目標：阻力訓練為核心，搭配足夠蛋白質攝取（每公斤體重1.2-1.6g）",
-        );
-        break;
-      case "endurance":
-        // 增強體能：漸進式增加強度
-        prescription.recommendations.push(
-          "體能提升目標：可逐步加入間歇訓練（如快跑30秒＋慢走60秒）",
-        );
-        prescription.recommendations.push(
-          "以RPE（自覺用力程度）6-7分為訓練基準",
-        );
-        break;
-      case "rehabilitation":
-        // 復健：保守、安全優先
-        prescription.intensity = "light";
-        prescription.frequency = Math.min(prescription.frequency, 4);
-        prescription.time = Math.min(prescription.time, 25);
-        prescription.warnings.push("復健階段：請在醫療人員指導下循序漸進");
-        prescription.recommendations.push(
-          "復健目標：以恢復基本功能和活動度為優先",
-        );
-        break;
-      case "performance":
-        // 運動表現：較高量，需有基礎
-        if (data.exercise_habit === "none" || data.exercise_habit === "light") {
-          prescription.recommendations.push(
-            "提醒：目前運動基礎較弱，建議先建立規律運動習慣（4-8週），再進入專項訓練",
-          );
-        } else {
-          prescription.recommendations.push(
-            "表現提升目標：可納入週期化訓練（基礎期→強化期→比賽期→恢復期）",
-          );
-        }
-        break;
-      case "health":
-      default:
-        // 健康維護：標準WHO建議
-        break;
-    }
-  }
-
-  // 重新計算 weeklyMinutes 和 volume（反映習慣/目標調整後的值）
-  if (data.age >= 18) {
-    prescription.weeklyMinutes = prescription.frequency * prescription.time;
-    if (prescription.volume > 0) {
-      const metValue = getIntensityMET(prescription.intensity);
-      prescription.volume = Math.round(
-        metValue * prescription.time * prescription.frequency,
-      );
-    }
-  }
-
-  // 根據疾病史調整運動類型和注意事項
-  if (data.diseases.includes("hypertension")) {
-    prescription.type.push("有氧運動");
-    prescription.warnings.push("避免閉氣用力動作，運動中保持呼吸順暢");
-    prescription.recommendations.push("建議每次運動前後測量血壓");
-  }
-
-  if (data.diseases.includes("diabetes")) {
-    prescription.type.push("有氧運動", "阻力訓練");
-    prescription.warnings.push("運動前後檢查血糖，攜帶糖果備用");
-    prescription.recommendations.push("建議餐後1-2小時運動");
-  }
-
-  if (data.diseases.includes("arthritis")) {
-    prescription.type.push("水中運動", "柔軟度訓練");
-    prescription.warnings.push("避免高衝擊運動，關節疼痛時應停止");
-    prescription.time = Math.min(prescription.time, 30);
-  }
-
-  if (data.diseases.includes("heart_recovery")) {
-    prescription.intensity = "light-moderate";
-    prescription.warnings.push("嚴格監控心率，出現胸痛立即停止");
-    prescription.recommendations.push("建議在運動醫學科醫師監督下開始運動計畫");
-  }
-
-  if (data.diseases.includes("sarcopenia")) {
-    prescription.type.push("阻力訓練"); // 移除「蛋白質營養」，這不是運動類型
-    prescription.recommendations.push("重點加強肌力訓練，每週至少3次阻力運動");
-    prescription.recommendations.push("建議搭配營養師指導，確保足夠蛋白質攝取");
-    prescription.warnings.push("漸進式增加負重，避免過度訓練造成傷害");
-    // 肌少症患者需要更頻繁的肌力訓練，確保至少4次但不降低已有頻率
-    if (data.age >= 18) {
-      prescription.frequency = Math.max(prescription.frequency, 4);
-    }
-  }
-
-  if (data.diseases.includes("pregnant")) {
-    prescription.intensity = "light";
-    prescription.type = ["有氧運動", "柔軟度訓練", "骨盆底肌訓練"];
-    prescription.frequency = Math.min(prescription.frequency, 4);
-    prescription.time = Math.min(prescription.time, 30);
-    prescription.warnings.push("避免仰躺運動、高衝擊運動和有跌倒風險的活動");
-    prescription.warnings.push("懷孕期間運動強度不宜過高，以能說話為準");
-    prescription.warnings.push(
-      "出現任何不適症狀應立即停止並諮詢運動醫學科醫師",
-    );
-    prescription.recommendations.push(
-      "建議選擇游泳、散步、孕婦瑜珈等低衝擊運動",
-    );
-    prescription.recommendations.push(
-      "運動前請先諮詢運動醫學科醫師，確認身體狀況適合運動",
-    );
-    prescription.recommendations.push("避免過熱環境運動，補充充足水分");
-  }
-
-  if (data.diseases.includes("hyperlipidemia")) {
-    prescription.type.push("有氧運動", "阻力訓練");
-    prescription.warnings.push(
-      "高血脂患者運動前建議諮詢運動醫學科醫師，了解適合的運動強度",
-    );
-    prescription.warnings.push("運動中注意身體反應，避免過度勞累");
-    prescription.recommendations.push("建議以有氧運動為主，有助於改善血脂代謝");
-    prescription.recommendations.push("配合適當阻力訓練，增強肌肉量提升代謝");
-    prescription.recommendations.push("定期監測血脂指標，評估運動效果");
-    prescription.recommendations.push("搭配健康飲食，控制飽和脂肪攝取");
-  }
-
-  if (data.diseases.includes("cancer_recovery")) {
-    if (data.age >= 18) {
-      prescription.frequency = Math.min(prescription.frequency, 3); // 不超過3次，避免過度
-    }
-    prescription.type.push("有氧運動", "阻力訓練");
-    prescription.warnings.push("依據治療階段調整運動強度");
-  }
-
-  // 根據運動限制調整
-  if (data.limitations.includes("pain")) {
-    prescription.intensity = "light";
-    prescription.warnings.push("疼痛時立即停止運動");
-  }
-
-  if (data.limitations.includes("fall_risk")) {
-    prescription.type.push("平衡訓練");
-    prescription.warnings.push("避免需要快速方向改變的運動");
-    prescription.recommendations.push("建議在安全環境下運動，有人陪伴");
-  }
-
-  if (data.limitations.includes("balance")) {
-    prescription.type.push("平衡訓練", "太極");
-    prescription.warnings.push("運動時應有支撐物在旁");
-  }
-
-  if (data.limitations.includes("palpitation")) {
-    prescription.intensity = "light-moderate";
-    prescription.warnings.push("心跳過快時立即停止並休息");
-  }
-
-  // 確保基本運動類型（僅對成人和銀髮族）
-  if (data.age >= 18) {
-    if (prescription.type.length === 0) {
-      prescription.type.push("有氧運動");
-    }
-
-    // 添加基本運動類型
-    if (!prescription.type.includes("有氧運動")) {
-      prescription.type.unshift("有氧運動");
-    }
-  }
-
-  // 根據 PAR-Q 評估調整運動處方
-  const parqRisk = assessPARQRisk(data.parq_answers);
-
-  switch (parqRisk.level) {
-    case "high":
-      // 高風險：強烈建議醫師諮詢
-      prescription.warnings.unshift("⚠️ 根據 PAR-Q 評估，您可能有運動風險因子");
-      prescription.recommendations.unshift("請在開始運動前諮詢運動醫學科醫師");
-      prescription.warnings.push(
-        "建議在運動醫學科醫師或運動專業人員監督下開始運動",
-      );
-
-      // 保守的運動處方
-      if (data.age >= 18) {
-        prescription.frequency = Math.max(
-          2,
-          Math.floor(prescription.frequency * 0.5),
-        );
-        prescription.time = 15; // 非常保守的起始時間
-        prescription.intensity = "輕度 (50-60% HRmax)";
-        prescription.progression = "在運動醫學科醫師同意下，每週增加5%運動量";
-      }
-      break;
-
-    case "moderate":
-      // 中度風險：謹慎開始
-      prescription.warnings.push("根據 PAR-Q 評估，建議謹慎開始運動計畫");
-      prescription.recommendations.push("如有不適請立即停止並諮詢專業人員");
-
-      // 較保守的運動處方
-      if (data.age >= 18) {
-        prescription.frequency = Math.max(
-          3,
-          Math.floor(prescription.frequency * 0.7),
-        );
-        prescription.time = 20; // 保守的起始時間
-        prescription.progression = "每週增加5-10%運動量，密切監控身體反應";
-      }
-      break;
-
-    case "low":
-      // 低風險：可以按標準處方進行
-      prescription.recommendations.push("PAR-Q 評估顯示您適合開始運動計畫");
-
-      // 根據體能水平調整
-      if (data.fitness_level === "excellent") {
-        prescription.frequency = Math.min(prescription.frequency + 1, 6);
-        prescription.time = Math.min(prescription.time + 10, 45);
-        prescription.progression = "可按標準進度增加運動量";
-      } else if (data.fitness_level === "poor") {
-        prescription.frequency = Math.max(
-          3,
-          Math.floor(prescription.frequency * 0.8),
-        );
-        prescription.time = 20;
-        prescription.progression = "每週增加10%運動量，逐步達到建議標準";
-      }
-      break;
-  }
-
-  // 添加 PAR-Q 相關建議
-  if (parqRisk.recommendations.length > 0) {
-    prescription.recommendations.push(...parqRisk.recommendations);
-  }
-
-  // 清理重複的運動類型並整理優先順序
-  prescription.type = cleanupExerciseTypes(prescription.type);
-
-  // 確保運動時間為整數（5分鐘的倍數）
-  prescription.time = Math.round(prescription.time / 5) * 5;
-
-  // 重新計算 MET-minutes (如果適用)
-  if (prescription.volume > 0) {
-    const metValue = getIntensityMET(prescription.intensity);
-    prescription.volume = Math.round(
-      metValue * prescription.time * prescription.frequency,
-    );
-  }
-
-  // 統一生成針對不同運動類型的建議事項
-  generateExerciseSpecificRecommendations(prescription, data);
-
-  return prescription;
-}
-
-// 清理和整理運動類型
-function cleanupExerciseTypes(types) {
-  // 定義運動類型的合併規則
-  const typeMapping = {
-    有氧運動: ["有氧運動", "低衝擊有氧"],
-    肌力訓練: ["肌力訓練", "阻力訓練", "肌力訓練重點"],
-    水中運動: ["水中運動"],
-    平衡訓練: ["平衡訓練", "太極"],
-    柔軟度訓練: ["柔軟度訓練", "伸展運動"],
-    自由遊戲: ["自由遊戲"],
-    體能遊戲: ["體能遊戲"],
-    基礎運動技能: ["基礎運動技能"],
-    團體運動: ["團體運動"],
-    專項訓練: ["專項技能訓練", "競技表現提升", "專項訓練"],
-  };
-
-  // 優先順序（重要性排序）
-  const priority = [
-    "有氧運動",
-    "肌力訓練",
-    "平衡訓練",
-    "柔軟度訓練",
-    "水中運動",
-    "自由遊戲",
-    "體能遊戲",
-    "基礎運動技能",
-    "團體運動",
-    "專項訓練",
-  ];
-
-  const result = [];
-  const processed = new Set();
-
-  // 按優先順序處理
-  for (const mainType of priority) {
-    const subtypes = typeMapping[mainType];
-    if (subtypes && types.some((type) => subtypes.includes(type))) {
-      if (!processed.has(mainType)) {
-        result.push(mainType);
-        processed.add(mainType);
-        // 標記所有相關子類型為已處理
-        subtypes.forEach((subtype) => processed.add(subtype));
-      }
-    }
-  }
-
-  // 處理其他未映射的類型
-  for (const type of types) {
-    if (!processed.has(type) && type && type !== "蛋白質營養") {
-      result.push(type);
-    }
-  }
-
-  return result;
-}
-
-// 生成針對不同運動類型的具體建議事項
-function generateExerciseSpecificRecommendations(prescription, data) {
-  // 清除重複的建議，重新生成
-  prescription.recommendations = prescription.recommendations.filter(
-    (rec) =>
-      !rec.includes("每週至少") ||
-      rec.includes("劇烈強度") ||
-      rec.includes("骨骼強化") ||
-      rec.includes("肌肉強化"),
-  );
-
-  const exerciseTypes = prescription.type;
-
-  // 有氧運動建議
-  if (
-    exerciseTypes.includes("有氧運動") ||
-    exerciseTypes.includes("低衝擊有氧")
-  ) {
-    if (data.age >= 18 && data.age <= 64) {
-      prescription.recommendations.push(
-        "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
-      );
-    } else if (data.age >= 65) {
-      prescription.recommendations.push(
-        "有氧運動：選擇低衝擊活動如快走、水中運動，每次20-40分鐘",
-      );
-    }
-  }
-
-  // 阻力/肌力訓練建議
-  if (
-    exerciseTypes.includes("肌力訓練") ||
-    exerciseTypes.includes("阻力訓練") ||
-    exerciseTypes.includes("肌力訓練重點")
-  ) {
-    if (data.age >= 18 && data.age <= 64) {
-      prescription.recommendations.push(
-        "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
-      );
-    } else if (data.age >= 65) {
-      prescription.recommendations.push(
-        "肌力訓練：每週2次，使用輕重量或彈力帶，每組10-15次重複",
-      );
-    }
-  }
-
-  // 平衡訓練建議
-  if (exerciseTypes.includes("平衡訓練") || exerciseTypes.includes("太極")) {
-    if (data.age >= 65) {
-      prescription.recommendations.push(
-        "平衡訓練：每週3次，包含單腳站立、太極等，每次15-20分鐘",
-      );
-    } else if (data.age >= 18) {
-      prescription.recommendations.push(
-        "平衡訓練：每週2-3次，提升身體穩定性，預防跌倒風險",
-      );
-    }
-  }
-
-  // 柔軟度訓練建議 - 對所有成人都推薦
-  if (data.age >= 18) {
-    if (
-      exerciseTypes.includes("柔軟度訓練") ||
-      exerciseTypes.includes("伸展運動")
-    ) {
-      prescription.recommendations.push(
-        "柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒",
-      );
-    } else {
-      // 即使沒有明確包含柔軟度訓練，也給予基本建議
-      prescription.recommendations.push(
-        "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度",
-      );
-    }
-  }
-
-  // 水中運動建議
-  if (exerciseTypes.includes("水中運動")) {
-    prescription.recommendations.push(
-      "水中運動：適合關節問題者，水溫28-30°C，每次30-45分鐘",
-    );
-  }
-}
-
-// 根據強度描述取得對應 MET 值（用於 volume 計算）
-function getIntensityMET(intensity) {
-  const metMap = {
-    light: 2.5,
-    "light-moderate": 3.0,
-    moderate: 3.5,
-    "moderate-vigorous": 6.0,
-  };
-  // 處理被 PAR-Q 覆寫為中文的 intensity
-  if (typeof intensity === "string" && intensity.includes("輕度")) return 2.5;
-  return metMap[intensity] || 3.5;
-}
-
-// 年齡分組函數
-function getAgeGroup(age) {
-  if (age >= 6 && age <= 11) return "child";
-  if (age >= 12 && age <= 17) return "adolescent";
-  if (age >= 18 && age <= 64) return "adult";
-  if (age >= 65) return "senior";
-  return "unknown";
-}
+// Shared with the server: one deterministic prescription engine.
+const { assessPARQRisk,calculateFITTVP,getAgeGroup,getIntensityMET,applySafetyCaps,cleanupExerciseTypes,generateExerciseSpecificRecommendations,INTENSITY_RANK,HEART_RATE_ZONES } = ExerciseRules;
 
 // 顯示運動處方摘要
 function displayPrescriptionSummary(prescription) {
@@ -1622,29 +1002,16 @@ function displayPrescriptionSummary(prescription) {
   const data = window.lastFormData || {};
   let bmiSection = "";
   if (data.age >= 18 && data.bmi) {
-    let bmiCategory = "";
-    let bmiColor = "";
-
-    if (data.bmi < 18.5) {
-      bmiCategory = "體重過輕";
-      bmiColor = "text-blue-600";
-    } else if (data.bmi < 24) {
-      bmiCategory = "正常範圍";
-      bmiColor = "text-green-600";
-    } else if (data.bmi < 27) {
-      bmiCategory = "體重過重";
-      bmiColor = "text-yellow-600";
-    } else {
-      bmiCategory = "肥胖";
-      bmiColor = "text-red-600";
-    }
+    const { label: bmiCategory, textClass: bmiColor } = getBMICategory(
+      data.bmi,
+    );
 
     bmiSection = `
-            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="bmi-summary bg-gray-50 rounded-lg p-4 mb-4">
                 <div class="text-center">
                     <span class="text-sm text-gray-600">BMI 指數：</span>
                     <span class="text-lg font-bold ${bmiColor}">${data.bmi}</span>
-                    <span class="ml-2 px-2 py-1 rounded text-xs bg-gray-200 text-gray-700">${bmiCategory}</span>
+                    <span class="ml-2 px-2 py-1 rounded text-sm bg-gray-200 text-gray-700">${bmiCategory}</span>
                 </div>
             </div>
         `;
@@ -1668,8 +1035,8 @@ function displayPrescriptionSummary(prescription) {
   if (parqRisk.level === "high") parqColor = "red";
 
   parqSection = `
-        <div class="bg-${parqColor}-50 rounded-lg p-4 mb-4 border border-${parqColor}-200">
-            <div class="flex justify-between items-center">
+        <div class="risk-summary bg-${parqColor}-50 rounded-lg p-4 mb-4 border border-${parqColor}-200">
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div>
                     <span class="text-sm text-gray-600">PAR-Q 評估：</span>
                     <span class="text-lg font-bold text-${parqColor}-600">${parqRisk.yesCount}/7 項風險因子</span>
@@ -1703,8 +1070,8 @@ function displayPrescriptionSummary(prescription) {
     }[data.exercise_habit] || "無運動習慣";
 
   container.innerHTML = `
-        <div class="text-center mb-6">
-            <h3 class="text-3xl font-bold text-blue-800 mb-2">您的個人化運動處方</h3>
+        <div class="summary-heading text-center mb-6">
+            <h3 class="text-3xl font-bold text-blue-800 mb-2">你的運動起點</h3>
             <div class="text-xl text-gray-700">
                 <strong>${exerciseTypes} ${timeText} × ${frequencyText}</strong>
             </div>
@@ -1712,7 +1079,7 @@ function displayPrescriptionSummary(prescription) {
         </div>
 
         <!-- 個人資訊摘要 -->
-        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <div class="profile-summary bg-gray-50 rounded-lg p-4 mb-4">
             <div class="grid md:grid-cols-3 gap-4 text-sm">
                 <div><span class="font-semibold">年齡：</span>${data.age}歲 | <span class="font-semibold">性別：</span>${data.gender === "male" ? "男" : data.gender === "female" ? "女" : "其他"}</div>
                 <div><span class="font-semibold">運動目標：</span>${goalText}</div>
@@ -1723,7 +1090,7 @@ function displayPrescriptionSummary(prescription) {
         ${bmiSection}
         ${parqSection}
 
-        <div class="grid md:grid-cols-3 gap-4 text-center mb-4">
+        <div class="summary-metrics grid md:grid-cols-3 gap-4 text-center mb-4">
             <div class="bg-white rounded-lg p-4 shadow">
                 <div class="text-2xl font-bold text-blue-600">${prescription.frequency === 7 ? "每日" : prescription.frequency}</div>
                 <div class="text-sm text-gray-600">${prescription.frequency === 7 ? "身體活動" : "次/週"}</div>
@@ -1751,7 +1118,7 @@ function displayPrescriptionSummary(prescription) {
                         pain: "疼痛問題",
                         injury_history: "運動傷害史",
                         balance: "平衡感不佳",
-                        palpitation: "呼吸困難",
+                        palpitation: "心悸",
                         equipment: "缺乏運動設備",
                       }[limitation] || limitation;
                     return `<li>${limitText}</li>`;
@@ -1775,11 +1142,12 @@ function displayFITTPDetails(prescription) {
 
   const intensityDescription =
     {
-      light: "RPE 3-4，能輕鬆說話和唱歌",
-      "light-moderate": "RPE 4-5，能說話但唱歌稍有困難",
-      moderate: "RPE 5-6，能說話但無法唱歌",
-      "moderate-vigorous": "RPE 6-7，說話略感困難",
-    }[prescription.intensity] || "RPE 5-6，能說話但無法唱歌";
+      light: "RPE 9-11（Borg 6-20 量表，輕鬆），能輕鬆說話和唱歌",
+      "light-moderate": "RPE 11-12（Borg 6-20 量表），能說話，唱歌稍有困難",
+      moderate: "RPE 12-13（Borg 6-20 量表，有點吃力），能說話但無法唱歌",
+      "moderate-vigorous":
+        "RPE 13-15（Borg 6-20 量表，吃力），只能說短句",
+    }[prescription.intensity] || "RPE 12-13（Borg 6-20 量表），能說話但無法唱歌";
 
   let frequencyText = "";
   if (prescription.frequency === 7) {
@@ -1791,33 +1159,33 @@ function displayFITTPDetails(prescription) {
   container.innerHTML = `
         <div class="space-y-4">
             <div class="border-l-4 border-blue-500 pl-4">
-                <h4 class="font-semibold text-lg">Frequency (頻率)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">F</span><span>頻率 <small lang="en">Frequency</small></span></h4>
                 <p class="text-gray-600">${frequencyText}</p>
             </div>
             
             <div class="border-l-4 border-green-500 pl-4">
-                <h4 class="font-semibold text-lg">Intensity (強度)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">I</span><span>強度 <small lang="en">Intensity</small></span></h4>
                 <p class="text-gray-600">${intensityDescription}</p>
             </div>
             
             <div class="border-l-4 border-purple-500 pl-4">
-                <h4 class="font-semibold text-lg">Time (時間)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">T</span><span>時間 <small lang="en">Time</small></span></h4>
                 <p class="text-gray-600">${prescription.frequency === 7 ? "每日" : "每次運動"} ${prescription.time} 分鐘</p>
             </div>
             
             <div class="border-l-4 border-orange-500 pl-4">
-                <h4 class="font-semibold text-lg">Type (類型)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">T</span><span>類型 <small lang="en">Type</small></span></h4>
                 <p class="text-gray-600">${prescription.type.join("、")}</p>
             </div>
             
             <div class="border-l-4 border-red-500 pl-4">
-                <h4 class="font-semibold text-lg">Volume (總量)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">V</span><span>總量 <small lang="en">Volume</small></span></h4>
                 <p class="text-gray-600">${prescription.volume === 0 ? "重點在活動多樣性與趣味性" : `每週約 ${prescription.volume} MET-minutes`}</p>
                 ${prescription.weeklyMinutes ? `<p class="text-gray-500 text-sm mt-1">每週總運動時間目標：${prescription.weeklyMinutes} 分鐘</p>` : ""}
             </div>
 
             <div class="border-l-4 border-gray-500 pl-4">
-                <h4 class="font-semibold text-lg">Progression (進展)</h4>
+                <h4 class="font-semibold text-lg"><span class="fitt-code" aria-hidden="true">P</span><span>進展 <small lang="en">Progression</small></span></h4>
                 <p class="text-gray-600">${prescription.progression}</p>
             </div>
 
@@ -1858,7 +1226,7 @@ function displayExerciseGuidelines(prescription) {
   if (prescription.warnings.length > 0) {
     warningsHtml = `
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <h5 class="font-semibold text-red-800 mb-2">重要注意事項</h5>
+                <h4 class="font-semibold text-red-800 mb-2">重要注意事項</h4>
                 <ul class="list-disc list-inside space-y-1 text-red-700">
                     ${prescription.warnings.map((warning) => `<li>${warning}</li>`).join("")}
                 </ul>
@@ -1873,7 +1241,7 @@ function displayExerciseGuidelines(prescription) {
   if (prescription.recommendations.length > 0) {
     recommendationsHtml = `
             <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <h5 class="font-semibold text-green-800 mb-2">建議事項</h5>
+                <h4 class="font-semibold text-green-800 mb-2">建議事項</h4>
                 <ul class="list-disc list-inside space-y-1 text-green-700">
                     ${prescription.recommendations.map((rec) => `<li>${rec}</li>`).join("")}
                 </ul>
@@ -1889,14 +1257,14 @@ function displayExerciseGuidelines(prescription) {
         ${recommendationsHtml}
         
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h5 class="font-semibold text-blue-800 mb-2">推薦運動範例</h5>
+            <h4 class="font-semibold text-blue-800 mb-2">推薦運動範例</h4>
             <div class="text-blue-700 space-y-2">
                 ${exerciseExamples}
             </div>
         </div>
         
         <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h5 class="font-semibold text-gray-800 mb-2">運動前準備</h5>
+            <h4 class="font-semibold text-gray-800 mb-2">運動前準備</h4>
             <ul class="list-disc list-inside space-y-1 text-gray-600">
                 <li>運動前進行5-10分鐘暖身</li>
                 <li>穿著舒適的運動服裝和鞋子</li>
@@ -1955,98 +1323,82 @@ function getExerciseExamples(types) {
 }
 
 // PDF 下載功能
+let pdfDownloadInProgress = false;
+let pdfDownloadUrl = null;
+let pdfDownloadSequence = 0;
+let pdfDownloadKind = null;
+
+function updatePDFButtons() {
+  document.getElementById('downloadPrescription').disabled = pdfDownloadInProgress || !window.lastPrescription || !window.lastFormData;
+  document.getElementById('downloadAiReport').disabled = pdfDownloadInProgress || !lastAIResult;
+}
+
+function clearPDFDownload({ aiOnly = false } = {}) {
+  // Editing optional AI context does not invalidate the unchanged prescription.
+  if (aiOnly && pdfDownloadKind === 'prescription') return;
+  pdfDownloadSequence++;
+  pdfDownloadKind = null;
+  if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl);
+  pdfDownloadUrl = null;
+  document.getElementById('pdfDownloadFeedback').classList.add('hidden');
+  document.getElementById('pdfDownloadLinks').classList.add('hidden');
+  for (const id of ['pdfSaveLink','pdfOpenLink']) document.getElementById(id).removeAttribute('href');
+}
+
 async function downloadPDF() {
+  return savePDFReport(createPDFReport, "運動處方建議", 'prescription');
+}
+
+async function downloadAIPDF() {
+  if (!lastAIResult) return;
+  return savePDFReport(createAIPDFReport, "AI運動行動報告", 'combined');
+}
+
+async function savePDFReport(buildReport, filePrefix, kind) {
+  if (pdfDownloadInProgress) return;
+  clearPDFDownload();
+  const sequence = pdfDownloadSequence;
+  pdfDownloadKind = kind;
+  pdfDownloadInProgress = true;
+  updatePDFButtons();
+  const feedback = document.getElementById('pdfDownloadFeedback');
+  const message = document.getElementById('pdfDownloadMessage');
   try {
     // 顯示載入 Modal
     showLoadingModal();
 
-    // 確保 PDF 函式庫已載入
-    if (typeof loadPDFLibraries === "function") {
-      await loadPDFLibraries();
-    }
-
-    // 檢查函式庫是否可用
-    if (!window.jspdf || !window.html2canvas) {
-      console.error("函式庫檢查:", {
-        jspdf: !!window.jspdf,
-        html2canvas: !!window.html2canvas,
-      });
-      throw new Error("PDF 函式庫載入失敗");
-    }
-
-    // 創建一個臨時的PDF內容容器
-    const pdfContent = createPDFContent();
-    if (!pdfContent) {
-      throw new Error("無法創建 PDF 內容");
-    }
-
-    document.body.appendChild(pdfContent);
-
-    // 使用 html2canvas 將內容轉換為圖片，確保 DOM 清理
-    let canvas;
-    try {
-      canvas = await html2canvas(pdfContent, {
-        scale: 1.2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        width: 794,
-        scrollX: 0,
-        scrollY: 0,
-        logging: false,
-      });
-    } finally {
-      if (pdfContent.parentNode) {
-        document.body.removeChild(pdfContent);
-      }
-    }
-
-    // 創建 PDF
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    // 計算圖片尺寸以適應 A4
-    const imgWidth = 210; // A4 寬度 mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    // 轉換為圖片數據
-    const imgData = canvas.toDataURL("image/png");
-
-    // 添加圖片到 PDF
-    const pageHeight = 297; // A4 高度 mm
-    if (imgHeight <= pageHeight) {
-      // 單頁
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    } else {
-      // 多頁處理：每頁顯示圖片的不同區段
-      let yOffset = 0;
-
-      // 第一頁
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-
-      yOffset += pageHeight;
-      while (yOffset < imgHeight) {
-        pdf.addPage();
-        // 將圖片向上偏移，使下一段內容顯示在頁面頂部
-        pdf.addImage(imgData, "PNG", 0, -yOffset, imgWidth, imgHeight);
-        yOffset += pageHeight;
-      }
-    }
+    // Snapshot the displayed result before asynchronous font/library loading.
+    const report = buildReport();
+    await loadPDFLibraries();
+    if (sequence !== pdfDownloadSequence) return;
+    const pdf = renderPDFReport(report);
 
     // 生成檔案名稱
     const now = new Date();
     const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`;
 
     // 下載 PDF
-    pdf.save(`運動處方建議_${dateStr}.pdf`);
+    const filename = `${filePrefix}_${dateStr}.pdf`;
+    pdfDownloadUrl = URL.createObjectURL(pdf.output('blob'));
+    const saveLink = document.getElementById('pdfSaveLink');
+    saveLink.href = pdfDownloadUrl;
+    saveLink.download = filename;
+    document.getElementById('pdfOpenLink').href = pdfDownloadUrl;
+    document.getElementById('pdfDownloadLinks').classList.remove('hidden');
+    feedback.classList.remove('hidden');
+    message.textContent = `${filename} 已準備好；若未開始下載，請按「儲存 PDF」；手機也可開啟預覽後儲存`;
+    saveLink.click();
 
-    // 隱藏載入 Modal
-    hideLoadingModal();
   } catch (error) {
     console.error("PDF 生成錯誤:", error);
-    // 隱藏載入 Modal
+    if (sequence !== pdfDownloadSequence) return;
+    feedback.classList.remove('hidden');
+    message.textContent = 'PDF 尚未產生，請確認網路後再次按下載；報告內容仍保留在本頁';
+    alert("PDF 生成失敗，請稍後再試；可能是瀏覽器不支援或網路問題");
+  } finally {
     hideLoadingModal();
-    alert("PDF 生成失敗，請稍後再試。可能是瀏覽器不支援或網路問題。");
+    pdfDownloadInProgress = false;
+    updatePDFButtons();
   }
 }
 
@@ -2081,7 +1433,10 @@ function getPARQScore(data) {
 
 function getPARQRecommendation(data) {
   const parqRisk = assessPARQRisk(data.parq_answers || {});
-  return parqRisk.recommendations[0] || "您可以安全地開始運動計畫";
+  return (
+    parqRisk.recommendations[0] ||
+    "依問卷結果，一般可從低至中等強度開始逐步增加活動；運動中如有不適請立即停止並就醫"
+  );
 }
 
 function calculateBMRForPDF(data) {
@@ -2096,8 +1451,8 @@ function calculateBMRForPDF(data) {
   } else if (data.gender === "female") {
     bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 161;
   } else {
-    // 其他：男女係數平均（常數 -78）
-    bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age - 78;
+    // 與畫面端一致：Mifflin-St Jeor 只有男女係數，性別「其他」不估算
+    return "不適用";
   }
 
   return Math.round(bmr);
@@ -2105,7 +1460,7 @@ function calculateBMRForPDF(data) {
 
 function calculateTDEEForPDF(data) {
   const bmr = calculateBMRForPDF(data);
-  if (bmr === "待計算") return "待計算";
+  if (typeof bmr !== "number") return bmr;
 
   // 活動係數：優先採用畫面端使用者選的 activityLevel（與螢幕 TDEE 一致），
   // 沒有時才退回依運動習慣推估
@@ -2134,309 +1489,60 @@ function calculateTDEEForPDF(data) {
   return Math.round(bmr * activityFactor);
 }
 
-// 創建PDF內容的HTML結構
-function createPDFContent() {
+// Build report data without hidden HTML or viewport-dependent layout.
+function createPDFReport() {
   const data = window.lastFormData || {};
-  const prescription = calculateFITTVP(data);
-
-  // 獲取網頁上的實際內容
-  const prescriptionSummary = document.getElementById("prescriptionSummary");
-  const fittpDetails = document.getElementById("fittpDetails");
-  const exerciseGuidelines = document.getElementById("exerciseGuidelines");
-
-  const container = document.createElement("div");
-  container.style.cssText = `
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        width: 794px;
-        background: white;
-        font-family: 'Noto Sans TC', sans-serif;
-        font-size: 12px;
-        line-height: 1.4;
-        color: #333;
-        padding: 8px 30px;
-        box-sizing: border-box;
-    `;
-
-  // 獲取運動範例
-  const exerciseExamples = getExerciseExamples(prescription.type);
-
-  container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 15px;">
-            <h1 style="font-size: 24px; font-weight: bold; margin: 0 0 4px 0; color: #1e40af;">
-                個人化運動處方建議
-            </h1>
-            <p style="font-size: 14px; color: #6b7280; margin: 0 0 8px 0;">
-                基於 ACSM FITT-VP 原則與 WHO 身體活動建議指引
-            </p>
-        </div>
-
-        <!-- 兩欄布局 -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-
-            <!-- 左欄 -->
-            <div style="min-height: 400px;">
-                <!-- 個人評估資料 -->
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 3px;">
-                        個人評估資料
-                    </h2>
-                    <div style="background: #fffbeb; padding: 12px; border-radius: 6px; border-left: 4px solid #f59e0b; color: #000;">
-                        <div style="font-size: 12px; line-height: 1.6;">
-                            <div style="margin-bottom: 5px;"><strong>運動目標：</strong>${getGoalText(data.exercise_goal)}</div>
-                            <div style="margin-bottom: 5px;"><strong>運動習慣：</strong>${getHabitText(data.exercise_habit)}</div>
-                            ${
-                              data.age >= 18 && data.bmi
-                                ? `
-                            <div style="margin-bottom: 5px;"><strong>BMI 指數：</strong>${data.bmi} ${data.bmi < 18.5 ? "體重過輕" : data.bmi < 24 ? "正常範圍" : data.bmi < 27 ? "體重過重" : "肥胖"}</div>
-                            `
-                                : ""
-                            }
-                            <div style="margin-bottom: 5px;"><strong>PAR-Q 評估：</strong>${getPARQScore(data)} 項風險因子</div>
-                            <div style="margin-bottom: 8px;"><strong>${getPARQRecommendation(data)}</strong></div>
-
-                            <!-- BMR 和 TDEE 資訊 -->
-                            <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px;">
-                                <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
-                                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 3px;">BMR 基礎代謝率</div>
-                                    <div style="font-size: 14px; font-weight: bold; color: #3b82f6; margin-bottom: 2px;">
-                                        ${calculateBMRForPDF(data)} 大卡/天
-                                    </div>
-                                    <div style="font-size: 9px; color: #666;">完全靜態時的熱量消耗</div>
-                                </div>
-                                <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
-                                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 3px;">TDEE 每日總消耗</div>
-                                    <div style="font-size: 14px; font-weight: bold; color: #22c55e; margin-bottom: 2px;">
-                                        ${calculateTDEEForPDF(data)} 大卡/天
-                                    </div>
-                                    <div style="font-size: 9px; color: #666;">包含活動的總熱量消耗</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- FITT-VP 詳細說明 -->
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #22c55e; padding-bottom: 3px;">
-                        FITT-VP 運動原則
-                    </h2>
-                    <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #22c55e;">
-                        <div style="font-size: 11px; line-height: 1.5;">
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">頻率 (Frequency)：</strong>
-                                <span>${prescription.frequency === 7 ? "每日身體活動" : `每週 ${prescription.frequency} 次運動`}</span>
-                            </div>
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">強度 (Intensity)：</strong>
-                                <span>${getIntensityText(prescription.intensity)}</span>
-                            </div>
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">時間 (Time)：</strong>
-                                <span>${prescription.frequency === 7 ? "每日" : "每次運動"} ${prescription.time} 分鐘</span>
-                            </div>
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">類型 (Type)：</strong>
-                                <span>${prescription.type.join("、")}</span>
-                            </div>
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">總量 (Volume)：</strong>
-                                <span>${prescription.volume === 0 ? "重點在活動多樣性與趣味性" : `每週約 ${prescription.volume} MET-minutes`}</span>
-                            </div>
-                            <div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">進展 (Progression)：</strong>
-                                <span>${prescription.progression}</span>
-                            </div>
-                            ${
-                              prescription.heartRateZone
-                                ? `<div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">心率區間：</strong>
-                                <span>${prescription.heartRateZone}</span>
-                            </div>`
-                                : ""
-                            }
-                            ${
-                              prescription.resistanceTraining
-                                ? `<div style="margin-bottom: 6px;">
-                                <strong style="color: #059669;">阻力訓練：</strong>
-                                <span>${prescription.resistanceTraining}</span>
-                            </div>`
-                                : ""
-                            }
-                            ${
-                              prescription.weeklyMinutes
-                                ? `<div>
-                                <strong style="color: #059669;">每週目標：</strong>
-                                <span>${prescription.weeklyMinutes} 分鐘</span>
-                            </div>`
-                                : ""
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右欄 -->
-            <div style="min-height: 400px;">
-                <!-- 運動處方摘要 -->
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #3b82f6; padding-bottom: 3px;">
-                        您的運動處方
-                    </h2>
-                    <div style="background: #f8fafc; padding: 12px; border-radius: 6px; border-left: 4px solid #3b82f6;">
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <div style="font-size: 16px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">
-                                ${prescription.type.join("、")}
-                            </div>
-                            <div style="font-size: 14px; font-weight: bold; color: #1e40af;">
-                                ${prescription.frequency === 7 ? "每日" : "每週" + prescription.frequency + "次"} × ${prescription.time}分鐘
-                            </div>
-                            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
-                                強度：${getIntensityText(prescription.intensity)}
-                            </div>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; font-size: 10px;">
-                            <div style="background: white; padding: 8px; border-radius: 4px;">
-                                <div style="font-size: 14px; font-weight: bold; color: #3b82f6;">
-                                    ${prescription.frequency === 7 ? "每日" : prescription.frequency}
-                                </div>
-                                <div style="color: #6b7280;">${prescription.frequency === 7 ? "身體活動" : "次/週"}</div>
-                            </div>
-                            <div style="background: white; padding: 8px; border-radius: 4px;">
-                                <div style="font-size: 14px; font-weight: bold; color: #22c55e;">
-                                    ${prescription.time}
-                                </div>
-                                <div style="color: #6b7280;">分鐘${prescription.frequency === 7 ? "/日" : "/次"}</div>
-                            </div>
-                            <div style="background: white; padding: 8px; border-radius: 4px;">
-                                <div style="font-size: 14px; font-weight: bold; color: #8b5cf6;">
-                                    ${prescription.volume === 0 ? "多樣化" : prescription.volume}
-                                </div>
-                                <div style="color: #6b7280;">${prescription.volume === 0 ? "活動類型" : "MET-min/週"}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 運動範例 -->
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #8b5cf6; padding-bottom: 3px;">
-                        建議運動範例
-                    </h2>
-                    <div style="background: #faf5ff; padding: 12px; border-radius: 6px; border-left: 4px solid #8b5cf6;">
-                        <div style="font-size: 11px; line-height: 1.5; color: #581c87;">
-                            ${exerciseExamples.replace(/class="[^"]*"/g, "").replace(/span/g, 'span style="display: inline-block; background: white; padding: 2px 8px; border-radius: 12px; margin-right: 6px; margin-bottom: 4px;"')}
-                        </div>
-                    </div>
-                </div>
-
-                ${
-                  prescription.warnings.length > 0
-                    ? `
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #ef4444; padding-bottom: 3px;">
-                        重要注意事項
-                    </h2>
-                    <div style="background: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
-                        <ul style="margin: 0; padding-left: 15px; font-size: 11px; color: #991b1b; line-height: 1.4;">
-                            ${prescription.warnings.map((warning) => `<li style="margin-bottom: 4px;">${warning}</li>`).join("")}
-                        </ul>
-                    </div>
-                </div>
-                `
-                    : ""
-                }
-
-                <!-- 一般注意事項 -->
-                <div style="margin-bottom: 15px;">
-                    <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #6b7280; padding-bottom: 3px;">
-                        運動安全提醒
-                    </h2>
-                    <div style="background: #f9fafb; padding: 12px; border-radius: 6px; border-left: 4px solid #6b7280;">
-                        <ul style="margin: 0; padding-left: 15px; font-size: 11px; color: #374151; line-height: 1.4;">
-                            <li style="margin-bottom: 4px;">運動前請做適當暖身</li>
-                            <li style="margin-bottom: 4px;">運動中如感到不適請立即停止</li>
-                            <li style="margin-bottom: 4px;">循序漸進增加運動強度</li>
-                            <li style="margin-bottom: 4px;">保持充足水分補充</li>
-                            <li>本建議僅供參考，如有疑慮請諮詢專業人員</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        ${
-          prescription.recommendations.length > 0
-            ? `
-        <div style="margin-bottom: 15px;">
-            <h2 style="font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 3px;">
-                建議事項
-            </h2>
-            <div style="background: #fffbeb; padding: 12px; border-radius: 6px; border-left: 4px solid #f59e0b;">
-                <ul style="margin: 0; padding-left: 15px; font-size: 12px; color: #92400e;">
-                    ${prescription.recommendations.map((rec) => `<li style="margin-bottom: 6px;">${rec}</li>`).join("")}
-                </ul>
-            </div>
-        </div>
-        `
-            : ""
-        }
-        
-        
-        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-            <h3 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">免責聲明</h3>
-            <p style="font-size: 10px; color: #6b7280; line-height: 1.4; margin-bottom: 10px;">
-                本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。建議在開始任何運動計畫前，
-                請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。
-            </p>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #6b7280;">
-                <div>製作者：運動醫學科 吳易澄醫師 | https://wycswimming.blogspot.com/</div>
-                <div>生成日期：${new Date().toLocaleDateString("zh-TW")}</div>
-            </div>
-        </div>
-    `;
-
-  return container;
-}
-
-// 輔助函數
-function getFitnessLevelText(level) {
-  const levels = {
-    poor: "日常活動困難",
-    fair: "容易疲勞",
-    good: "尚可",
-    excellent: "良好",
+  const prescription = window.lastPrescription || calculateFITTVP(data);
+  const risk = assessPARQRisk(data.parq_answers || {});
+  const riskLabel = { low: "低風險", moderate: "中等風險", high: "高風險" }[risk.level];
+  const gender = { male: "男", female: "女", other: "其他" }[data.gender] || "未填寫";
+  const energy = value => typeof value === "number" ? `${value} 大卡／天` : value;
+  const examples = document.createElement("template");
+  examples.innerHTML = getExerciseExamples(prescription.type);
+  const rows = [
+    ["F  頻率", prescription.frequency === 7 ? "每日身體活動" : `每週 ${prescription.frequency} 次運動`],
+    ["I  強度", `${getIntensityText(prescription.intensity)}，Borg 6–20 量表`],
+    ["T  時間", `${prescription.frequency === 7 ? "每日" : "每次運動"} ${prescription.time} 分鐘`],
+    ["T  類型", prescription.type.join("、")],
+    ["V  總量", prescription.volume === 0 ? "重點在活動多樣性與趣味性" : `每週約 ${prescription.volume} MET-minutes`],
+    ["P  進展", prescription.progression],
+  ];
+  if (prescription.weeklyMinutes) rows[4][1] += `；每週總運動時間目標：${prescription.weeklyMinutes} 分鐘`;
+  if (prescription.heartRateZone) rows.push(["心率區間", prescription.heartRateZone]);
+  if (prescription.resistanceTraining) rows.push(["阻力訓練", prescription.resistanceTraining]);
+  return {
+    title: "個人運動處方", subtitle: "從了解自己開始，讓每一次活動都有方向。",
+    compact: true,
+    date: new Date().toLocaleDateString("zh-TW"),
+    notice: { level: risk.level, title: `PAR-Q+：${riskLabel}  /  ${risk.yesCount} 題回答「是」`, body: risk.recommendations[0] },
+    sections: [
+      { title: "01  個人概況", kind: "facts", items: [
+        ["年齡／性別", `${data.age} 歲／${gender}`], ["身高／體重", `${data.height} cm／${data.weight} kg`],
+        ["BMI", data.age >= 18 ? (data.weight / ((data.height / 100) ** 2)).toFixed(1) : "未滿 18 歲不作成人判讀"], ["運動目標", getGoalText(data.exercise_goal)],
+        ["基礎代謝 BMR", energy(calculateBMRForPDF(data))], ["每日消耗 TDEE", energy(calculateTDEEForPDF(data))],
+        ["運動習慣", getHabitText(data.exercise_habit)],
+      ] },
+      { title: "02  FITT-VP 運動計畫", kind: "rows", items: rows },
+      { title: "03  重要注意事項", kind: "list", warning: true,
+        items: prescription.warnings.length ? [...prescription.warnings] : ["運動中如感到不適，請立即停止；如有健康疑慮，請諮詢專業醫療人員。"] },
+      { title: "04  執行建議", kind: "list", items: [...prescription.recommendations] },
+      { title: "05  推薦運動範例", kind: "paragraph", items: [[...examples.content.querySelectorAll("span")].map(el => el.textContent).join("、")] },
+      { title: "06  運動安全提醒", kind: "list", items: ["運動前請做適當暖身；循序漸進增加運動強度。", "保持充足水分補充；運動中如感到不適請立即停止。"] },
+    ],
+    disclaimer: "本系統提供的運動處方僅供參考，不可取代專業醫療診斷與建議。開始運動計畫前，請諮詢專業醫療人員、運動醫學科醫師或合格的運動專業人士。",
   };
-  return levels[level] || level;
-}
-
-function getExerciseHabitText(habit) {
-  const habits = {
-    none: "沒有運動習慣",
-    light: "偶爾運動（每週1-2次）",
-    moderate: "規律運動（每週3-4次）",
-    active: "經常運動（每週5次以上）",
-    student_athlete: "學生運動員或專業訓練",
-  };
-  return habits[habit] || habit;
 }
 
 function getIntensityText(intensity) {
   const intensities = {
-    light: "輕度強度 (RPE 3-4)",
-    "light-moderate": "輕度至中度強度 (RPE 4-5)",
-    moderate: "中度強度 (RPE 5-6)",
-    "moderate-vigorous": "中度至劇烈強度 (RPE 6-7)",
+    light: "輕度強度 (RPE 9-11)",
+    "light-moderate": "輕度至中度強度 (RPE 11-12)",
+    moderate: "中度強度 (RPE 12-13)",
+    "moderate-vigorous": "中度至劇烈強度 (RPE 13-15)",
   };
   return intensities[intensity] || intensity;
 }
 
-// 響應式設計支援
-window.addEventListener("resize", function () {
-  // 處理視窗大小變化時的佈局調整
-  // 目前使用 Tailwind CSS 的響應式類別已經足夠
-});
 
 // 初始化
 document.addEventListener("DOMContentLoaded", function () {
@@ -2450,289 +1556,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-// ==================== AI 建議功能 ====================
-
-// AI API 端點（根據部署環境調整）
-const AI_API_ENDPOINT = "/api/ai-recommendation";
-
-// 儲存最後的處方資料（供 AI 使用）
 window.lastPrescription = null;
 
-// AI 提供商資訊與模型選項
-const AI_PROVIDERS = {
-  auto: {
-    name: "自動選擇（免費版）",
-    hint: "使用系統預設的免費 Groq API",
-    needsKey: false,
-    models: [],
-  },
-  groq: {
-    name: "Groq",
-    hint: "免費 API，前往 https://console.groq.com 取得金鑰",
-    needsKey: false,
-    models: [
-      {
-        id: "llama-3.3-70b-versatile",
-        name: "Llama 3.3 70B（推薦）",
-        description: "最強大、最準確",
-      },
-      {
-        id: "llama-3.1-8b-instant",
-        name: "Llama 3.1 8B",
-        description: "快速回應",
-      },
-      {
-        id: "mixtral-8x7b-32768",
-        name: "Mixtral 8x7B",
-        description: "平衡效能",
-      },
-      {
-        id: "gemma2-9b-it",
-        name: "Gemma 2 9B",
-        description: "Google 輕量模型",
-      },
-    ],
-  },
-  openai: {
-    name: "OpenAI",
-    hint: "前往 https://platform.openai.com/api-keys 取得金鑰",
-    needsKey: true,
-    models: [
-      {
-        id: "gpt-4o",
-        name: "GPT-4o（推薦）",
-        description: "最強大的多模態模型",
-      },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", description: "快速且經濟" },
-      { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "高效能版本" },
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "經濟實惠" },
-    ],
-  },
-  claude: {
-    name: "Claude (Anthropic)",
-    hint: "前往 https://console.anthropic.com 取得金鑰",
-    needsKey: true,
-    models: [
-      {
-        id: "claude-sonnet-4-20250514",
-        name: "Claude Sonnet 4（推薦）",
-        description: "最新最強",
-      },
-      {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "平衡效能與成本",
-      },
-      {
-        id: "claude-3-5-haiku-20241022",
-        name: "Claude 3.5 Haiku",
-        description: "快速且經濟",
-      },
-      {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "最高品質",
-      },
-    ],
-  },
-  gemini: {
-    name: "Gemini (Google)",
-    hint: "前往 https://makersuite.google.com/app/apikey 取得金鑰",
-    needsKey: true,
-    models: [
-      {
-        id: "gemini-2.0-flash-exp",
-        name: "Gemini 2.0 Flash（推薦）",
-        description: "最新實驗版本",
-      },
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "進階推理能力",
-      },
-      {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
-        description: "快速回應",
-      },
-      { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", description: "穩定版本" },
-    ],
-  },
-};
-
-// 切換進階 AI 設定顯示
-function toggleAdvancedAISettings() {
-  const settings = document.getElementById("advancedAISettings");
-  const icon = document.getElementById("advancedAIIcon");
-
-  if (settings.classList.contains("hidden")) {
-    settings.classList.remove("hidden");
-    icon.style.transform = "rotate(180deg)";
-  } else {
-    settings.classList.add("hidden");
-    icon.style.transform = "rotate(0deg)";
-  }
-}
-
-// 當選擇的 AI 提供商改變時
-function onProviderChange() {
-  const select = document.getElementById("aiProviderSelect");
-  const keySection = document.getElementById("customApiKeySection");
-  const keyInput = document.getElementById("customApiKey");
-  const keyLabel = document.getElementById("apiKeyLabel");
-  const keyHint = document.getElementById("apiKeyHint");
-  const modelSection = document.getElementById("modelSelectSection");
-  const modelSelect = document.getElementById("modelSelect");
-
-  const provider = select.value;
-  const providerInfo = AI_PROVIDERS[provider];
-
-  // 處理 API 金鑰區塊
-  if (providerInfo.needsKey) {
-    keySection.classList.remove("hidden");
-    keyLabel.textContent = `${providerInfo.name} API 金鑰`;
-    keyHint.textContent = providerInfo.hint;
-    keyInput.placeholder = `輸入您的 ${providerInfo.name} API 金鑰`;
-  } else {
-    keySection.classList.add("hidden");
-    keyInput.value = "";
-  }
-
-  // 處理模型選擇區塊
-  if (providerInfo.models && providerInfo.models.length > 0) {
-    modelSection.classList.remove("hidden");
-    modelSelect.innerHTML = providerInfo.models
-      .map(
-        (model, index) =>
-          `<option value="${model.id}" ${index === 0 ? "selected" : ""}>
-                ${model.name} - ${model.description}
-            </option>`,
-      )
-      .join("");
-  } else {
-    modelSection.classList.add("hidden");
-    modelSelect.innerHTML = "";
-  }
-}
-
-// 獲取當前選擇的 AI 設定
-function getAISettings() {
-  const providerSelect = document.getElementById("aiProviderSelect");
-  const apiKeyInput = document.getElementById("customApiKey");
-  const modelSelect = document.getElementById("modelSelect");
-
-  return {
-    provider: providerSelect ? providerSelect.value : "auto",
-    customApiKey: apiKeyInput ? apiKeyInput.value.trim() : null,
-    model: modelSelect && modelSelect.value ? modelSelect.value : null,
-  };
-}
-
-// 獲取 AI 建議
-async function fetchAIRecommendation() {
-  const loadingEl = document.getElementById("aiLoading");
-  const contentEl = document.getElementById("aiContent");
-  const errorEl = document.getElementById("aiError");
-  const errorMsgEl = document.getElementById("aiErrorMessage");
-  const providerBadge = document.getElementById("aiProviderBadge");
-  const providerName = document.getElementById("aiProviderName");
-  const refreshBtn = document.getElementById("refreshAiBtn");
-
-  // 顯示載入狀態
-  loadingEl.classList.remove("hidden");
-  contentEl.classList.add("hidden");
-  errorEl.classList.add("hidden");
-  providerBadge.classList.add("hidden");
-
-  if (refreshBtn) {
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add("opacity-50");
-  }
-
-  try {
-    // 準備要發送的資料
-    const formData = window.lastFormData;
-    const prescription = window.lastPrescription;
-
-    if (!formData || !prescription) {
-      throw new Error("缺少表單或處方資料");
-    }
-
-    const userData = {
-      ...formData,
-      prescription: {
-        frequency: prescription.frequency,
-        intensity: prescription.intensity,
-        time: prescription.time,
-        type: prescription.type,
-        volume: prescription.volume,
-      },
-    };
-
-    // 獲取 AI 設定（提供商、模型、API 金鑰）
-    const aiSettings = getAISettings();
-
-    // 呼叫 AI API
-    const response = await fetch(AI_API_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userData,
-        provider: aiSettings.provider,
-        model: aiSettings.model,
-        customApiKey: aiSettings.customApiKey || null,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.error || "AI 服務回應錯誤");
-    }
-
-    // 顯示 AI 建議：先以 DOMPurify 清洗，移除 <script>/on* 事件等 XSS 向量（保留表格與樣式）
-    loadingEl.classList.add("hidden");
-    contentEl.innerHTML = window.DOMPurify
-      ? window.DOMPurify.sanitize(result.recommendation)
-      : result.recommendation;
-    contentEl.classList.remove("hidden");
-
-    // 顯示提供商標示
-    if (result.provider) {
-      providerName.textContent = result.provider;
-      providerBadge.classList.remove("hidden");
-    }
-  } catch (error) {
-    console.error("AI 建議獲取失敗:", error);
-
-    // 顯示錯誤狀態
-    loadingEl.classList.add("hidden");
-    errorEl.classList.remove("hidden");
-
-    if (
-      error.message.includes("Failed to fetch") ||
-      error.message.includes("NetworkError")
-    ) {
-      errorMsgEl.textContent =
-        "AI 服務暫時無法連線，請查看下方的標準運動處方建議。";
-    } else {
-      errorMsgEl.textContent =
-        error.message || "AI 服務暫時無法使用，請查看下方的標準運動處方建議。";
-    }
-  } finally {
-    if (refreshBtn) {
-      refreshBtn.disabled = false;
-      refreshBtn.classList.remove("opacity-50");
-    }
-  }
-}
-
-// 修改原有的 generatePrescription 函數，整合 AI 功能
-const originalGeneratePrescription = generatePrescription;
-
-generatePrescription = function () {
+// 產生處方：前端確定性計算並顯示；AI 建議改由使用者按鈕觸發（見 fetchAIRecommendation）
+function generatePrescription() {
   try {
     const data = collectFormData();
     // 保存表單數據
@@ -2741,43 +1568,17 @@ generatePrescription = function () {
     const prescription = calculateFITTVP(data);
 
     // 保存處方資料供 AI 使用
+    clearPDFDownload();
     window.lastPrescription = prescription;
 
     displayPrescriptionSummary(prescription);
     displayFITTPDetails(prescription);
     displayExerciseGuidelines(prescription);
 
-    // 自動觸發 AI 建議獲取
-    setTimeout(() => {
-      fetchAIRecommendation();
-    }, 100);
+    // AI 區塊回到「等待使用者同意並按下」狀態；不自動把健康資料送出
+    resetAISection();
   } catch (error) {
     console.error("Error generating prescription:", error);
     alert("生成運動處方時發生錯誤，請檢查輸入資料");
   }
-};
-
-// 檢查 AI 服務健康狀態（可選）
-async function checkAIHealth() {
-  try {
-    const response = await fetch("/api/health");
-    const data = await response.json();
-    return data.status === "ok";
-  } catch (error) {
-    return false;
-  }
 }
-
-// 頁面載入時檢查 AI 服務
-document.addEventListener("DOMContentLoaded", function () {
-  checkAIHealth().then((isAvailable) => {
-    if (!isAvailable) {
-      // 如果 AI 服務不可用，可以隱藏 AI 區塊或顯示提示
-      const aiSection = document.getElementById("aiRecommendationSection");
-      if (aiSection) {
-        // 保持顯示但會自動顯示錯誤訊息
-        // AI 服務不可用，使用標準處方
-      }
-    }
-  });
-});

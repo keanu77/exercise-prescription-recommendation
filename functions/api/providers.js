@@ -1,12 +1,6 @@
-/** GET /api/providers — 對齊 server.js 的可用提供商查詢。 */
-import { json, providerAvailability } from "../_lib/http.js";
+/** GET /api/providers — 可用提供商查詢（只回布林，不含金鑰）。 */
+import { json, withCors, corsPreflight } from "../_lib/http.js";
 
-const ORDER = ["groq", "claude", "gemini", "openai"];
-
-export async function onRequestGet({ env }) {
-  const available = providerAvailability(env);
-  return json({
-    available,
-    defaultProvider: ORDER.find((p) => available[p]) || null,
-  });
-}
+import { publicCatalog } from "../_lib/models.js";
+export const onRequestOptions = corsPreflight;
+export const onRequestGet = withCors(async ({ env }) => json(publicCatalog(env)));

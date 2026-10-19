@@ -1,0 +1,1733 @@
+{
+  "baselineCommit": "a917885",
+  "sourceSha256": "ce278e7873daabab13e8b4ce3bd1fcaee1553ce25e7889cede10ddce42e70694",
+  "cases": [
+    {
+      "id": "synthetic-01",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-02",
+      "data": {
+        "age": 6,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": null,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 7,
+        "intensity": "moderate-vigorous",
+        "time": 60,
+        "type": [
+          "自由遊戲",
+          "體能遊戲",
+          "基礎運動技能"
+        ],
+        "volume": 0,
+        "progression": "逐漸增加活動的複雜性和技能挑戰",
+        "warnings": [
+          "避免過度專項化訓練，強調多元發展"
+        ],
+        "recommendations": [
+          "WHO建議：每日累積60分鐘以上中高強度身體活動",
+          "包含肌肉與骨骼強化活動，每週至少3天",
+          "減少久坐時間，每30分鐘起身活動",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論"
+        ],
+        "ageGroup": "child",
+        "heartRateZone": null,
+        "weeklyMinutes": 420,
+        "resistanceTraining": null
+      }
+    },
+    {
+      "id": "synthetic-03",
+      "data": {
+        "age": 11,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": null,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 7,
+        "intensity": "moderate-vigorous",
+        "time": 60,
+        "type": [
+          "自由遊戲",
+          "體能遊戲",
+          "基礎運動技能"
+        ],
+        "volume": 0,
+        "progression": "逐漸增加活動的複雜性和技能挑戰",
+        "warnings": [
+          "避免過度專項化訓練，強調多元發展"
+        ],
+        "recommendations": [
+          "WHO建議：每日累積60分鐘以上中高強度身體活動",
+          "包含肌肉與骨骼強化活動，每週至少3天",
+          "減少久坐時間，每30分鐘起身活動",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論"
+        ],
+        "ageGroup": "child",
+        "heartRateZone": null,
+        "weeklyMinutes": 420,
+        "resistanceTraining": null
+      }
+    },
+    {
+      "id": "synthetic-04",
+      "data": {
+        "age": 12,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": null,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 7,
+        "intensity": "moderate-vigorous",
+        "time": 60,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "團體運動"
+        ],
+        "volume": 0,
+        "progression": "每2-3週增加運動強度或技能難度",
+        "warnings": [
+          "注意運動傷害預防，確保適當休息與恢復"
+        ],
+        "recommendations": [
+          "WHO建議：每日累積60分鐘以上中高強度身體活動",
+          "肌肉與骨骼強化活動每週至少3天",
+          "限制螢幕休閒時間，增加身體活動機會",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論"
+        ],
+        "ageGroup": "adolescent",
+        "heartRateZone": null,
+        "weeklyMinutes": 420,
+        "resistanceTraining": null
+      }
+    },
+    {
+      "id": "synthetic-05",
+      "data": {
+        "age": 17,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": null,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 7,
+        "intensity": "moderate-vigorous",
+        "time": 60,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "團體運動"
+        ],
+        "volume": 0,
+        "progression": "每2-3週增加運動強度或技能難度",
+        "warnings": [
+          "注意運動傷害預防，確保適當休息與恢復"
+        ],
+        "recommendations": [
+          "WHO建議：每日累積60分鐘以上中高強度身體活動",
+          "肌肉與骨骼強化活動每週至少3天",
+          "限制螢幕休閒時間，增加身體活動機會",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論"
+        ],
+        "ageGroup": "adolescent",
+        "heartRateZone": null,
+        "weeklyMinutes": 420,
+        "resistanceTraining": null
+      }
+    },
+    {
+      "id": "synthetic-06",
+      "data": {
+        "age": 18,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-07",
+      "data": {
+        "age": 65,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "平衡訓練",
+          "柔軟度訓練"
+        ],
+        "volume": 630,
+        "progression": "每2-4週增加5%運動量，重視功能性與平衡能力",
+        "warnings": [
+          "運動前充分暖身，注意環境安全",
+          "如有頭暈、胸悶等不適，應立即停止並就醫"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "45 歲以上且不習慣劇烈運動：維持輕至中等強度即可，若要提高到劇烈強度，請先諮詢合格運動專業人員（PAR-Q+）",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：選擇低衝擊活動如快走、水中運動，每次20-40分鐘",
+          "肌力訓練：每週2次，使用輕重量或彈力帶，每組10-15次重複",
+          "平衡訓練：每週3次，包含單腳站立、太極等，每次15-20分鐘",
+          "柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒"
+        ],
+        "ageGroup": "senior",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，中低負荷，每組10-15次"
+      }
+    },
+    {
+      "id": "synthetic-08",
+      "data": {
+        "age": 85,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "平衡訓練",
+          "柔軟度訓練"
+        ],
+        "volume": 630,
+        "progression": "每2-4週增加5%運動量，重視功能性與平衡能力",
+        "warnings": [
+          "運動前充分暖身，注意環境安全",
+          "如有頭暈、胸悶等不適，應立即停止並就醫"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "45 歲以上且不習慣劇烈運動：維持輕至中等強度即可，若要提高到劇烈強度，請先諮詢合格運動專業人員（PAR-Q+）",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：選擇低衝擊活動如快走、水中運動，每次20-40分鐘",
+          "肌力訓練：每週2次，使用輕重量或彈力帶，每組10-15次重複",
+          "平衡訓練：每週3次，包含單腳站立、太極等，每次15-20分鐘",
+          "柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒"
+        ],
+        "ageGroup": "senior",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，中低負荷，每組10-15次"
+      }
+    },
+    {
+      "id": "synthetic-09",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "yes",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "根據 PAR-Q+，請先完成追蹤問題並諮詢合格運動專業人員或醫師"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "如有不適請立即停止並諮詢專業人員",
+          "問卷有一項以上回答「是」：依 PAR-Q+ 規定，請至 eparmedx.com 完成第 2、3 頁的追蹤問題（或 ePARmed-X+），並諮詢合格運動專業人員或醫師",
+          "已知心臟病／高血壓或正在服藥：尚未規律運動者請先取得醫師同意再開始；已規律運動且無症狀者可維持中等強度，提高到劇烈強度前請先評估",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "請攜帶此評估結果與您的醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-10",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "yes",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 3,
+        "intensity": "light",
+        "time": 15,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 113,
+        "progression": "在醫師同意下，每週增加5%運動量",
+        "warnings": [
+          "⚠️ PAR-Q+ 顯示需先接受醫師評估再開始運動；取得許可前僅進行低強度活動",
+          "建議在運動醫學科醫師或合格運動專業人員監督下開始運動"
+        ],
+        "recommendations": [
+          "請在開始運動前諮詢運動醫學科醫師",
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "問卷顯示胸痛、頭暈／昏厥等症狀，或醫師曾指示只能在醫療監督下活動：開始任何強度的運動前，請先接受醫師評估（ACSM 運動前篩檢建議）",
+          "在取得醫師許可前，僅進行低強度身體活動；症狀再出現時請立即就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 45,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-11",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "yes",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 3,
+        "intensity": "light",
+        "time": 15,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 113,
+        "progression": "在醫師同意下，每週增加5%運動量",
+        "warnings": [
+          "⚠️ PAR-Q+ 顯示需先接受醫師評估再開始運動；取得許可前僅進行低強度活動",
+          "建議在運動醫學科醫師或合格運動專業人員監督下開始運動"
+        ],
+        "recommendations": [
+          "請在開始運動前諮詢運動醫學科醫師",
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "問卷顯示胸痛、頭暈／昏厥等症狀，或醫師曾指示只能在醫療監督下活動：開始任何強度的運動前，請先接受醫師評估（ACSM 運動前篩檢建議）",
+          "在取得醫師許可前，僅進行低強度身體活動；症狀再出現時請立即就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "運動時請避免快速改變姿勢，注意安全",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 45,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-12",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "yes",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 4,
+        "intensity": "light-moderate",
+        "time": 20,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 240,
+        "progression": "每週增加5-10%運動量，密切監控身體反應",
+        "warnings": [
+          "根據 PAR-Q+，請先完成追蹤問題並諮詢合格運動專業人員或醫師"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "如有不適請立即停止並諮詢專業人員",
+          "問卷有一項以上回答「是」：依 PAR-Q+ 規定，請至 eparmedx.com 完成第 2、3 頁的追蹤問題（或 ePARmed-X+），並諮詢合格運動專業人員或醫師",
+          "從低強度活動開始，逐步增加",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 57-69%（輕度至中度下緣）",
+        "weeklyMinutes": 80,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-13",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "yes",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "根據 PAR-Q+，請先完成追蹤問題並諮詢合格運動專業人員或醫師"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "如有不適請立即停止並諮詢專業人員",
+          "問卷有一項以上回答「是」：依 PAR-Q+ 規定，請至 eparmedx.com 完成第 2、3 頁的追蹤問題（或 ePARmed-X+），並諮詢合格運動專業人員或醫師",
+          "已知心臟病／高血壓或正在服藥：尚未規律運動者請先取得醫師同意再開始；已規律運動且無症狀者可維持中等強度，提高到劇烈強度前請先評估",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "請攜帶此評估結果與您的醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-14",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "yes",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 4,
+        "intensity": "light-moderate",
+        "time": 20,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 240,
+        "progression": "每週增加5-10%運動量，密切監控身體反應",
+        "warnings": [
+          "根據 PAR-Q+，請先完成追蹤問題並諮詢合格運動專業人員或醫師"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "如有不適請立即停止並諮詢專業人員",
+          "問卷有一項以上回答「是」：依 PAR-Q+ 規定，請至 eparmedx.com 完成第 2、3 頁的追蹤問題（或 ePARmed-X+），並諮詢合格運動專業人員或醫師",
+          "從低強度活動開始，逐步增加",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "請選擇關節友善的運動類型，避免高衝擊活動",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 57-69%（輕度至中度下緣）",
+        "weeklyMinutes": 80,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-15",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "yes"
+        }
+      },
+      "expected": {
+        "frequency": 3,
+        "intensity": "light",
+        "time": 15,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 113,
+        "progression": "在醫師同意下，每週增加5%運動量",
+        "warnings": [
+          "⚠️ PAR-Q+ 顯示需先接受醫師評估再開始運動；取得許可前僅進行低強度活動",
+          "建議在運動醫學科醫師或合格運動專業人員監督下開始運動"
+        ],
+        "recommendations": [
+          "請在開始運動前諮詢運動醫學科醫師",
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "問卷顯示胸痛、頭暈／昏厥等症狀，或醫師曾指示只能在醫療監督下活動：開始任何強度的運動前，請先接受醫師評估（ACSM 運動前篩檢建議）",
+          "在取得醫師許可前，僅進行低強度身體活動；症狀再出現時請立即就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 45,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-16",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "pregnant"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 4,
+        "intensity": "light",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "柔軟度訓練",
+          "骨盆底肌訓練"
+        ],
+        "volume": 300,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "避免仰躺運動、高衝擊運動和有跌倒風險的活動",
+          "懷孕期間運動強度不宜過高，以能說話為準",
+          "出現任何不適症狀應立即停止並諮詢運動醫學科醫師"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "建議選擇游泳、散步、孕婦瑜珈等低衝擊運動",
+          "運動前請先諮詢運動醫學科醫師，確認身體狀況適合運動",
+          "避免過熱環境運動，補充充足水分",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 57-63%（輕度）",
+        "weeklyMinutes": 120,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-17",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "heart_recovery"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "light-moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 540,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "出現胸痛、心悸或異常喘立即停止"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "建議在運動醫學科醫師監督下開始運動計畫",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-18",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "asthma"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "運動前備妥醫師處方的急救型吸入劑，出現喘鳴、胸悶或咳嗽不止時立即停止",
+          "避免在寒冷乾燥或空氣品質不佳的環境運動"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "延長暖身至10-15分鐘，有助於降低運動誘發型氣喘",
+          "游泳等溫暖潮濕環境的運動通常較易耐受",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-19",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "diabetes"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "運動前後檢查血糖，攜帶糖果備用"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "建議餐後1-2小時運動",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-20",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "arthritis"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "柔軟度訓練",
+          "水中運動"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "避免高衝擊運動，關節疼痛時應停止"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "柔軟度訓練：每週至少2-3次，每個伸展動作維持15-30秒",
+          "水中運動：適合關節問題者，水溫28-30°C，每次30-45分鐘"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-21",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "time"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-22",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "equipment"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-23",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "pain"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "light",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 450,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "疼痛時立即停止運動"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 57-63%（輕度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-24",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "balance"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練",
+          "平衡訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "運動時應有支撐物在旁",
+          "避免需要快速方向改變的運動，建議有人陪伴"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "平衡訓練：每週2-3次，提升身體穩定性，預防跌倒風險",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-25",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "palpitation"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "light-moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 540,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [
+          "心悸或心跳不規則時立即停止並休息，反覆發生請就醫"
+        ],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-26",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "motivation"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-27",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [
+          "injury_history"
+        ],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 30,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 630,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 180,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-28",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "poor",
+        "exercise_habit": "none",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 3,
+        "intensity": "light",
+        "time": 20,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 150,
+        "progression": "前4週：每週3次、每次20分鐘輕度運動 → 之後每2週增加10%，目標達到每週4次、每次30分鐘",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "目前無運動習慣，建議從散步、伸展等輕度活動開始",
+          "前2-4週以適應為主，不追求運動量",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 57-63%（輕度）",
+        "weeklyMinutes": 60,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-29",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "healthy",
+        "diseases": [],
+        "fitness_level": "good",
+        "exercise_habit": "student_athlete",
+        "exercise_goal": "performance",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "no",
+          "parq_q2": "no",
+          "parq_q3": "no",
+          "parq_q4": "no",
+          "parq_q5": "no",
+          "parq_q6": "no",
+          "parq_q7": "no"
+        }
+      },
+      "expected": {
+        "frequency": 6,
+        "intensity": "moderate",
+        "time": 40,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 840,
+        "progression": "每2週增加5-10%運動量，目標達到每週150-300分鐘中強度或75-150分鐘高強度",
+        "warnings": [],
+        "recommendations": [
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "表現提升目標：可納入週期化訓練（基礎期→強化期→比賽期→恢復期）",
+          "PAR-Q+ 未發現運動風險因子",
+          "問卷全部回答「否」：可以進行身體活動，請慢慢開始、循序漸進",
+          "運動中如有胸痛、頭暈、異常喘等不適，請立即停止並就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": "最大心率 64-76%（中等強度）",
+        "weeklyMinutes": 240,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    },
+    {
+      "id": "synthetic-30",
+      "data": {
+        "age": 35,
+        "gender": "male",
+        "height": 170,
+        "weight": 70,
+        "bmi": 24.2,
+        "health_status": "has_conditions",
+        "diseases": [
+          "hypertension",
+          "diabetes"
+        ],
+        "fitness_level": "good",
+        "exercise_habit": "moderate",
+        "exercise_goal": "health",
+        "limitations": [],
+        "parq_answers": {
+          "parq_q1": "yes",
+          "parq_q2": "yes",
+          "parq_q3": "yes",
+          "parq_q4": "yes",
+          "parq_q5": "yes",
+          "parq_q6": "yes",
+          "parq_q7": "yes"
+        }
+      },
+      "expected": {
+        "frequency": 3,
+        "intensity": "light",
+        "time": 15,
+        "type": [
+          "有氧運動",
+          "肌力訓練"
+        ],
+        "volume": 113,
+        "progression": "在醫師同意下，每週增加5%運動量",
+        "warnings": [
+          "⚠️ PAR-Q+ 顯示需先接受醫師評估再開始運動；取得許可前僅進行低強度活動",
+          "避免閉氣用力動作，運動中保持呼吸順暢",
+          "運動前後檢查血糖，攜帶糖果備用",
+          "建議在運動醫學科醫師或合格運動專業人員監督下開始運動"
+        ],
+        "recommendations": [
+          "請在開始運動前諮詢運動醫學科醫師",
+          "WHO建議：每週150-300分鐘中等強度有氧運動",
+          "或每週75-150分鐘高強度有氧運動",
+          "減少久坐時間，以任何強度的身體活動取代",
+          "體重過重：建議增加有氧運動頻率，控制飲食",
+          "建議每次運動前後測量血壓",
+          "建議餐後1-2小時運動",
+          "問卷顯示胸痛、頭暈／昏厥等症狀，或醫師曾指示只能在醫療監督下活動：開始任何強度的運動前，請先接受醫師評估（ACSM 運動前篩檢建議）",
+          "在取得醫師許可前，僅進行低強度身體活動；症狀再出現時請立即就醫",
+          "若目前有感冒、發燒等急性不適，請等康復後再開始；懷孕或健康狀況改變時，請先與醫師討論",
+          "請攜帶此評估結果與您的醫師討論",
+          "運動時請避免快速改變姿勢，注意安全",
+          "請選擇關節友善的運動類型，避免高衝擊活動",
+          "因服用處方藥或有心血管狀況，心率反應可能不準確，請改以自覺用力程度（RPE）與說話測試控制強度（ACSM 建議）",
+          "有氧運動：建議快走、游泳、騎車等，每次持續20-60分鐘",
+          "肌力訓練：每週2-3次，針對主要肌群，每組8-12次重複",
+          "伸展運動：每次運動前後進行5-10分鐘，改善關節活動度"
+        ],
+        "ageGroup": "adult",
+        "heartRateZone": null,
+        "weeklyMinutes": 45,
+        "resistanceTraining": "每週2-3天，涵蓋主要肌群，每組8-12次"
+      }
+    }
+  ]
+}

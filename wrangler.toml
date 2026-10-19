@@ -11,7 +11,7 @@ pages_build_output_dir = "dist"
 ALLOWED_ORIGINS = ""
 
 # /api/ai-recommendation 每 IP 每分鐘 10 次的速率限制（functions/_lib/http.js）。
-# 未綁定時優雅降級為不限制。
+# 未綁定或讀寫失敗時，站方金鑰回 503；僅實際使用自帶金鑰的請求放行。
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "fe9be7e0b6a2442d9e66cfe961dd1aaa"
